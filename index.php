@@ -7,27 +7,28 @@
     <title>FitSync — Elevate Your Performance</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
     <style>
         :root,
         [data-bs-theme="dark"] {
             --fs-red: #cc1a1a;
             --fs-red-hover: #a01212;
-            --fs-red-glow: rgba(204, 26, 26, .25);
-            --fs-hero-grid: rgba(255, 255, 255, .04);
+            --fs-red-glow: rgba(204, 26, 26, .3);
+            --fs-warm: #f5f0eb;
+            --fs-dark: #0d0d0d;
         }
 
-        [data-bs-theme="light"] {
-            --fs-hero-grid: rgba(0, 0, 0, .06);
+        * {
+            font-family: 'Outfit', system-ui, sans-serif
         }
 
         body {
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            overflow-x: hidden;
+            overflow-x: hidden
         }
 
         /* ── BRAND ── */
         .fs-red {
-            color: var(--fs-red) !important;
+            color: var(--fs-red) !important
         }
 
         .btn-fs {
@@ -35,24 +36,26 @@
             border: none;
             color: #fff;
             font-weight: 700;
+            letter-spacing: .3px
         }
 
-        .btn-fs:hover,
-        .btn-fs:focus {
+        .btn-fs:hover {
             background: var(--fs-red-hover);
-            color: #fff;
+            color: #fff
         }
 
         .btn-fs-outline {
-            border: 1px solid var(--fs-red);
-            color: var(--fs-red);
+            border: 1.5px solid rgba(255, 255, 255, .6);
+            color: #fff;
             background: transparent;
             font-weight: 600;
+            backdrop-filter: blur(4px)
         }
 
         .btn-fs-outline:hover {
-            background: var(--fs-red);
-            color: #fff;
+            border-color: #fff;
+            background: rgba(255, 255, 255, .12);
+            color: #fff
         }
 
         .badge-fs {
@@ -60,51 +63,48 @@
             color: var(--fs-red);
             border: 1px solid rgba(204, 26, 26, .3);
             font-weight: 700;
-            letter-spacing: .5px;
+            letter-spacing: .5px
         }
 
         /* ── NAVBAR ── */
         .navbar {
-            border-bottom: 1px solid var(--bs-border-color);
-            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, .08);
+            backdrop-filter: blur(18px);
+            transition: background .3s
         }
 
         [data-bs-theme="dark"] .navbar {
-            background: rgba(17, 17, 17, .92) !important;
+            background: rgba(10, 10, 10, .7) !important
         }
 
         [data-bs-theme="light"] .navbar {
-            background: rgba(255, 255, 255, .92) !important;
-        }
-
-        .nav-logo-svg {
-            width: 36px;
-            height: 36px;
-            flex-shrink: 0;
+            background: rgba(255, 255, 255, .88) !important;
+            border-bottom: 1px solid rgba(0, 0, 0, .08)
         }
 
         .brand-text .fit {
-            font-size: 1.15rem;
-            font-weight: 800;
-            letter-spacing: .5px;
+            font-size: 1.2rem;
+            font-weight: 900;
+            letter-spacing: 1px
         }
 
         .brand-text .sync {
-            font-size: 1.15rem;
-            font-weight: 800;
+            font-size: 1.2rem;
+            font-weight: 900;
             color: var(--fs-red);
-            letter-spacing: .5px;
+            letter-spacing: 1px
         }
 
         .nav-link {
             font-size: .88rem;
             font-weight: 500;
-            transition: color .2s;
+            letter-spacing: .3px;
+            transition: color .2s
         }
 
         .nav-link:hover,
         .nav-link.active {
-            color: var(--fs-red) !important;
+            color: var(--fs-red) !important
         }
 
         /* ── THEME TOGGLE ── */
@@ -116,9 +116,9 @@
             background: var(--bs-secondary-bg);
             position: relative;
             cursor: pointer;
-            transition: background .3s, border-color .3s;
+            transition: background .3s;
             padding: 0;
-            flex-shrink: 0;
+            flex-shrink: 0
         }
 
         .theme-toggle .tog-knob {
@@ -134,11 +134,11 @@
             align-items: center;
             justify-content: center;
             font-size: .65rem;
-            color: #fff;
+            color: #fff
         }
 
         [data-bs-theme="light"] .theme-toggle .tog-knob {
-            transform: translateX(24px);
+            transform: translateX(24px)
         }
 
         .theme-toggle .tog-icon-dark,
@@ -147,69 +147,189 @@
             top: 50%;
             font-size: .75rem;
             transform: translateY(-50%);
-            transition: opacity .3s;
+            transition: opacity .3s
         }
 
         .theme-toggle .tog-icon-dark {
             left: 7px;
-            opacity: 1;
+            opacity: 1
         }
 
         .theme-toggle .tog-icon-light {
             right: 7px;
-            opacity: .4;
+            opacity: .4
         }
 
         [data-bs-theme="light"] .theme-toggle .tog-icon-dark {
-            opacity: .4;
+            opacity: .4
         }
 
         [data-bs-theme="light"] .theme-toggle .tog-icon-light {
-            opacity: 1;
+            opacity: 1
         }
 
         /* ── HERO ── */
         #home {
             min-height: 100vh;
-            padding-top: 72px;
+            padding-top: 0;
             display: flex;
-            align-items: center;
+            align-items: flex-end;
             position: relative;
             overflow: hidden;
         }
 
-        .hero-bg-glow {
+        .hero-bg {
             position: absolute;
             inset: 0;
-            background: radial-gradient(ellipse 80% 60% at 60% 40%, var(--fs-red-glow) 0%, transparent 70%);
-            pointer-events: none;
+            background-image: url('BG Photo.png');
+            /* Replace with your image */
+            background-size: cover;
+            background-position: center top;
+            background-color: #1a1a1a;
+            /* fallback */
         }
 
-        .hero-grid-lines {
+        /* Cinematic multi-layer overlay */
+        .hero-bg::after {
+            content: '';
             position: absolute;
             inset: 0;
-            background-image: linear-gradient(var(--fs-hero-grid) 1px, transparent 1px), linear-gradient(90deg, var(--fs-hero-grid) 1px, transparent 1px);
-            background-size: 50px 50px;
-            pointer-events: none;
+            background:
+                linear-gradient(to top, rgba(0, 0, 0, .92) 0%, rgba(0, 0, 0, .55) 45%, rgba(0, 0, 0, .18) 100%),
+                linear-gradient(100deg, rgba(0, 0, 0, .5) 0%, transparent 60%);
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            padding-bottom: 6rem;
+            padding-top: 120px
+        }
+
+        .hero-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: .45rem;
+            background: rgba(255, 255, 255, .08);
+            border: 1px solid rgba(255, 255, 255, .15);
+            backdrop-filter: blur(8px);
+            color: rgba(255, 255, 255, .85);
+            font-size: .75rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            padding: .35rem 1rem;
+            border-radius: 50px;
+            margin-bottom: 1.4rem;
+        }
+
+        .hero-eyebrow span {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--fs-red);
+            display: inline-block
         }
 
         .hero-title {
-            font-size: clamp(2.2rem, 5.5vw, 3.8rem);
-            font-weight: 800;
-            line-height: 1.1;
+            font-size: clamp(2.8rem, 7vw, 5.2rem);
+            font-weight: 900;
+            line-height: 1.02;
+            color: #fff;
+            letter-spacing: -1px;
+        }
+
+        .hero-title em {
+            font-style: normal;
+            color: var(--fs-red)
+        }
+
+        .hero-sub {
+            font-size: 1.05rem;
+            color: rgba(255, 255, 255, .6);
+            line-height: 1.8;
+            max-width: 520px;
+            font-weight: 400
+        }
+
+        .hero-divider {
+            width: 48px;
+            height: 3px;
+            background: var(--fs-red);
+            border-radius: 2px;
+            margin: 1.5rem 0
+        }
+
+        .hero-stat {
+            border-left: 2px solid rgba(255, 255, 255, .15);
+            padding-left: 1rem
         }
 
         .hero-stat-num {
-            font-size: 1.9rem;
+            font-size: 1.7rem;
             font-weight: 800;
-            color: var(--fs-red);
+            color: #fff;
+            line-height: 1
         }
 
         .hero-stat-label {
-            font-size: .72rem;
+            font-size: .68rem;
             text-transform: uppercase;
-            letter-spacing: .5px;
-            color: var(--bs-secondary-color);
+            letter-spacing: .7px;
+            color: rgba(255, 255, 255, .45);
+            margin-top: .2rem
+        }
+
+        /* scroll indicator */
+        .scroll-hint {
+            position: absolute;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: .4rem;
+            color: rgba(255, 255, 255, .35);
+            font-size: .65rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .scroll-dot {
+            width: 24px;
+            height: 38px;
+            border-radius: 50px;
+            border: 1.5px solid rgba(255, 255, 255, .2);
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding-top: 6px;
+        }
+
+        .scroll-dot::before {
+            content: '';
+            width: 4px;
+            height: 8px;
+            border-radius: 2px;
+            background: rgba(255, 255, 255, .4);
+            animation: scrollDot 2s ease-in-out infinite;
+        }
+
+        @keyframes scrollDot {
+
+            0%,
+            100% {
+                transform: translateY(0);
+                opacity: 1
+            }
+
+            60% {
+                transform: translateY(10px);
+                opacity: .2
+            }
         }
 
         /* ── SECTION HEADERS ── */
@@ -220,25 +340,63 @@
             font-size: .72rem;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: .7px;
+            letter-spacing: .7px
         }
 
         .section-title {
-            font-size: clamp(1.6rem, 4vw, 2.3rem);
+            font-size: clamp(1.7rem, 4vw, 2.5rem);
             font-weight: 800;
+            letter-spacing: -.5px
+        }
+
+        /* ── STRIP (lifestyle quote) ── */
+        .lifestyle-strip {
+            background: var(--fs-red);
+            overflow: hidden;
+            white-space: nowrap;
+            padding: .7rem 0;
+        }
+
+        .strip-track {
+            display: inline-flex;
+            gap: 3rem;
+            animation: stripScroll 22s linear infinite;
+        }
+
+        .strip-track span {
+            font-size: .78rem;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, .9)
+        }
+
+        .strip-track .dot {
+            color: rgba(255, 255, 255, .45);
+            font-size: 1rem
+        }
+
+        @keyframes stripScroll {
+            from {
+                transform: translateX(0)
+            }
+
+            to {
+                transform: translateX(-50%)
+            }
         }
 
         /* ── GALLERY ── */
         #gallery {
-            background: var(--bs-secondary-bg);
+            background: var(--bs-secondary-bg)
         }
 
         .gcard {
             position: relative;
-            border-radius: 12px;
+            border-radius: 18px;
             overflow: hidden;
             aspect-ratio: 4/3;
-            cursor: pointer;
+            cursor: pointer
         }
 
         .gcard-fake {
@@ -249,23 +407,23 @@
             align-items: center;
             justify-content: center;
             font-size: 3rem;
-            transition: transform .4s;
+            transition: transform .5s cubic-bezier(.25, .46, .45, .94)
         }
 
         .gcard:hover .gcard-fake {
-            transform: scale(1.06);
+            transform: scale(1.08)
         }
 
         .gcard-overlay {
             position: absolute;
             inset: 0;
-            background: linear-gradient(to top, rgba(0, 0, 0, .78) 0%, transparent 55%);
+            background: linear-gradient(to top, rgba(0, 0, 0, .8) 0%, transparent 55%);
             opacity: 0;
-            transition: opacity .3s;
+            transition: opacity .35s
         }
 
         .gcard:hover .gcard-overlay {
-            opacity: 1;
+            opacity: 1
         }
 
         .gcard-info {
@@ -273,33 +431,49 @@
             bottom: 0;
             left: 0;
             right: 0;
-            padding: 1rem;
+            padding: 1.2rem;
             opacity: 0;
-            transform: translateY(6px);
-            transition: all .3s;
+            transform: translateY(8px);
+            transition: all .35s
         }
 
         .gcard:hover .gcard-info {
             opacity: 1;
-            transform: translateY(0);
+            transform: translateY(0)
+        }
+
+        .gcard-tag {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            background: rgba(0, 0, 0, .45);
+            backdrop-filter: blur(6px);
+            color: rgba(255, 255, 255, .8);
+            font-size: .65rem;
+            font-weight: 600;
+            letter-spacing: .5px;
+            text-transform: uppercase;
+            padding: .2rem .65rem;
+            border-radius: 50px;
         }
 
         /* ── PLANS ── */
         .plan-card {
-            border-radius: 16px;
-            padding: 1.75rem 1.5rem;
+            border-radius: 20px;
+            padding: 2rem 1.75rem;
             position: relative;
-            transition: transform .2s, border-color .2s;
+            transition: transform .25s, border-color .25s, box-shadow .25s
         }
 
         .plan-card:hover {
-            transform: translateY(-5px);
+            transform: translateY(-6px);
             border-color: rgba(204, 26, 26, .4) !important;
+            box-shadow: 0 20px 48px rgba(0, 0, 0, .2)
         }
 
         .plan-card.popular {
             border-color: var(--fs-red) !important;
-            border-width: 2px !important;
+            border-width: 2px !important
         }
 
         .plan-popular-badge {
@@ -315,31 +489,26 @@
             border-radius: 50px;
             text-transform: uppercase;
             letter-spacing: .5px;
-            white-space: nowrap;
+            white-space: nowrap
         }
 
         .plan-price {
-            font-size: 2.4rem;
+            font-size: 2.6rem;
             font-weight: 800;
-            line-height: 1.1;
-        }
-
-        .plan-price sup {
-            font-size: 1rem;
-            vertical-align: super;
-            font-weight: 600;
+            line-height: 1;
+            letter-spacing: -1px
         }
 
         .plan-price sub {
             font-size: .82rem;
             font-weight: 400;
-            color: var(--bs-secondary-color);
+            color: var(--bs-secondary-color)
         }
 
         .plan-orig {
             font-size: .8rem;
             text-decoration: line-through;
-            color: var(--bs-secondary-color);
+            color: var(--bs-secondary-color)
         }
 
         .plan-feature {
@@ -347,26 +516,26 @@
             align-items: center;
             gap: .5rem;
             font-size: .84rem;
-            color: var(--bs-secondary-color);
+            color: var(--bs-secondary-color)
         }
 
         .plan-feature.yes {
-            color: var(--bs-body-color);
+            color: var(--bs-body-color)
         }
 
         .plan-feature i.yes {
-            color: var(--fs-red);
+            color: var(--fs-red)
         }
 
         /* ── FOOTER ── */
         footer {
-            border-top: 1px solid var(--bs-border-color);
+            border-top: 1px solid var(--bs-border-color)
         }
 
         .soc-btn {
-            width: 34px;
-            height: 34px;
-            border-radius: 8px;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
             border: 1px solid var(--bs-border-color);
             background: var(--bs-secondary-bg);
             color: var(--bs-secondary-color);
@@ -375,24 +544,24 @@
             justify-content: center;
             text-decoration: none;
             font-size: 1rem;
-            transition: background .2s, color .2s, border-color .2s;
+            transition: all .2s
         }
 
         .soc-btn:hover {
             background: var(--fs-red);
             border-color: var(--fs-red);
-            color: #fff;
+            color: #fff
         }
 
         .footer-link {
             color: var(--bs-secondary-color);
             text-decoration: none;
             font-size: .85rem;
-            transition: color .2s;
+            transition: color .2s
         }
 
         .footer-link:hover {
-            color: var(--fs-red);
+            color: var(--fs-red)
         }
 
         .plugin-badge {
@@ -401,7 +570,7 @@
             color: var(--bs-secondary-color);
             font-size: .7rem;
             padding: .2rem .6rem;
-            border-radius: 5px;
+            border-radius: 5px
         }
 
         /* ── FAB ── */
@@ -413,7 +582,7 @@
             display: flex;
             flex-direction: column;
             align-items: flex-end;
-            gap: .55rem;
+            gap: .55rem
         }
 
         .fab-menu {
@@ -421,19 +590,19 @@
             flex-direction: column;
             gap: .45rem;
             align-items: flex-end;
-            transition: opacity .25s, transform .25s;
+            transition: opacity .25s, transform .25s
         }
 
         .fab-menu.d-none-anim {
             opacity: 0;
             transform: translateY(10px);
-            pointer-events: none;
+            pointer-events: none
         }
 
         .fab-item {
             display: flex;
             align-items: center;
-            gap: .55rem;
+            gap: .55rem
         }
 
         .fab-label {
@@ -444,7 +613,7 @@
             padding: .22rem .65rem;
             border-radius: 6px;
             white-space: nowrap;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, .15);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .15)
         }
 
         .fab-sm {
@@ -458,7 +627,7 @@
             justify-content: center;
             font-size: 1rem;
             cursor: pointer;
-            flex-shrink: 0;
+            flex-shrink: 0
         }
 
         .fab-main {
@@ -473,16 +642,16 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            box-shadow: 0 4px 18px var(--fs-red-glow);
-            transition: background .2s, transform .25s;
+            box-shadow: 0 4px 24px var(--fs-red-glow);
+            transition: background .2s, transform .25s
         }
 
         .fab-main:hover {
-            background: var(--fs-red-hover);
+            background: var(--fs-red-hover)
         }
 
         .fab-main.open {
-            transform: rotate(45deg);
+            transform: rotate(45deg)
         }
     </style>
 </head>
@@ -493,24 +662,12 @@
     <nav class="navbar navbar-expand-lg fixed-top">
         <div class="container">
             <a class="navbar-brand d-flex align-items-center gap-2 text-decoration-none" href="#home">
-                <svg class="nav-logo-svg" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="60" cy="60" r="54" fill="none" stroke="#cc1a1a" stroke-width="7" />
-                    <path d="M60 6 A54 54 0 1 1 14 77" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" opacity=".15" />
-                    <path d="M60 6 A54 54 0 0 1 106 77" fill="none" stroke="#cc1a1a" stroke-width="7" stroke-linecap="round" />
-                    <polygon points="109,63 99,81 119,81" fill="#cc1a1a" />
-                    <rect x="27" y="52" width="11" height="16" rx="3" fill="currentColor" />
-                    <rect x="82" y="52" width="11" height="16" rx="3" fill="currentColor" />
-                    <rect x="19" y="55" width="11" height="10" rx="2" fill="currentColor" />
-                    <rect x="90" y="55" width="11" height="10" rx="2" fill="currentColor" />
-                    <rect x="38" y="55" width="44" height="10" rx="3" fill="currentColor" />
-                </svg>
+                <img src="FitSYNC Emblem.svg" alt="FitSync" width="36" height="36" style="flex-shrink:0" />
                 <span class="brand-text"><span class="fit">FIT</span><span class="sync">SYNC</span></span>
             </a>
-
-            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu" aria-controls="navMenu" aria-expanded="false" aria-label="Toggle navigation">
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu" aria-label="Toggle navigation">
                 <i class="ti ti-menu-2 fs-5"></i>
             </button>
-
             <div class="collapse navbar-collapse" id="navMenu">
                 <ul class="navbar-nav mx-auto gap-1">
                     <li class="nav-item"><a class="nav-link active" href="#home">Home</a></li>
@@ -518,7 +675,6 @@
                     <li class="nav-item"><a class="nav-link" href="#plans">Plans</a></li>
                 </ul>
                 <div class="d-flex align-items-center gap-2 mt-3 mt-lg-0">
-                    <!-- THEME TOGGLE -->
                     <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Toggle theme">
                         <i class="ti ti-moon tog-icon-dark text-body-secondary"></i>
                         <i class="ti ti-sun tog-icon-light text-warning"></i>
@@ -533,60 +689,74 @@
 
     <!-- ════════════════ HERO ════════════════ -->
     <section id="home">
-        <div class="hero-bg-glow"></div>
-        <div class="hero-grid-lines"></div>
-        <div class="container position-relative py-5">
-            <div class="row align-items-center gy-5">
-                <div class="col-lg-6">
-                    <span class="badge badge-fs rounded-pill mb-3 fs-6 px-3 py-2">
-                        <i class="ti ti-flame me-1"></i>#1 Gym Network in the City
-                    </span>
-                    <h1 class="hero-title mb-3">
-                        Push Past Your <span class="fs-red">Limits.</span><br>
-                        Sync Your <span class="fs-red">Progress.</span>
-                    </h1>
-                    <p class="text-secondary mb-4" style="font-size:1.05rem;line-height:1.75;">
-                        Train smarter with world-class equipment, expert coaches, and a community that keeps you accountable — every rep, every day.
-                    </p>
-                    <div class="d-flex flex-wrap gap-2 mb-5">
-                        <a href="auth.php?mode=register" class="btn btn-fs btn-lg px-4">
-                            <i class="ti ti-bolt me-1"></i>Join Now
-                        </a>
-                        <a href="#plans" class="btn btn-fs-outline btn-lg px-4">View Plans</a>
-                    </div>
-                    <div class="row g-3 text-center text-lg-start">
-                        <div class="col-3">
-                            <div class="hero-stat-num">12K+</div>
-                            <div class="hero-stat-label">Members</div>
+        <div class="hero-bg"></div>
+
+        <div class="hero-content">
+            <div class="container">
+                <div class="row">
+                    <div class="col-lg-8 col-xl-7">
+
+                        <div class="hero-eyebrow">
+                            <span></span>#1 Gym Network in the City
                         </div>
-                        <div class="col-3">
-                            <div class="hero-stat-num">8</div>
-                            <div class="hero-stat-label">Locations</div>
+
+                        <h1 class="hero-title mb-0">
+                            Push Past<br>Your <em>Limits.</em><br>
+                            <span style="color:rgba(255,255,255,.88)">Live the</span> <em>Lifestyle.</em>
+                        </h1>
+
+                        <div class="hero-divider"></div>
+
+                        <p class="hero-sub mb-4">
+                            Train smarter with world-class equipment, expert coaches, and a community that keeps you accountable — every rep, every day.
+                        </p>
+
+                        <div class="d-flex flex-wrap gap-3 mb-5">
+                            <a href="auth.php?mode=register" class="btn btn-fs btn-lg px-5 py-3 rounded-pill">
+                                <i class="ti ti-bolt me-1"></i>Join Now
+                            </a>
+                            <a href="#plans" class="btn btn-fs-outline btn-lg px-5 py-3 rounded-pill">View Plans</a>
                         </div>
-                        <div class="col-3">
-                            <div class="hero-stat-num">200+</div>
-                            <div class="hero-stat-label">Equipment</div>
+
+                        <div class="d-flex flex-wrap gap-4">
+                            <div class="hero-stat">
+                                <div class="hero-stat-num">12K+</div>
+                                <div class="hero-stat-label">Members</div>
+                            </div>
+                            <div class="hero-stat">
+                                <div class="hero-stat-num">8</div>
+                                <div class="hero-stat-label">Locations</div>
+                            </div>
+                            <div class="hero-stat">
+                                <div class="hero-stat-num">200+</div>
+                                <div class="hero-stat-label">Equipment</div>
+                            </div>
+                            <div class="hero-stat">
+                                <div class="hero-stat-num">50+</div>
+                                <div class="hero-stat-label">Coaches</div>
+                            </div>
                         </div>
-                        <div class="col-3">
-                            <div class="hero-stat-num">50+</div>
-                            <div class="hero-stat-label">Coaches</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-6 d-flex justify-content-center">
-                    <div class="p-4 rounded-4 text-center" style="background:var(--bs-secondary-bg);border:1px solid var(--bs-border-color);max-width:340px;width:100%;">
-                        <div style="font-size:6rem;line-height:1;">🏋️</div>
-                        <p class="text-secondary mt-2 mb-0" style="font-size:.82rem;">Replace with hero image / video</p>
+
                     </div>
                 </div>
             </div>
         </div>
+
+        <div class="scroll-hint">
+            <div class="scroll-dot"></div>
+            Scroll
+        </div>
     </section>
+
+    <!-- ════════════════ MARQUEE STRIP ════════════════ -->
+    <div class="lifestyle-strip">
+        <div class="strip-track" id="stripTrack"></div>
+    </div>
 
     <!-- ════════════════ GALLERY ════════════════ -->
     <section id="gallery" class="py-5">
         <div class="container">
-            <div class="text-center mb-4">
+            <div class="text-center mb-5">
                 <span class="section-tag badge-fs mb-2">Our Space</span>
                 <h2 class="section-title">World-Class Facilities</h2>
                 <p class="text-secondary">State-of-the-art equipment across all our branches</p>
@@ -613,8 +783,8 @@
 
                 <div class="col-sm-6 col-xl-3">
                     <div class="plan-card border h-100 d-flex flex-column">
-                        <div class="text-uppercase fs-red fw-bold mb-1" style="font-size:.75rem;letter-spacing:.5px;">1 Month</div>
-                        <div class="plan-price">₱<span>999</span><sub>/mo</sub></div>
+                        <div class="text-uppercase fs-red fw-bold mb-1" style="font-size:.72rem;letter-spacing:.7px">1 Month</div>
+                        <div class="plan-price">₱999<sub>/mo</sub></div>
                         <div class="plan-orig mb-3">₱1,299</div>
                         <hr class="my-2" />
                         <ul class="list-unstyled d-flex flex-column gap-2 mb-4 flex-grow-1">
@@ -624,14 +794,14 @@
                             <li class="plan-feature"><i class="ti ti-x text-secondary"></i>Personal trainer</li>
                             <li class="plan-feature"><i class="ti ti-x text-secondary"></i>Multi-branch access</li>
                         </ul>
-                        <a href="auth.php?plan=1mo" class="btn btn-outline-secondary w-100 fw-semibold">Get Started</a>
+                        <a href="auth.php?plan=1mo" class="btn btn-outline-secondary w-100 fw-semibold rounded-pill">Get Started</a>
                     </div>
                 </div>
 
                 <div class="col-sm-6 col-xl-3">
                     <div class="plan-card border h-100 d-flex flex-column">
-                        <div class="text-uppercase fs-red fw-bold mb-1" style="font-size:.75rem;letter-spacing:.5px;">3 Months</div>
-                        <div class="plan-price">₱<span>2,699</span><sub>/3mo</sub></div>
+                        <div class="text-uppercase fs-red fw-bold mb-1" style="font-size:.72rem;letter-spacing:.7px">3 Months</div>
+                        <div class="plan-price">₱2,699<sub>/3mo</sub></div>
                         <div class="plan-orig mb-3">₱3,897</div>
                         <hr class="my-2" />
                         <ul class="list-unstyled d-flex flex-column gap-2 mb-4 flex-grow-1">
@@ -641,15 +811,15 @@
                             <li class="plan-feature yes"><i class="ti ti-check fs-red yes"></i>1 PT session/month</li>
                             <li class="plan-feature"><i class="ti ti-x text-secondary"></i>Multi-branch access</li>
                         </ul>
-                        <a href="auth.php?plan=3mo" class="btn btn-outline-secondary w-100 fw-semibold">Get Started</a>
+                        <a href="auth.php?plan=3mo" class="btn btn-outline-secondary w-100 fw-semibold rounded-pill">Get Started</a>
                     </div>
                 </div>
 
                 <div class="col-sm-6 col-xl-3">
                     <div class="plan-card popular border h-100 d-flex flex-column">
                         <div class="plan-popular-badge">Most Popular</div>
-                        <div class="text-uppercase fs-red fw-bold mb-1" style="font-size:.75rem;letter-spacing:.5px;">6 Months</div>
-                        <div class="plan-price">₱<span>4,799</span><sub>/6mo</sub></div>
+                        <div class="text-uppercase fs-red fw-bold mb-1" style="font-size:.72rem;letter-spacing:.7px">6 Months</div>
+                        <div class="plan-price">₱4,799<sub>/6mo</sub></div>
                         <div class="plan-orig mb-3">₱7,794</div>
                         <hr class="my-2" />
                         <ul class="list-unstyled d-flex flex-column gap-2 mb-4 flex-grow-1">
@@ -659,14 +829,14 @@
                             <li class="plan-feature yes"><i class="ti ti-check fs-red yes"></i>2 PT sessions/month</li>
                             <li class="plan-feature yes"><i class="ti ti-check fs-red yes"></i>Multi-branch access</li>
                         </ul>
-                        <a href="auth.php?plan=6mo" class="btn btn-fs w-100 fw-semibold">Get Started</a>
+                        <a href="auth.php?plan=6mo" class="btn btn-fs w-100 fw-semibold rounded-pill">Get Started</a>
                     </div>
                 </div>
 
                 <div class="col-sm-6 col-xl-3">
                     <div class="plan-card border h-100 d-flex flex-column">
-                        <div class="text-uppercase fs-red fw-bold mb-1" style="font-size:.75rem;letter-spacing:.5px;">12 Months</div>
-                        <div class="plan-price">₱<span>7,999</span><sub>/yr</sub></div>
+                        <div class="text-uppercase fs-red fw-bold mb-1" style="font-size:.72rem;letter-spacing:.7px">12 Months</div>
+                        <div class="plan-price">₱7,999<sub>/yr</sub></div>
                         <div class="plan-orig mb-3">₱15,588</div>
                         <hr class="my-2" />
                         <ul class="list-unstyled d-flex flex-column gap-2 mb-4 flex-grow-1">
@@ -676,7 +846,7 @@
                             <li class="plan-feature yes"><i class="ti ti-check fs-red yes"></i>4 PT sessions/month</li>
                             <li class="plan-feature yes"><i class="ti ti-check fs-red yes"></i>Multi-branch access</li>
                         </ul>
-                        <a href="auth.php?plan=12mo" class="btn btn-outline-secondary w-100 fw-semibold">Get Started</a>
+                        <a href="auth.php?plan=12mo" class="btn btn-outline-secondary w-100 fw-semibold rounded-pill">Get Started</a>
                     </div>
                 </div>
 
@@ -690,29 +860,19 @@
             <div class="row g-4 mb-4">
                 <div class="col-lg-4">
                     <div class="d-flex align-items-center gap-2 mb-3">
-                        <svg width="30" height="30" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="60" cy="60" r="54" fill="none" stroke="#cc1a1a" stroke-width="7" />
-                            <path d="M60 6 A54 54 0 0 1 106 77" fill="none" stroke="#cc1a1a" stroke-width="7" stroke-linecap="round" />
-                            <polygon points="109,63 99,81 119,81" fill="#cc1a1a" />
-                            <rect x="27" y="52" width="11" height="16" rx="3" fill="currentColor" />
-                            <rect x="82" y="52" width="11" height="16" rx="3" fill="currentColor" />
-                            <rect x="19" y="55" width="11" height="10" rx="2" fill="currentColor" />
-                            <rect x="90" y="55" width="11" height="10" rx="2" fill="currentColor" />
-                            <rect x="38" y="55" width="44" height="10" rx="3" fill="currentColor" />
-                        </svg>
-                        <span class="brand-text"><span class="fit">FIT</span><span class="sync">SYNC</span></span>
+                        <img src="FitSYNC Logo.svg" alt="FitSync" height="30" />
                     </div>
-                    <p class="text-secondary" style="font-size:.85rem;line-height:1.75;">Your ultimate fitness companion. Track progress, book classes, and connect with coaches — all in one place.</p>
+                    <p class="text-secondary" style="font-size:.85rem;line-height:1.8">Your ultimate fitness companion. Track progress, book classes, and connect with coaches — all in one place.</p>
                     <div class="d-flex gap-2 flex-wrap mt-3">
                         <a class="soc-btn" href="#" aria-label="Facebook"><i class="ti ti-brand-facebook"></i></a>
                         <a class="soc-btn" href="#" aria-label="Instagram"><i class="ti ti-brand-instagram"></i></a>
                         <a class="soc-btn" href="#" aria-label="TikTok"><i class="ti ti-brand-tiktok"></i></a>
                         <a class="soc-btn" href="#" aria-label="YouTube"><i class="ti ti-brand-youtube"></i></a>
-                        <a class="soc-btn" href="#" aria-label="X / Twitter"><i class="ti ti-brand-x"></i></a>
+                        <a class="soc-btn" href="#" aria-label="X"><i class="ti ti-brand-x"></i></a>
                     </div>
                 </div>
                 <div class="col-6 col-lg-2 offset-lg-1">
-                    <h6 class="fw-bold text-uppercase mb-3" style="font-size:.78rem;letter-spacing:.5px;">Company</h6>
+                    <h6 class="fw-bold text-uppercase mb-3" style="font-size:.75rem;letter-spacing:.7px">Company</h6>
                     <ul class="list-unstyled d-flex flex-column gap-2">
                         <li><a href="#" class="footer-link">About Us</a></li>
                         <li><a href="#" class="footer-link">Careers</a></li>
@@ -721,7 +881,7 @@
                     </ul>
                 </div>
                 <div class="col-6 col-lg-2">
-                    <h6 class="fw-bold text-uppercase mb-3" style="font-size:.78rem;letter-spacing:.5px;">Support</h6>
+                    <h6 class="fw-bold text-uppercase mb-3" style="font-size:.75rem;letter-spacing:.7px">Support</h6>
                     <ul class="list-unstyled d-flex flex-column gap-2">
                         <li><a href="#" class="footer-link">Help Center</a></li>
                         <li><a href="#" class="footer-link">Contact Us</a></li>
@@ -730,7 +890,7 @@
                     </ul>
                 </div>
                 <div class="col-6 col-lg-2">
-                    <h6 class="fw-bold text-uppercase mb-3" style="font-size:.78rem;letter-spacing:.5px;">Legal</h6>
+                    <h6 class="fw-bold text-uppercase mb-3" style="font-size:.75rem;letter-spacing:.7px">Legal</h6>
                     <ul class="list-unstyled d-flex flex-column gap-2">
                         <li><a href="#" class="footer-link">Privacy Policy</a></li>
                         <li><a href="#" class="footer-link">Terms of Use</a></li>
@@ -739,10 +899,9 @@
                     </ul>
                 </div>
             </div>
-
             <hr class="border-secondary" />
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <p class="text-secondary mb-0" style="font-size:.78rem;">© 2025 FitSync. All rights reserved.</p>
+                <p class="text-secondary mb-0" style="font-size:.78rem">© 2025 FitSync. All rights reserved.</p>
                 <div class="d-flex gap-1 flex-wrap">
                     <span class="plugin-badge">PHP 8.2</span>
                     <span class="plugin-badge">MySQL</span>
@@ -777,6 +936,13 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        /* ── MARQUEE ── */
+        const slogans = ['Train Hard · Live Well', 'No Limits · No Excuses', 'Your Best Self Starts Here', 'Sweat · Strength · Sync', 'Built Different', 'Every Rep Counts', 'Community · Commitment · Results'];
+        const t = document.getElementById('stripTrack');
+        const doubled = [...slogans, ...slogans];
+        t.innerHTML = doubled.map(s => `<span>${s}</span><span class="dot">✦</span>`).join('');
+
+        /* ── GALLERY ── */
         const galleryData = [{
                 tag: 'gym',
                 icon: '🏋️',
@@ -830,30 +996,32 @@
         function renderGallery(f) {
             const items = f === 'all' ? galleryData : galleryData.filter(i => i.tag === f);
             document.getElementById('gallery-grid').innerHTML = items.map(i => `
-    <div class="col-sm-6 col-md-4 col-lg-3">
-      <div class="gcard">
-        <div class="gcard-fake">${i.icon}</div>
-        <div class="gcard-overlay"></div>
-        <div class="gcard-info">
-          <div class="fw-bold text-white" style="font-size:.88rem">${i.title}</div>
-          <div class="d-flex align-items-center gap-1 text-white-50" style="font-size:.72rem">
-            <i class="ti ti-map-pin"></i>${i.loc}
+      <div class="col-sm-6 col-md-4 col-lg-3">
+        <div class="gcard">
+          <div class="gcard-fake">${i.icon}</div>
+          <div class="gcard-tag">${i.tag}</div>
+          <div class="gcard-overlay"></div>
+          <div class="gcard-info">
+            <div class="fw-bold text-white" style="font-size:.9rem">${i.title}</div>
+            <div class="d-flex align-items-center gap-1 text-white-50" style="font-size:.72rem">
+              <i class="ti ti-map-pin"></i>${i.loc}
+            </div>
           </div>
         </div>
-      </div>
-    </div>`).join('');
+      </div>`).join('');
         }
 
         function filterGallery(tag, btn) {
             document.querySelectorAll('#gallery-tabs button').forEach(b => {
                 b.classList.remove('btn-fs', 'active-tab');
-                b.classList.add('btn-outline-secondary');
+                b.classList.add('btn-outline-secondary')
             });
             btn.classList.remove('btn-outline-secondary');
             btn.classList.add('btn-fs', 'active-tab');
             renderGallery(tag);
         }
 
+        /* ── THEME ── */
         function toggleTheme() {
             const html = document.documentElement;
             const isDark = html.getAttribute('data-bs-theme') === 'dark';
@@ -861,24 +1029,23 @@
             document.getElementById('knob-icon').className = isDark ? 'ti ti-sun' : 'ti ti-moon';
         }
 
+        /* ── FAB ── */
         let fabOpen = false;
 
         function toggleFab() {
             fabOpen = !fabOpen;
-            const m = document.getElementById('fabMenu');
-            const btn = document.getElementById('fabMain');
-            m.classList.toggle('d-none-anim', !fabOpen);
-            btn.classList.toggle('open', fabOpen);
+            document.getElementById('fabMenu').classList.toggle('d-none-anim', !fabOpen);
+            document.getElementById('fabMain').classList.toggle('open', fabOpen);
         }
 
+        /* ── SCROLL SPY ── */
         window.addEventListener('scroll', () => {
-            const links = document.querySelectorAll('.nav-link[href^="#"]');
             let cur = 'home';
             ['home', 'gallery', 'plans'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el && window.scrollY >= el.offsetTop - 80) cur = id;
             });
-            links.forEach(a => {
+            document.querySelectorAll('.nav-link[href^="#"]').forEach(a => {
                 a.classList.toggle('active', a.getAttribute('href') === '#' + cur);
             });
         });
