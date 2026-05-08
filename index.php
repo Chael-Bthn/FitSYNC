@@ -181,8 +181,7 @@
         .hero-bg {
             position: absolute;
             inset: 0;
-            background-image: url('BG Photo.png');
-            /* Replace with your image */
+            background-image: url('gallery/BG Photo.png');
             background-size: cover;
             background-position: center top;
             background-color: #1a1a1a;
@@ -399,19 +398,42 @@
             cursor: pointer
         }
 
-        .gcard-fake {
+        /* photo fills */
+        .gcard-img-wrap {
             width: 100%;
             height: 100%;
-            background: var(--bs-tertiary-bg);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 3rem;
+            overflow: hidden;
+            background: var(--bs-tertiary-bg)
+        }
+
+        .gcard-photo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
             transition: transform .5s cubic-bezier(.25, .46, .45, .94)
         }
 
-        .gcard:hover .gcard-fake {
+        .gcard:hover .gcard-photo {
             transform: scale(1.08)
+        }
+
+        /* fallback when image fails to load */
+        .gcard-no-img {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            color: var(--bs-secondary-color)
+        }
+
+        .gcard-no-img::after {
+            content: '📷 Add photo';
+            font-size: .75rem;
+            font-family: inherit;
+            color: var(--bs-secondary-color);
+            display: block;
+            margin-top: .4rem
         }
 
         .gcard-overlay {
@@ -945,51 +967,51 @@
         /* ── GALLERY ── */
         const galleryData = [{
                 tag: 'gym',
-                icon: '🏋️',
-                title: 'Weight Room',
+                img: 'gallery/Plyo area.png',
+                title: 'Plyometrics Area',
                 loc: 'Main Branch — Quezon City'
             },
             {
                 tag: 'gym',
-                icon: '💪',
-                title: 'Cardio Zone',
+                img: 'gallery/Boxing ring.png',
+                title: 'Boxing Ring',
                 loc: 'Makati Branch'
             },
             {
                 tag: 'class',
-                icon: '🧘',
+                img: 'gallery/Mirror room.png',
                 title: 'Yoga Studio',
                 loc: 'BGC Branch'
             },
             {
                 tag: 'class',
-                icon: '🥊',
-                title: 'Boxing Ring',
+                img: 'gallery/Lounge.png',
+                title: 'Lounge Area',
                 loc: 'Main Branch — Quezon City'
             },
             {
                 tag: 'location',
-                icon: '🏢',
-                title: 'BGC Flagship',
+                img: 'gallery/Locker 1.png',
+                title: 'Locker room 1',
                 loc: 'Bonifacio Global City'
             },
             {
                 tag: 'location',
-                icon: '🏙️',
-                title: 'Ortigas Hub',
+                img: 'gallery/Locker 2.png',
+                title: 'Locker room 2',
                 loc: 'Ortigas Center, Pasig'
             },
             {
                 tag: 'gym',
-                icon: '🚴',
-                title: 'Cycling Studio',
+                img: 'gallery/Counter.png',
+                title: 'Counter',
                 loc: 'Eastwood Branch'
             },
-            {
-                tag: 'location',
-                icon: '🌆',
-                title: 'Makati Branch',
-                loc: 'Ayala Ave, Makati'
+                        {
+                tag: 'gym',
+                img: 'gallery/Boxing ring.png',
+                title: 'Boxing Ring',
+                loc: 'Makati Branch'
             },
         ];
 
@@ -998,7 +1020,15 @@
             document.getElementById('gallery-grid').innerHTML = items.map(i => `
       <div class="col-sm-6 col-md-4 col-lg-3">
         <div class="gcard">
-          <div class="gcard-fake">${i.icon}</div>
+          <div class="gcard-img-wrap">
+            <img
+              src="${i.img}"
+              alt="${i.title}"
+              class="gcard-photo"
+              loading="lazy"
+              onerror="this.parentElement.classList.add('gcard-no-img')"
+            />
+          </div>
           <div class="gcard-tag">${i.tag}</div>
           <div class="gcard-overlay"></div>
           <div class="gcard-info">
