@@ -697,13 +697,14 @@
                     <li class="nav-item"><a class="nav-link" href="#plans">Plans</a></li>
                 </ul>
                 <div class="d-flex align-items-center gap-2 mt-3 mt-lg-0">
+                    <a href="auth.php?mode=login" class="btn btn-sm btn-outline-secondary px-3">Log In</a>
+                    <a href="auth.php?mode=register" class="btn btn-sm btn-fs px-3">Join Free</a>
                     <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Toggle theme">
                         <i class="ti ti-moon tog-icon-dark text-body-secondary"></i>
                         <i class="ti ti-sun tog-icon-light text-warning"></i>
                         <span class="tog-knob"><i class="ti ti-moon" id="knob-icon"></i></span>
                     </button>
-                    <a href="auth.php?mode=login" class="btn btn-sm btn-outline-secondary px-3">Log In</a>
-                    <a href="auth.php?mode=register" class="btn btn-sm btn-fs px-3">Join Free</a>
+
                 </div>
             </div>
         </div>
@@ -1007,7 +1008,7 @@
                 title: 'Counter',
                 loc: 'Eastwood Branch'
             },
-                        {
+            {
                 tag: 'gym',
                 img: 'gallery/Boxing ring.png',
                 title: 'Boxing Ring',
