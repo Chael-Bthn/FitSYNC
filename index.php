@@ -814,6 +814,40 @@
             transform: rotate(45deg)
         }
 
+        /* ── LOCATIONS ── */
+        .branch-card {
+            cursor: pointer;
+            transition: border-color .2s, background .2s, color .2s;
+            color: var(--bs-body-color);
+            background: transparent;
+        }
+
+        .branch-card.active-branch {
+            border-color: var(--fs-red) !important;
+            background: rgba(204, 26, 26, .1) !important;
+            color: var(--fs-red) !important;
+        }
+
+        .branch-card:hover:not(.active-branch) {
+            border-color: rgba(204, 26, 26, .35) !important;
+        }
+
+        .loc-map-wrap {
+            height: 480px;
+        }
+
+        @media (max-width: 991.98px) {
+            .loc-map-wrap {
+                height: 380px;
+            }
+        }
+
+        @media (max-width: 575.98px) {
+            .loc-map-wrap {
+                height: 280px;
+            }
+        }
+
         /* ════════════════════════════════════════
            RESPONSIVE FIXES
         ════════════════════════════════════════ */
@@ -1009,11 +1043,12 @@
                 <ul class="navbar-nav mx-auto gap-1">
                     <li class="nav-item"><a class="nav-link active" href="#home">Home</a></li>
                     <li class="nav-item"><a class="nav-link" href="#gallery">Gallery</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#locations">Locations</a></li>
                     <li class="nav-item"><a class="nav-link" href="#plans">Plans</a></li>
                 </ul>
                 <div class="d-flex align-items-center gap-2 mt-3 mt-lg-0">
                     <a href="auth.php?mode=login" class="btn btn-sm btn-outline-secondary px-3">Log In</a>
-                    <a href="auth.php?mode=register" class="btn btn-sm btn-fs px-3">Join Free</a>
+                    <a href="auth.php?mode=register" class="btn btn-sm btn-fs px-3">Register</a>
                     <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Toggle theme">
                         <i class="ti ti-moon tog-icon-dark text-body-secondary"></i>
                         <i class="ti ti-sun tog-icon-light text-warning"></i>
@@ -1110,6 +1145,59 @@
                 </div>
             </div>
             <div class="row g-2 g-sm-3" id="gallery-grid"></div>
+        </div>
+    </section>
+
+    <!-- ════════════════ LOCATIONS ════════════════ -->
+    <section id="locations" class="py-5">
+        <div class="container">
+
+            <div class="text-center mb-5">
+                <span class="section-tag badge-fs mb-2">Our Branches</span>
+                <h2 class="section-title">Find Us Near You</h2>
+                <p class="text-secondary">8 locations across Metro Manila — always within reach.</p>
+            </div>
+
+            <!-- Map -->
+            <div class="rounded-4 overflow-hidden border loc-map-wrap mb-3">
+                <iframe id="branch-map"
+                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d123989!2d121.03!3d14.586!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397c9c0bf0d5e21%3A0xd3cd4887c01849dd!2sMetro%20Manila%2C%20Philippines!5e0!3m2!1sen!2sph!4v1700000000000"
+                    width="100%" height="100%" style="border:0;display:block"
+                    loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade">
+                </iframe>
+            </div>
+
+            <!-- Branch pills -->
+            <div class="d-flex flex-wrap gap-2 justify-content-center">
+
+                <button class="branch-card btn btn-sm rounded-pill border px-3 py-2 active-branch"
+                    data-src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3860.4!2d121.00666!3d14.62192!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397b7d5edd1b5af%3A0xd3e98daffd48cde!2sQuezon%20Ave%2C%20Quezon%20City!5e0!3m2!1sen!2sph!4v1700000000001">
+                    <i class="ti ti-map-pin me-1"></i>Quezon City
+                    <span class="ms-1 badge-fs section-tag px-2 py-0 rounded-pill" style="font-size:.6rem">Main</span>
+                </button>
+
+                <button class="branch-card btn btn-sm rounded-pill border px-3 py-2"
+                    data-src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3861.9!2d121.01278!3d14.55380!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397c99b98784377%3A0x47514e362615f793!2sJ%20Victor%2C%20Makati!5e0!3m2!1sen!2sph!4v1700000000002">
+                    <i class="ti ti-map-pin me-1"></i>Makati
+                </button>
+
+                <button class="branch-card btn btn-sm rounded-pill border px-3 py-2"
+                    data-src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3862.5!2d121.04897!3d14.55115!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397c934584d4083%3A0x328bc91a8bc19ff8!2sBonifacio%20High%20Street%2C%20Taguig!5e0!3m2!1sen!2sph!4v1700000000003">
+                    <i class="ti ti-map-pin me-1"></i>BGC
+                </button>
+
+                <button class="branch-card btn btn-sm rounded-pill border px-3 py-2"
+                    data-src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3860.9!2d121.06026!3d14.58992!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397c98327224487%3A0xb7b41444b7a18382!2sOrtigas%20Ave%2C%20Pasig!5e0!3m2!1sen!2sph!4v1700000000004">
+                    <i class="ti ti-map-pin me-1"></i>Ortigas, Pasig
+                </button>
+
+                <button class="branch-card btn btn-sm rounded-pill border px-3 py-2"
+                    data-src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3860.6!2d121.08141!3d14.60987!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397b925255bbbfb%3A0x596b6b730081a0d8!2sEastwood%20Ave%2C%20Quezon%20City!5e0!3m2!1sen!2sph!4v1700000000005">
+                    <i class="ti ti-map-pin me-1"></i>Eastwood City
+                </button>
+
+            </div>
+
         </div>
     </section>
 
@@ -1421,7 +1509,7 @@
         /* ── SCROLL SPY ── */
         window.addEventListener('scroll', () => {
             let cur = 'home';
-            ['home', 'gallery', 'plans'].forEach(id => {
+            ['home', 'gallery', 'locations', 'plans'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el && window.scrollY >= el.offsetTop - 80) cur = id;
             });
@@ -1431,6 +1519,28 @@
         });
 
         renderGallery('all');
+
+        /* ── BRANCH MAP SWITCHER ── */
+        const branchMaps = [
+            // Quezon City
+            'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3860.4!2d121.00666!3d14.62192!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397b7d5edd1b5af%3A0xd3e98daffd48cde!2sQuezon%20Ave%2C%20Quezon%20City!5e0!3m2!1sen!2sph!4v1700000000001',
+            // Makati
+            'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3861.9!2d121.01278!3d14.55380!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397c99b98784377%3A0x47514e362615f793!2sJ%20Victor%2C%20Makati!5e0!3m2!1sen!2sph!4v1700000000002',
+            // BGC
+            'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3862.5!2d121.04897!3d14.55115!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397c934584d4083%3A0x328bc91a8bc19ff8!2sBonifacio%20High%20Street%2C%20Taguig!5e0!3m2!1sen!2sph!4v1700000000003',
+            // Ortigas
+            'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3860.9!2d121.06026!3d14.58992!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397c98327224487%3A0xb7b41444b7a18382!2sOrtigas%20Ave%2C%20Pasig!5e0!3m2!1sen!2sph!4v1700000000004',
+            // Eastwood
+            'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3860.6!2d121.08141!3d14.60987!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397b925255bbbfb%3A0x596b6b730081a0d8!2sEastwood%20Ave%2C%20Quezon%20City!5e0!3m2!1sen!2sph!4v1700000000005',
+        ];
+
+        document.querySelectorAll('.branch-card').forEach((card, i) => {
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.branch-card').forEach(c => c.classList.remove('active-branch'));
+                card.classList.add('active-branch');
+                document.getElementById('branch-map').src = branchMaps[i];
+            });
+        });
     </script>
 </body>
 
