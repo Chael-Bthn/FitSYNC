@@ -278,7 +278,6 @@
             margin-top: .2rem
         }
 
-        /* Hero CTA row */
         .hero-cta-row {
             display: flex;
             flex-wrap: wrap;
@@ -286,14 +285,12 @@
             margin-bottom: 2rem;
         }
 
-        /* Hero stats row */
         .hero-stats-row {
             display: flex;
             flex-wrap: wrap;
             gap: 1.25rem 2rem;
         }
 
-        /* scroll indicator */
         .scroll-hint {
             position: absolute;
             bottom: 2rem;
@@ -361,7 +358,7 @@
             letter-spacing: -.5px
         }
 
-        /* ── STRIP (lifestyle quote) ── */
+        /* ── STRIP ── */
         .lifestyle-strip {
             background: var(--fs-red);
             overflow: hidden;
@@ -438,15 +435,6 @@
             color: var(--bs-secondary-color)
         }
 
-        .gcard-no-img::after {
-            content: '📷 Add photo';
-            font-size: .75rem;
-            font-family: inherit;
-            color: var(--bs-secondary-color);
-            display: block;
-            margin-top: .4rem
-        }
-
         .gcard-overlay {
             position: absolute;
             inset: 0;
@@ -475,6 +463,31 @@
             transform: translateY(0)
         }
 
+        /* Zoom icon on hover */
+        .gcard-zoom {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.7);
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: rgba(204, 26, 26, 0.85);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            opacity: 0;
+            transition: opacity .3s, transform .3s;
+            pointer-events: none;
+        }
+
+        .gcard:hover .gcard-zoom {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
         .gcard-tag {
             position: absolute;
             top: 1rem;
@@ -490,7 +503,6 @@
             border-radius: 50px;
         }
 
-        /* Gallery tab scroll on mobile */
         .gallery-tabs-wrap {
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
@@ -506,6 +518,153 @@
         #gallery-tabs {
             flex-wrap: nowrap;
             min-width: max-content;
+        }
+
+        /* ── LIGHTBOX ── */
+        .lightbox-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .92);
+            z-index: 9000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .3s;
+            backdrop-filter: blur(6px);
+        }
+
+        .lightbox-backdrop.open {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .lightbox-inner {
+            position: relative;
+            max-width: min(90vw, 1100px);
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transform: scale(0.92);
+            transition: transform .3s cubic-bezier(.34, 1.56, .64, 1);
+        }
+
+        .lightbox-backdrop.open .lightbox-inner {
+            transform: scale(1);
+        }
+
+        .lightbox-img {
+            max-width: 100%;
+            max-height: 80vh;
+            border-radius: 16px;
+            object-fit: contain;
+            box-shadow: 0 32px 80px rgba(0, 0, 0, .6);
+            display: block;
+        }
+
+        .lightbox-caption {
+            margin-top: 1rem;
+            text-align: center;
+        }
+
+        .lightbox-caption .lb-title {
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: .2rem;
+        }
+
+        .lightbox-caption .lb-loc {
+            color: rgba(255, 255, 255, .45);
+            font-size: .78rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: .3rem;
+        }
+
+        .lightbox-close {
+            position: fixed;
+            top: 1.25rem;
+            right: 1.25rem;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, .12);
+            border: 1px solid rgba(255, 255, 255, .18);
+            color: #fff;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background .2s;
+            z-index: 9001;
+        }
+
+        .lightbox-close:hover {
+            background: var(--fs-red);
+            border-color: var(--fs-red);
+        }
+
+        .lightbox-nav {
+            position: fixed;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, .1);
+            border: 1px solid rgba(255, 255, 255, .18);
+            color: #fff;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background .2s, border-color .2s;
+            z-index: 9001;
+        }
+
+        .lightbox-nav:hover {
+            background: var(--fs-red);
+            border-color: var(--fs-red);
+        }
+
+        .lightbox-nav.prev {
+            left: 1rem;
+        }
+
+        .lightbox-nav.next {
+            right: 1rem;
+        }
+
+        .lightbox-counter {
+            position: fixed;
+            bottom: 1.25rem;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, .4);
+            font-size: .75rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            z-index: 9001;
+        }
+
+        @media (max-width: 575.98px) {
+            .lightbox-nav.prev {
+                left: .4rem;
+            }
+
+            .lightbox-nav.next {
+                right: .4rem;
+            }
+
+            .lightbox-inner {
+                max-width: 96vw;
+            }
         }
 
         /* ── PLANS ── */
@@ -527,7 +686,6 @@
             border-width: 2px !important
         }
 
-        /* Popular col gets top padding so badge doesn't clip */
         .plan-popular-col {
             padding-top: 14px;
         }
@@ -617,7 +775,6 @@
             padding: .45rem .75rem;
         }
 
-        /* Desktop — restore roomier padding */
         @media (min-width: 1200px) {
             .plan-card {
                 padding: 2rem 1.75rem;
@@ -637,7 +794,6 @@
             }
         }
 
-        /* xs — tighten further for 2-col grid */
         @media (max-width: 575.98px) {
             .plan-card {
                 padding: 1rem .85rem;
@@ -848,11 +1004,7 @@
             }
         }
 
-        /* ════════════════════════════════════════
-           RESPONSIVE FIXES
-        ════════════════════════════════════════ */
-
-        /* ── Navbar mobile (collapsed state) ── */
+        /* ════════ RESPONSIVE ════════ */
         @media (max-width: 991.98px) {
             #navMenu {
                 padding: 1rem 0 1.25rem;
@@ -873,7 +1025,6 @@
                 padding: .55rem .25rem !important;
             }
 
-            /* Buttons & toggle row — stack vertically */
             #navMenu>.d-flex {
                 flex-direction: column;
                 align-items: stretch !important;
@@ -887,14 +1038,12 @@
                 justify-content: center;
             }
 
-            /* Keep theme toggle left-aligned and appropriately sized */
             #navMenu>.d-flex .theme-toggle {
                 align-self: flex-start;
                 margin-top: .25rem;
             }
         }
 
-        /* ── Hero — center content on mobile, reduce top padding ── */
         @media (max-width: 767.98px) {
             #home {
                 align-items: center;
@@ -916,7 +1065,6 @@
             }
         }
 
-        /* ── Hero CTA buttons — full-width on xs ── */
         @media (max-width: 575.98px) {
             .hero-content {
                 padding-top: 28px;
@@ -934,7 +1082,6 @@
                 padding-right: 1.5rem !important;
             }
 
-            /* Tighten stat numbers & labels */
             .hero-stat-num {
                 font-size: 1.35rem;
             }
@@ -947,21 +1094,18 @@
                 gap: 1rem 1.5rem;
             }
 
-            /* Eyebrow pill — prevent overflow */
             .hero-eyebrow {
                 font-size: .68rem;
                 padding: .3rem .8rem;
             }
         }
 
-        /* ── Scroll hint — hide on very short viewports ── */
         @media (max-height: 620px) {
             .scroll-hint {
                 display: none;
             }
         }
 
-        /* ── Gallery — tighter cards on xs 2-column layout ── */
         @media (max-width: 575.98px) {
             .gcard {
                 aspect-ratio: 1/1;
@@ -992,7 +1136,6 @@
             }
         }
 
-        /* ── Footer — stack link columns on xs ── */
         @media (max-width: 575.98px) {
             footer .col-6 {
                 flex: 0 0 50%;
@@ -1004,14 +1147,12 @@
                 flex-wrap: wrap;
             }
 
-            /* Copyright + badges: stack vertically */
             footer .d-flex.justify-content-between {
                 flex-direction: column;
                 gap: .75rem;
             }
         }
 
-        /* ── FAB — slightly smaller on mobile ── */
         @media (max-width: 575.98px) {
             .fab-wrap {
                 bottom: 1.25rem;
@@ -1022,6 +1163,38 @@
                 width: 46px;
                 height: 46px;
                 font-size: 1.15rem;
+            }
+        }
+
+        /* ── HERO THEME BUTTON (matches auth.php panel-theme-btn) ── */
+        .hero-theme-btn {
+            position: fixed;
+            top: 68px;
+            right: 1.5rem;
+            z-index: 1020;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            border: 1px solid var(--bs-border-color);
+            background: var(--bs-secondary-bg);
+            color: var(--bs-secondary-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.05rem;
+            transition: all .2s;
+        }
+
+        .hero-theme-btn:hover {
+            background: var(--fs-red);
+            border-color: var(--fs-red);
+            color: #fff;
+        }
+
+        @media (max-width: 400px) {
+            .scroll-hint {
+                display: none;
             }
         }
     </style>
@@ -1047,51 +1220,41 @@
                     <li class="nav-item"><a class="nav-link" href="#plans">Plans</a></li>
                 </ul>
                 <div class="d-flex align-items-center gap-2 mt-3 mt-lg-0">
-                    <a href="auth.php?mode=login" class="btn btn-sm btn-outline-secondary px-3">Log In</a>
-                    <a href="auth.php?mode=register" class="btn btn-sm btn-fs px-3">Register</a>
-                    <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Toggle theme">
-                        <i class="ti ti-moon tog-icon-dark text-body-secondary"></i>
-                        <i class="ti ti-sun tog-icon-light text-warning"></i>
-                        <span class="tog-knob"><i class="ti ti-moon" id="knob-icon"></i></span>
-                    </button>
+                    <a href="auth.php?mode=login" class="btn btn-sm btn-fs px-3 rounded-pill">Log In / Register</a>
                 </div>
             </div>
         </div>
     </nav>
 
+    <!-- Theme toggle — fixed just below navbar -->
+    <button class="hero-theme-btn" onclick="toggleTheme()" aria-label="Toggle theme">
+        <i class="ti ti-sun" id="themeIcon"></i>
+    </button>
+
     <!-- ════════════════ HERO ════════════════ -->
     <section id="home">
         <div class="hero-bg"></div>
-
         <div class="hero-content">
             <div class="container">
                 <div class="row">
                     <div class="col-lg-8 col-xl-7">
-
                         <div class="hero-eyebrow">
                             <span></span>#1 Gym Network in the City
                         </div>
-
                         <h1 class="hero-title mb-0">
                             Push Past<br>Your <em>Limits.</em><br>
                             <span style="color:rgba(255,255,255,.88)">Live the</span> <em>Lifestyle.</em>
                         </h1>
-
                         <div class="hero-divider"></div>
-
                         <p class="hero-sub mb-4">
                             Train smarter with world-class equipment, expert coaches, and a community that keeps you accountable — every rep, every day.
                         </p>
-
-                        <!-- CTA Buttons — use hero-cta-row for responsive stacking -->
                         <div class="hero-cta-row mb-4">
                             <a href="auth.php?mode=register" class="btn btn-fs btn-lg px-5 py-3 rounded-pill">
                                 <i class="ti ti-bolt me-1"></i>Join Now
                             </a>
                             <a href="#plans" class="btn btn-fs-outline btn-lg px-5 py-3 rounded-pill">View Plans</a>
                         </div>
-
-                        <!-- Stats — use hero-stats-row for responsive wrapping -->
                         <div class="hero-stats-row">
                             <div class="hero-stat">
                                 <div class="hero-stat-num">12K+</div>
@@ -1110,11 +1273,11 @@
                                 <div class="hero-stat-label">Coaches</div>
                             </div>
                         </div>
-
                     </div>
                 </div>
             </div>
         </div>
+
 
         <div class="scroll-hint">
             <div class="scroll-dot"></div>
@@ -1135,7 +1298,6 @@
                 <h2 class="section-title">World-Class Facilities</h2>
                 <p class="text-secondary">State-of-the-art equipment across all our branches</p>
             </div>
-            <!-- Scrollable tabs on mobile — no wrapping overflow -->
             <div class="gallery-tabs-wrap mb-4">
                 <div class="d-flex justify-content-center gap-2" id="gallery-tabs">
                     <button class="btn btn-sm btn-fs rounded-pill active-tab" onclick="filterGallery('all',this)">All</button>
@@ -1148,17 +1310,29 @@
         </div>
     </section>
 
+    <!-- ════════════════ LIGHTBOX ════════════════ -->
+    <div class="lightbox-backdrop" id="lightbox" onclick="lightboxBackdropClick(event)">
+        <button class="lightbox-close" onclick="closeLightbox()" aria-label="Close"><i class="ti ti-x"></i></button>
+        <button class="lightbox-nav prev" onclick="lightboxNav(-1)" aria-label="Previous"><i class="ti ti-chevron-left"></i></button>
+        <button class="lightbox-nav next" onclick="lightboxNav(1)" aria-label="Next"><i class="ti ti-chevron-right"></i></button>
+        <div class="lightbox-inner">
+            <img src="" alt="" class="lightbox-img" id="lightbox-img" />
+            <div class="lightbox-caption">
+                <div class="lb-title" id="lightbox-title"></div>
+                <div class="lb-loc"><i class="ti ti-map-pin"></i><span id="lightbox-loc"></span></div>
+            </div>
+        </div>
+        <div class="lightbox-counter" id="lightbox-counter"></div>
+    </div>
+
     <!-- ════════════════ LOCATIONS ════════════════ -->
     <section id="locations" class="py-5">
         <div class="container">
-
             <div class="text-center mb-5">
                 <span class="section-tag badge-fs mb-2">Our Branches</span>
                 <h2 class="section-title">Find Us Near You</h2>
                 <p class="text-secondary">8 locations across Metro Manila — always within reach.</p>
             </div>
-
-            <!-- Map -->
             <div class="rounded-4 overflow-hidden border loc-map-wrap mb-3">
                 <iframe id="branch-map"
                     src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d123989!2d121.03!3d14.586!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397c9c0bf0d5e21%3A0xd3cd4887c01849dd!2sMetro%20Manila%2C%20Philippines!5e0!3m2!1sen!2sph!4v1700000000000"
@@ -1166,38 +1340,29 @@
                     loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade">
                 </iframe>
             </div>
-
-            <!-- Branch pills -->
             <div class="d-flex flex-wrap gap-2 justify-content-center">
-
                 <button class="branch-card btn btn-sm rounded-pill border px-3 py-2 active-branch"
                     data-src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3860.4!2d121.00666!3d14.62192!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397b7d5edd1b5af%3A0xd3e98daffd48cde!2sQuezon%20Ave%2C%20Quezon%20City!5e0!3m2!1sen!2sph!4v1700000000001">
                     <i class="ti ti-map-pin me-1"></i>Quezon City
                     <span class="ms-1 badge-fs section-tag px-2 py-0 rounded-pill" style="font-size:.6rem">Main</span>
                 </button>
-
                 <button class="branch-card btn btn-sm rounded-pill border px-3 py-2"
                     data-src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3861.9!2d121.01278!3d14.55380!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397c99b98784377%3A0x47514e362615f793!2sJ%20Victor%2C%20Makati!5e0!3m2!1sen!2sph!4v1700000000002">
                     <i class="ti ti-map-pin me-1"></i>Makati
                 </button>
-
                 <button class="branch-card btn btn-sm rounded-pill border px-3 py-2"
                     data-src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3862.5!2d121.04897!3d14.55115!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397c934584d4083%3A0x328bc91a8bc19ff8!2sBonifacio%20High%20Street%2C%20Taguig!5e0!3m2!1sen!2sph!4v1700000000003">
                     <i class="ti ti-map-pin me-1"></i>BGC
                 </button>
-
                 <button class="branch-card btn btn-sm rounded-pill border px-3 py-2"
                     data-src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3860.9!2d121.06026!3d14.58992!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397c98327224487%3A0xb7b41444b7a18382!2sOrtigas%20Ave%2C%20Pasig!5e0!3m2!1sen!2sph!4v1700000000004">
                     <i class="ti ti-map-pin me-1"></i>Ortigas, Pasig
                 </button>
-
                 <button class="branch-card btn btn-sm rounded-pill border px-3 py-2"
                     data-src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3860.6!2d121.08141!3d14.60987!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397b925255bbbfb%3A0x596b6b730081a0d8!2sEastwood%20Ave%2C%20Quezon%20City!5e0!3m2!1sen!2sph!4v1700000000005">
                     <i class="ti ti-map-pin me-1"></i>Eastwood City
                 </button>
-
             </div>
-
         </div>
     </section>
 
@@ -1210,8 +1375,6 @@
                 <p class="text-secondary">Flexible memberships. No hidden fees. Cancel anytime.</p>
             </div>
             <div class="row g-3 g-xl-4 justify-content-center">
-
-                <!-- 1 Month -->
                 <div class="col-6 col-xl-3">
                     <div class="plan-card border h-100 d-flex flex-column">
                         <div class="plan-label">1 Month</div>
@@ -1228,8 +1391,6 @@
                         <a href="auth.php?plan=1mo" class="btn btn-outline-secondary w-100 fw-semibold rounded-pill plan-btn">Get Started</a>
                     </div>
                 </div>
-
-                <!-- 3 Months -->
                 <div class="col-6 col-xl-3">
                     <div class="plan-card border h-100 d-flex flex-column">
                         <div class="plan-label">3 Months</div>
@@ -1246,8 +1407,6 @@
                         <a href="auth.php?plan=3mo" class="btn btn-outline-secondary w-100 fw-semibold rounded-pill plan-btn">Get Started</a>
                     </div>
                 </div>
-
-                <!-- 6 Months — Popular -->
                 <div class="col-6 col-xl-3 plan-popular-col">
                     <div class="plan-card popular border h-100 d-flex flex-column">
                         <div class="plan-popular-badge">Most Popular</div>
@@ -1265,8 +1424,6 @@
                         <a href="auth.php?plan=6mo" class="btn btn-fs w-100 fw-semibold rounded-pill plan-btn">Get Started</a>
                     </div>
                 </div>
-
-                <!-- 12 Months -->
                 <div class="col-6 col-xl-3">
                     <div class="plan-card border h-100 d-flex flex-column">
                         <div class="plan-label">12 Months</div>
@@ -1283,7 +1440,6 @@
                         <a href="auth.php?plan=12mo" class="btn btn-outline-secondary w-100 fw-semibold rounded-pill plan-btn">Get Started</a>
                     </div>
                 </div>
-
             </div>
         </div>
     </section>
@@ -1376,7 +1532,7 @@
         const doubled = [...slogans, ...slogans];
         t.innerHTML = doubled.map(s => `<span>${s}</span><span class="dot">✦</span>`).join('');
 
-        /* ── GALLERY ── */
+        /* ── GALLERY DATA ── */
         const galleryData = [{
                 tag: 'gym',
                 img: 'gallery/Plyo area.png',
@@ -1404,13 +1560,13 @@
             {
                 tag: 'location',
                 img: 'gallery/Locker 1.png',
-                title: 'Locker room 1',
+                title: 'Locker Room 1',
                 loc: 'Bonifacio Global City'
             },
             {
                 tag: 'location',
                 img: 'gallery/Locker 2.png',
-                title: 'Locker room 2',
+                title: 'Locker Room 2',
                 loc: 'Ortigas Center, Pasig'
             },
             {
@@ -1427,41 +1583,86 @@
             },
         ];
 
+        /* Filtered list used by lightbox navigation */
+        let currentGallery = [...galleryData];
+        let lightboxIndex = 0;
+
         function renderGallery(f) {
-            const items = f === 'all' ? galleryData : galleryData.filter(i => i.tag === f);
-            document.getElementById('gallery-grid').innerHTML = items.map(i => `
-      <div class="col-6 col-md-4 col-lg-3">
-        <div class="gcard">
-          <div class="gcard-img-wrap">
-            <img
-              src="${i.img}"
-              alt="${i.title}"
-              class="gcard-photo"
-              loading="lazy"
-              onerror="this.parentElement.classList.add('gcard-no-img')"
-            />
-          </div>
-          <div class="gcard-tag">${i.tag}</div>
-          <div class="gcard-overlay"></div>
-          <div class="gcard-info">
-            <div class="fw-bold text-white" style="font-size:.9rem">${i.title}</div>
-            <div class="d-flex align-items-center gap-1 text-white-50" style="font-size:.72rem">
-              <i class="ti ti-map-pin"></i>${i.loc}
-            </div>
-          </div>
-        </div>
-      </div>`).join('');
+            currentGallery = f === 'all' ? galleryData : galleryData.filter(i => i.tag === f);
+            document.getElementById('gallery-grid').innerHTML = currentGallery.map((i, idx) => `
+                <div class="col-6 col-md-4 col-lg-3">
+                    <div class="gcard" onclick="openLightbox(${idx})">
+                        <div class="gcard-img-wrap">
+                            <img
+                                src="${i.img}"
+                                alt="${i.title}"
+                                class="gcard-photo"
+                                loading="lazy"
+                                onerror="this.parentElement.classList.add('gcard-no-img')"
+                            />
+                        </div>
+                        <div class="gcard-tag">${i.tag}</div>
+                        <div class="gcard-overlay"></div>
+                        <div class="gcard-zoom"><i class="ti ti-zoom-in"></i></div>
+                        <div class="gcard-info">
+                            <div class="fw-bold text-white" style="font-size:.9rem">${i.title}</div>
+                            <div class="d-flex align-items-center gap-1 text-white-50" style="font-size:.72rem">
+                                <i class="ti ti-map-pin"></i>${i.loc}
+                            </div>
+                        </div>
+                    </div>
+                </div>`).join('');
         }
 
         function filterGallery(tag, btn) {
             document.querySelectorAll('#gallery-tabs button').forEach(b => {
                 b.classList.remove('btn-fs', 'active-tab');
-                b.classList.add('btn-outline-secondary')
+                b.classList.add('btn-outline-secondary');
             });
             btn.classList.remove('btn-outline-secondary');
             btn.classList.add('btn-fs', 'active-tab');
             renderGallery(tag);
         }
+
+        /* ── LIGHTBOX ── */
+        function openLightbox(idx) {
+            lightboxIndex = idx;
+            updateLightboxContent();
+            document.getElementById('lightbox').classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.remove('open');
+            document.body.style.overflow = '';
+        }
+
+        function updateLightboxContent() {
+            const item = currentGallery[lightboxIndex];
+            const img = document.getElementById('lightbox-img');
+            img.src = item.img;
+            img.alt = item.title;
+            document.getElementById('lightbox-title').textContent = item.title;
+            document.getElementById('lightbox-loc').textContent = item.loc;
+            document.getElementById('lightbox-counter').textContent = `${lightboxIndex + 1} / ${currentGallery.length}`;
+        }
+
+        function lightboxNav(dir) {
+            lightboxIndex = (lightboxIndex + dir + currentGallery.length) % currentGallery.length;
+            updateLightboxContent();
+        }
+
+        function lightboxBackdropClick(e) {
+            if (e.target === document.getElementById('lightbox')) closeLightbox();
+        }
+
+        /* Keyboard navigation */
+        document.addEventListener('keydown', e => {
+            if (!document.getElementById('lightbox').classList.contains('open')) return;
+            if (e.key === 'Escape') closeLightbox();
+            if (e.key === 'ArrowRight') lightboxNav(1);
+            if (e.key === 'ArrowLeft') lightboxNav(-1);
+        });
 
         /* ── THEME ── */
         function updateThemeLogos() {
@@ -1474,28 +1675,22 @@
 
         function toggleTheme() {
             const html = document.documentElement;
-            const logo = document.getElementById('navbarLogo');
-
             const isDark = html.getAttribute('data-bs-theme') === 'dark';
-
-            if (isDark) {
-                html.setAttribute('data-bs-theme', 'light');
-
-                // Change logo for light mode
-                logo.src = 'FitSYNC Emblem Light.svg';
-
-                document.getElementById('knob-icon').className = 'ti ti-sun';
-            } else {
-                html.setAttribute('data-bs-theme', 'dark');
-
-                // Change logo for dark mode
-                logo.src = 'FitSYNC Emblem.svg';
-
-                document.getElementById('knob-icon').className = 'ti ti-moon';
-            }
+            html.setAttribute('data-bs-theme', isDark ? 'light' : 'dark');
+            localStorage.setItem('fs-theme', isDark ? 'light' : 'dark');
+            document.getElementById('themeIcon').className = isDark ? 'ti ti-moon' : 'ti ti-sun';
+            updateThemeLogos();
         }
 
-        updateThemeLogos();
+        /* Restore saved theme */
+        (function() {
+            const saved = localStorage.getItem('fs-theme');
+            if (saved) {
+                document.documentElement.setAttribute('data-bs-theme', saved);
+                document.getElementById('themeIcon').className = saved === 'light' ? 'ti ti-moon' : 'ti ti-sun';
+            }
+            updateThemeLogos();
+        })();
 
         /* ── FAB ── */
         let fabOpen = false;
@@ -1521,24 +1716,11 @@
         renderGallery('all');
 
         /* ── BRANCH MAP SWITCHER ── */
-        const branchMaps = [
-            // Quezon City
-            'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3860.4!2d121.00666!3d14.62192!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397b7d5edd1b5af%3A0xd3e98daffd48cde!2sQuezon%20Ave%2C%20Quezon%20City!5e0!3m2!1sen!2sph!4v1700000000001',
-            // Makati
-            'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3861.9!2d121.01278!3d14.55380!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397c99b98784377%3A0x47514e362615f793!2sJ%20Victor%2C%20Makati!5e0!3m2!1sen!2sph!4v1700000000002',
-            // BGC
-            'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3862.5!2d121.04897!3d14.55115!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397c934584d4083%3A0x328bc91a8bc19ff8!2sBonifacio%20High%20Street%2C%20Taguig!5e0!3m2!1sen!2sph!4v1700000000003',
-            // Ortigas
-            'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3860.9!2d121.06026!3d14.58992!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397c98327224487%3A0xb7b41444b7a18382!2sOrtigas%20Ave%2C%20Pasig!5e0!3m2!1sen!2sph!4v1700000000004',
-            // Eastwood
-            'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3860.6!2d121.08141!3d14.60987!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397b925255bbbfb%3A0x596b6b730081a0d8!2sEastwood%20Ave%2C%20Quezon%20City!5e0!3m2!1sen!2sph!4v1700000000005',
-        ];
-
-        document.querySelectorAll('.branch-card').forEach((card, i) => {
+        document.querySelectorAll('.branch-card').forEach((card) => {
             card.addEventListener('click', () => {
                 document.querySelectorAll('.branch-card').forEach(c => c.classList.remove('active-branch'));
                 card.classList.add('active-branch');
-                document.getElementById('branch-map').src = branchMaps[i];
+                document.getElementById('branch-map').src = card.dataset.src;
             });
         });
     </script>

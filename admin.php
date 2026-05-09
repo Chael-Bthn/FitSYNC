@@ -60,7 +60,7 @@
 
         * {
             font-family: 'Outfit', system-ui, sans-serif;
-            box-sizing: border-box;
+            box-sizing: border-box
         }
 
         body {
@@ -98,14 +98,14 @@
             font-size: 1.1rem;
             font-weight: 900;
             letter-spacing: 1px;
-            color: var(--text-primary);
+            color: var(--text-primary)
         }
 
         .brand-text .sync {
             font-size: 1.1rem;
             font-weight: 900;
             color: var(--fs-red);
-            letter-spacing: 1px;
+            letter-spacing: 1px
         }
 
         .sidebar-admin-badge {
@@ -118,7 +118,7 @@
         }
 
         .nav-section {
-            padding: .2rem 0;
+            padding: .2rem 0
         }
 
         .nav-section-label {
@@ -152,21 +152,21 @@
 
         .sidebar-link i {
             font-size: 1.1rem;
-            flex-shrink: 0;
+            flex-shrink: 0
         }
 
         .sidebar-link:hover {
             background: rgba(128, 128, 128, .1);
-            color: var(--text-primary);
+            color: var(--text-primary)
         }
 
         .sidebar-link.active {
             background: var(--fs-red-soft);
-            color: var(--text-primary);
+            color: var(--text-primary)
         }
 
         .sidebar-link.active i {
-            color: var(--fs-red);
+            color: var(--fs-red)
         }
 
         .sidebar-link .nav-pill {
@@ -180,19 +180,66 @@
             line-height: 1.5;
         }
 
+        /* ── SIDEBAR FOOTER ── */
         .sidebar-footer {
             margin-top: auto;
             padding: 1rem .7rem;
             border-top: 1px solid var(--card-border);
         }
 
+        .sb-theme-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: .5rem .85rem;
+            margin-bottom: .35rem;
+        }
+
+        .sb-theme-label {
+            font-size: .8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+        }
+
+        /* ── THEME PILL (matches profile.php) ── */
+        .theme-pill {
+            width: 44px;
+            height: 24px;
+            border-radius: 50px;
+            border: 1px solid var(--card-border);
+            background: var(--input-bg);
+            position: relative;
+            cursor: pointer;
+            transition: background .3s;
+            padding: 0;
+            flex-shrink: 0;
+        }
+
+        .theme-pill-knob {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--fs-red);
+            transition: transform .3s;
+        }
+
+        [data-bs-theme="light"] .theme-pill-knob {
+            transform: translateX(20px)
+        }
+
         .sidebar-link.logout {
-            color: rgba(255, 80, 80, .65);
+            color: rgba(255, 80, 80, .65)
         }
 
         .sidebar-link.logout:hover {
             background: rgba(204, 26, 26, .12);
-            color: #ff6b6b;
+            color: #ff6b6b
         }
 
         /* ── TOPBAR ── */
@@ -244,13 +291,12 @@
         }
 
         .topbar-search input::placeholder {
-            color: var(--input-ph);
+            color: var(--input-ph)
         }
 
         .topbar-search input:focus {
             outline: none;
-            border-color: rgba(204, 26, 26, .5);
-            background: var(--input-bg);
+            border-color: rgba(204, 26, 26, .5)
         }
 
         .topbar-search i {
@@ -287,78 +333,15 @@
             padding: .2rem;
         }
 
-        /* ── THEME TOGGLE ── */
-        .theme-toggle {
-            width: 52px;
-            height: 28px;
-            border-radius: 50px;
-            border: 1px solid var(--card-border);
-            background: var(--input-bg);
-            position: relative;
-            cursor: pointer;
-            transition: background .3s;
-            padding: 0;
-            flex-shrink: 0;
-        }
-
-        .theme-toggle .tog-knob {
-            position: absolute;
-            top: 3px;
-            left: 3px;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: var(--fs-red);
-            transition: transform .3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: .65rem;
-            color: #fff;
-        }
-
-        [data-bs-theme="light"] .theme-toggle .tog-knob {
-            transform: translateX(24px);
-        }
-
-        .theme-toggle .tog-icon-dark,
-        .theme-toggle .tog-icon-light {
-            position: absolute;
-            top: 50%;
-            font-size: .75rem;
-            transform: translateY(-50%);
-            transition: opacity .3s;
-        }
-
-        .theme-toggle .tog-icon-dark {
-            left: 7px;
-            opacity: 1;
-            color: rgba(255, 255, 255, .7);
-        }
-
-        .theme-toggle .tog-icon-light {
-            right: 7px;
-            opacity: .35;
-            color: rgba(0, 0, 0, .5);
-        }
-
-        [data-bs-theme="light"] .theme-toggle .tog-icon-dark {
-            opacity: .35;
-        }
-
-        [data-bs-theme="light"] .theme-toggle .tog-icon-light {
-            opacity: 1;
-        }
-
         /* ── MAIN CONTENT ── */
         .main-wrap {
             margin-left: var(--sidebar-w);
             padding-top: var(--topbar-h);
-            min-height: 100vh;
+            min-height: 100vh
         }
 
         .main-content {
-            padding: 1.75rem;
+            padding: 1.75rem
         }
 
         /* ── STAT CARDS ── */
@@ -374,7 +357,7 @@
 
         .stat-card:hover {
             border-color: rgba(204, 26, 26, .3);
-            transform: translateY(-3px);
+            transform: translateY(-3px)
         }
 
         .stat-card::before {
@@ -407,7 +390,7 @@
             font-weight: 800;
             color: var(--text-primary);
             line-height: 1;
-            letter-spacing: -1px;
+            letter-spacing: -1px
         }
 
         .stat-label {
@@ -416,43 +399,43 @@
             color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: .6px;
-            margin-top: .3rem;
+            margin-top: .3rem
         }
 
         .stat-delta {
             font-size: .75rem;
             font-weight: 600;
-            margin-top: .5rem;
+            margin-top: .5rem
         }
 
         .stat-delta.up {
-            color: #4caf87;
+            color: #4caf87
         }
 
         .stat-delta.down {
-            color: #e05656;
+            color: #e05656
         }
 
-        /* ── SECTION TITLE ── */
+        /* ── SECTION HEADER ── */
         .section-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 1.1rem;
+            margin-bottom: 1.1rem
         }
 
         .section-h {
             font-size: 1.05rem;
             font-weight: 700;
             color: var(--text-primary);
-            letter-spacing: -.2px;
+            letter-spacing: -.2px
         }
 
         .section-h small {
             font-size: .72rem;
             font-weight: 400;
             color: var(--text-muted);
-            margin-left: .5rem;
+            margin-left: .5rem
         }
 
         /* ── TABLE ── */
@@ -460,11 +443,12 @@
             background: var(--card-bg);
             border: 1px solid var(--card-border);
             border-radius: 16px;
-            overflow: hidden;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .admin-table {
-            margin: 0;
+            margin: 0
         }
 
         .admin-table thead th {
@@ -488,11 +472,11 @@
         }
 
         .admin-table tbody tr:last-child td {
-            border-bottom: none;
+            border-bottom: none
         }
 
         .admin-table tbody tr:hover td {
-            background: var(--row-hover);
+            background: var(--row-hover)
         }
 
         .member-avatar {
@@ -515,28 +499,28 @@
             padding: .2rem .6rem;
             border-radius: 50px;
             text-transform: uppercase;
-            letter-spacing: .4px;
+            letter-spacing: .4px
         }
 
         .plan-badge.mo1 {
             background: var(--input-bg);
-            color: var(--text-muted);
+            color: var(--text-muted)
         }
 
         .plan-badge.mo3 {
             background: rgba(76, 175, 135, .12);
-            color: #4caf87;
+            color: #4caf87
         }
 
         .plan-badge.mo6 {
             background: rgba(204, 26, 26, .15);
             color: var(--fs-red);
-            border: 1px solid rgba(204, 26, 26, .25);
+            border: 1px solid rgba(204, 26, 26, .25)
         }
 
         .plan-badge.yr {
             background: rgba(255, 193, 7, .1);
-            color: #ffc107;
+            color: #ffc107
         }
 
         .status-dot {
@@ -544,23 +528,23 @@
             height: 7px;
             border-radius: 50%;
             display: inline-block;
-            margin-right: .4rem;
+            margin-right: .4rem
         }
 
         .status-dot.active {
             background: #4caf87;
-            box-shadow: 0 0 6px rgba(76, 175, 135, .5);
+            box-shadow: 0 0 6px rgba(76, 175, 135, .5)
         }
 
         .status-dot.inactive {
-            background: #888;
+            background: #888
         }
 
         .status-dot.pending {
-            background: #ffc107;
+            background: #ffc107
         }
 
-        /* ── ACTION BUTTONS ── */
+        /* ── TABLE ACTION BUTTONS ── */
         .tbl-btn {
             width: 30px;
             height: 30px;
@@ -579,13 +563,13 @@
         .tbl-btn:hover {
             background: var(--fs-red-soft);
             border-color: rgba(204, 26, 26, .3);
-            color: var(--fs-red);
+            color: var(--fs-red)
         }
 
         .tbl-btn.danger:hover {
             background: rgba(220, 53, 69, .15);
             border-color: rgba(220, 53, 69, .3);
-            color: #e05656;
+            color: #e05656
         }
 
         /* ── FEEDBACK CARDS ── */
@@ -599,32 +583,32 @@
 
         .feedback-card:hover {
             border-color: rgba(204, 26, 26, .25);
-            transform: translateY(-2px);
+            transform: translateY(-2px)
         }
 
         .feedback-stars {
             color: var(--fs-red);
             font-size: .85rem;
-            letter-spacing: 1px;
+            letter-spacing: 1px
         }
 
         .feedback-text {
             font-size: .85rem;
             color: var(--text-muted);
             line-height: 1.7;
-            margin: .5rem 0 0;
+            margin: .5rem 0 0
         }
 
         .feedback-meta {
             font-size: .72rem;
             color: var(--text-dimmed);
-            margin-top: .6rem;
+            margin-top: .6rem
         }
 
         .rating-bar-label {
             font-size: .75rem;
             color: var(--text-muted);
-            width: 40px;
+            width: 40px
         }
 
         .rating-bar-track {
@@ -632,36 +616,36 @@
             background: var(--input-bg);
             border-radius: 50px;
             height: 7px;
-            overflow: hidden;
+            overflow: hidden
         }
 
         .rating-bar-fill {
             height: 100%;
             border-radius: 50px;
-            background: var(--fs-red);
+            background: var(--fs-red)
         }
 
-        /* ── MINI CHART (pure CSS sparkline) ── */
+        /* ── SPARKLINE ── */
         .sparkline {
             display: flex;
             align-items: flex-end;
             gap: 3px;
-            height: 40px;
+            height: 40px
         }
 
         .spark-bar {
             flex: 1;
             border-radius: 3px 3px 0 0;
             background: var(--fs-red-soft);
-            transition: background .2s;
+            transition: background .2s
         }
 
         .spark-bar.hi {
-            background: var(--fs-red);
+            background: var(--fs-red)
         }
 
         .spark-bar:hover {
-            background: var(--fs-red);
+            background: var(--fs-red)
         }
 
         /* ── QUICK ACTIONS ── */
@@ -681,7 +665,7 @@
         .quick-action:hover {
             border-color: rgba(204, 26, 26, .35);
             background: rgba(204, 26, 26, .04);
-            transform: translateY(-2px);
+            transform: translateY(-2px)
         }
 
         .quick-action-icon {
@@ -700,244 +684,84 @@
         .quick-action-label {
             font-size: .83rem;
             font-weight: 600;
-            color: var(--text-primary);
+            color: var(--text-primary)
         }
 
         .quick-action-sub {
             font-size: .7rem;
             color: var(--text-muted);
-            margin-top: .1rem;
+            margin-top: .1rem
         }
 
-        /* ── EMPTY / MODAL ── */
+        /* ── PAGES ── */
         .page-section {
-            display: none;
+            display: none
         }
 
         .page-section.active {
-            display: block;
+            display: block
         }
 
-        /* Modal */
+        /* ── MODAL ── */
         .modal-content {
             background: var(--card-bg);
             border: 1px solid var(--card-border);
-            border-radius: 18px;
+            border-radius: 18px
         }
 
         .modal-header {
-            border-bottom: 1px solid var(--card-border);
+            border-bottom: 1px solid var(--card-border)
         }
 
         .modal-footer {
-            border-top: 1px solid var(--card-border);
+            border-top: 1px solid var(--card-border)
         }
 
-        /* ── RESPONSIVE ── */
+        [data-bs-theme="dark"] .btn-close {
+            filter: invert(1) grayscale(1)
+        }
+
+        /* ── FORM ELEMENTS ── */
+        .fs-select {
+            width: auto;
+            background: var(--card-bg);
+            color: var(--text-primary);
+            border-color: var(--card-border) !important;
+            font-size: .8rem
+        }
+
+        .fs-select option {
+            background: var(--card-bg);
+            color: var(--text-primary)
+        }
+
+        .fs-input {
+            background: var(--input-bg) !important;
+            border-color: var(--card-border) !important;
+            color: var(--text-primary) !important
+        }
+
+        .fs-input::placeholder {
+            color: var(--input-ph) !important
+        }
+
+        .fs-input:focus {
+            border-color: rgba(204, 26, 26, .5) !important;
+            box-shadow: none !important
+        }
+
+        .fs-label {
+            font-size: .75rem;
+            color: var(--text-muted)
+        }
+
+        /* ── SIDEBAR OVERLAY ── */
         .sidebar-overlay {
             display: none;
             position: fixed;
             inset: 0;
             background: rgba(0, 0, 0, .6);
-            z-index: 1039;
-        }
-
-        /* Table scroll wrapper for all screen sizes */
-        .admin-table-wrap {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        /* ── TABLET (≤ 991px) — sidebar becomes a drawer ── */
-        @media(max-width:991px) {
-            .sidebar {
-                transform: translateX(-100%);
-            }
-
-            .sidebar.open {
-                transform: translateX(0);
-            }
-
-            .sidebar-overlay.open {
-                display: block;
-            }
-
-            .main-wrap {
-                margin-left: 0;
-            }
-
-            .topbar {
-                left: 0;
-            }
-
-            .topbar-toggle {
-                display: flex;
-            }
-
-            .main-content {
-                padding: 1.25rem;
-            }
-
-            /* Shrink search on tablet */
-            .topbar-search input {
-                width: 160px;
-            }
-        }
-
-        /* ── MOBILE (≤ 767px) ── */
-        @media(max-width:767px) {
-            .main-content {
-                padding: 1rem;
-            }
-
-            /* Topbar: hide search bar, keep it accessible via a toggle state */
-            .topbar {
-                padding: 0 1rem;
-                gap: .6rem;
-                flex-wrap: nowrap;
-            }
-
-            .topbar-search {
-                display: none;
-            }
-
-            .topbar-breadcrumb {
-                display: none;
-            }
-
-            .topbar-title {
-                font-size: .9rem;
-            }
-
-            /* Stat cards: shrink font on mobile */
-            .stat-value {
-                font-size: 1.6rem;
-            }
-
-            .stat-card {
-                padding: 1rem 1.1rem;
-            }
-
-            .stat-icon {
-                width: 36px;
-                height: 36px;
-                font-size: 1rem;
-                margin-bottom: .6rem;
-            }
-
-            /* Section header: stack on small screens */
-            .section-header {
-                flex-wrap: wrap;
-                gap: .6rem;
-            }
-
-            /* Members toolbar: stack filter + button */
-            #page-members .section-header>div.d-flex {
-                flex-wrap: wrap;
-                width: 100%;
-                gap: .5rem;
-            }
-
-            #page-members .section-header>div.d-flex .fs-select {
-                flex: 1;
-            }
-
-            #page-members .section-header>div.d-flex .btn {
-                flex: 1;
-                justify-content: center;
-            }
-
-            /* Feedback rating: stack vertically */
-            #page-feedbacks .row {
-                --bs-gutter-x: .75rem;
-            }
-
-            /* Sparkline month labels: fewer chars */
-            .spark-month {
-                display: none;
-            }
-
-            .spark-month.show {
-                display: inline;
-            }
-
-            /* Modal: full-screen feel */
-            .modal-dialog {
-                margin: .5rem;
-            }
-
-            .modal-content {
-                border-radius: 14px;
-            }
-        }
-
-        /* ── SMALL PHONES (≤ 479px) ── */
-        @media(max-width:479px) {
-            .main-content {
-                padding: .75rem;
-            }
-
-            /* Stat cards: full width on very small screens */
-            .stat-card {
-                padding: .85rem 1rem;
-            }
-
-            .stat-value {
-                font-size: 1.45rem;
-                letter-spacing: -.5px;
-            }
-
-            .stat-label {
-                font-size: .68rem;
-            }
-
-            .stat-delta {
-                font-size: .7rem;
-            }
-
-            /* Topbar */
-            .topbar {
-                padding: 0 .75rem;
-                gap: .4rem;
-            }
-
-            .topbar-avatar {
-                width: 30px;
-                height: 30px;
-                font-size: .75rem;
-            }
-
-            .theme-toggle {
-                width: 44px;
-                height: 24px;
-            }
-
-            .theme-toggle .tog-knob {
-                width: 16px;
-                height: 16px;
-                top: 3px;
-                left: 3px;
-            }
-
-            [data-bs-theme="light"] .theme-toggle .tog-knob {
-                transform: translateX(20px);
-            }
-
-            /* Admin table: hide lower-priority columns */
-            .admin-table .col-hide-xs {
-                display: none;
-            }
-
-            /* Quick actions: compact */
-            .quick-action {
-                padding: .75rem .9rem;
-            }
-
-            .quick-action-icon {
-                width: 32px;
-                height: 32px;
-                font-size: .95rem;
-            }
+            z-index: 1039
         }
 
         /* ── MOBILE SEARCH BAR ── */
@@ -957,13 +781,13 @@
         }
 
         .mobile-search-bar.open {
-            display: flex;
+            display: flex
         }
 
         .mobile-search-bar i {
             color: var(--search-icon);
             font-size: 1rem;
-            flex-shrink: 0;
+            flex-shrink: 0
         }
 
         .mobile-search-bar input {
@@ -973,11 +797,11 @@
             outline: none;
             color: var(--input-color);
             font-family: 'Outfit', sans-serif;
-            font-size: .88rem;
+            font-size: .88rem
         }
 
         .mobile-search-bar input::placeholder {
-            color: var(--input-ph);
+            color: var(--input-ph)
         }
 
         .mobile-search-bar button {
@@ -986,67 +810,181 @@
             color: var(--text-muted);
             cursor: pointer;
             font-size: 1rem;
-            padding: .1rem;
+            padding: .1rem
         }
 
-        /* When mobile search is open, push content down */
         .mobile-search-open .main-wrap {
-            padding-top: calc(var(--topbar-h) + 44px);
-        }
-
-        /* ── MODAL CLOSE BTN ── */
-        [data-bs-theme="dark"] .btn-close {
-            filter: invert(1) grayscale(1);
-        }
-
-        /* ── FS SELECT ── */
-        .fs-select {
-            width: auto;
-            background: var(--card-bg);
-            color: var(--text-primary);
-            border-color: var(--card-border) !important;
-            font-size: .8rem;
-        }
-
-        .fs-select option {
-            background: var(--card-bg);
-            color: var(--text-primary);
-        }
-
-        /* ── MODAL FORM INPUTS ── */
-        .fs-input {
-            background: var(--input-bg) !important;
-            border-color: var(--card-border) !important;
-            color: var(--text-primary) !important;
-        }
-
-        .fs-input::placeholder {
-            color: var(--input-ph) !important;
-        }
-
-        .fs-input:focus {
-            border-color: rgba(204, 26, 26, .5) !important;
-            box-shadow: none !important;
-        }
-
-        /* ── MODAL LABEL ── */
-        .fs-label {
-            font-size: .75rem;
-            color: var(--text-muted);
+            padding-top: calc(var(--topbar-h) + 44px)
         }
 
         /* ── SCROLLBAR ── */
         ::-webkit-scrollbar {
-            width: 5px;
+            width: 5px
         }
 
         ::-webkit-scrollbar-track {
-            background: transparent;
+            background: transparent
         }
 
         ::-webkit-scrollbar-thumb {
             background: rgba(255, 255, 255, .1);
-            border-radius: 10px;
+            border-radius: 10px
+        }
+
+        /* ══════════════════════════════════════
+           RESPONSIVE
+        ══════════════════════════════════════ */
+
+        /* Tablet ≤ 991px — sidebar becomes a drawer */
+        @media (max-width: 991px) {
+            .sidebar {
+                transform: translateX(-100%)
+            }
+
+            .sidebar.open {
+                transform: translateX(0)
+            }
+
+            .sidebar-overlay.open {
+                display: block
+            }
+
+            .main-wrap {
+                margin-left: 0
+            }
+
+            .topbar {
+                left: 0
+            }
+
+            .topbar-toggle {
+                display: flex
+            }
+
+            .main-content {
+                padding: 1.25rem
+            }
+
+            .topbar-search input {
+                width: 160px
+            }
+        }
+
+        /* Mobile ≤ 767px */
+        @media (max-width: 767px) {
+            .main-content {
+                padding: 1rem
+            }
+
+            .topbar {
+                padding: 0 1rem;
+                gap: .6rem;
+                flex-wrap: nowrap
+            }
+
+            .topbar-search {
+                display: none
+            }
+
+            .topbar-breadcrumb {
+                display: none
+            }
+
+            .topbar-title {
+                font-size: .9rem
+            }
+
+            .stat-value {
+                font-size: 1.6rem
+            }
+
+            .stat-card {
+                padding: 1rem 1.1rem
+            }
+
+            .stat-icon {
+                width: 36px;
+                height: 36px;
+                font-size: 1rem;
+                margin-bottom: .6rem
+            }
+
+            .section-header {
+                flex-wrap: wrap;
+                gap: .6rem
+            }
+
+            #page-members .section-header>div.d-flex {
+                flex-wrap: wrap;
+                width: 100%;
+                gap: .5rem
+            }
+
+            #page-members .section-header>div.d-flex .fs-select {
+                flex: 1
+            }
+
+            #page-members .section-header>div.d-flex .btn {
+                flex: 1;
+                justify-content: center
+            }
+
+            .modal-dialog {
+                margin: .5rem
+            }
+
+            .modal-content {
+                border-radius: 14px
+            }
+        }
+
+        /* Small phones ≤ 479px */
+        @media (max-width: 479px) {
+            .main-content {
+                padding: .75rem
+            }
+
+            .stat-card {
+                padding: .85rem 1rem
+            }
+
+            .stat-value {
+                font-size: 1.45rem;
+                letter-spacing: -.5px
+            }
+
+            .stat-label {
+                font-size: .68rem
+            }
+
+            .stat-delta {
+                font-size: .7rem
+            }
+
+            .topbar {
+                padding: 0 .75rem;
+                gap: .4rem
+            }
+
+            .topbar-avatar {
+                width: 30px;
+                height: 30px;
+                font-size: .75rem
+            }
+
+            .admin-table .col-hide-xs {
+                display: none
+            }
+
+            .quick-action {
+                padding: .75rem .9rem
+            }
+
+            .quick-action-icon {
+                width: 32px;
+                height: 32px;
+                font-size: .95rem
+            }
         }
     </style>
 </head>
@@ -1084,10 +1022,21 @@
         </nav>
 
         <div class="sidebar-footer">
+            <!-- Theme toggle — matches profile.php -->
+            <div class="sb-theme-row">
+                <span class="sb-theme-label">
+                    <i class="ti ti-moon"></i> Dark Mode
+                </span>
+                <button class="theme-pill" onclick="toggleTheme()" aria-label="Toggle theme">
+                    <div class="theme-pill-knob"></div>
+                </button>
+            </div>
+
             <a class="sidebar-link logout" href="index.php">
                 <i class="ti ti-logout"></i> Logout
             </a>
         </div>
+
     </aside>
 
     <!-- ════════════════ TOPBAR ════════════════ -->
@@ -1101,16 +1050,13 @@
             <i class="ti ti-search"></i>
             <input type="text" placeholder="Search members…" id="memberSearch" oninput="filterMembers()" />
         </div>
-        <button class="topbar-toggle d-md-none" id="searchToggleBtn" onclick="toggleMobileSearch()" aria-label="Search"><i class="ti ti-search"></i></button>
-        <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Toggle theme">
-            <i class="ti ti-moon tog-icon-dark"></i>
-            <i class="ti ti-sun tog-icon-light"></i>
-            <span class="tog-knob" id="tog-knob"><i class="ti ti-moon" id="knob-icon"></i></span>
+        <button class="topbar-toggle d-md-none" onclick="toggleMobileSearch()" aria-label="Search">
+            <i class="ti ti-search"></i>
         </button>
         <div class="topbar-avatar" title="Administrator">A</div>
     </div>
 
-    <!-- Mobile search bar (drops below topbar on small screens) -->
+    <!-- Mobile search bar -->
     <div class="mobile-search-bar" id="mobileSearchBar">
         <i class="ti ti-search"></i>
         <input type="text" placeholder="Search members…" id="memberSearchMobile" oninput="syncMobileSearch(this)" />
@@ -1121,10 +1067,9 @@
     <div class="main-wrap">
         <div class="main-content">
 
-            <!-- ══ DASHBOARD PAGE ══ -->
+            <!-- ══ DASHBOARD ══ -->
             <div class="page-section active" id="page-dashboard">
 
-                <!-- Stat Cards -->
                 <div class="row g-3 mb-4">
                     <div class="col-6 col-xl-3">
                         <div class="stat-card">
@@ -1161,7 +1106,6 @@
                 </div>
 
                 <div class="row g-3 mb-4">
-                    <!-- New Signups Chart -->
                     <div class="col-lg-7">
                         <div class="admin-table-wrap p-3">
                             <div class="section-header mb-3">
@@ -1175,8 +1119,6 @@
                             </div>
                         </div>
                     </div>
-
-                    <!-- Quick Actions -->
                     <div class="col-lg-5">
                         <div class="admin-table-wrap p-3 h-100">
                             <div class="section-header mb-3">
@@ -1209,7 +1151,6 @@
                     </div>
                 </div>
 
-                <!-- Recent Members -->
                 <div class="section-header">
                     <div class="section-h">Recent Registrations <small>Latest 5</small></div>
                     <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="showPage('members',null)" style="font-size:.75rem">
@@ -1230,10 +1171,10 @@
                         <tbody id="recent-members-tbody"></tbody>
                     </table>
                 </div>
+
             </div><!-- /dashboard -->
 
-
-            <!-- ══ MEMBERS PAGE ══ -->
+            <!-- ══ MEMBERS ══ -->
             <div class="page-section" id="page-members">
                 <div class="section-header mb-3">
                     <div class="section-h">All Members <small id="member-count-label"></small></div>
@@ -1268,8 +1209,7 @@
                 </div>
             </div><!-- /members -->
 
-
-            <!-- ══ FEEDBACKS PAGE ══ -->
+            <!-- ══ FEEDBACKS ══ -->
             <div class="page-section" id="page-feedbacks">
                 <div class="row g-3 mb-4">
                     <div class="col-md-4">
@@ -1463,42 +1403,42 @@
         const feedbacks = [{
                 name: 'Maria Santos',
                 rating: 5,
-                text: 'Best gym I\'ve ever been to! The equipment is top-notch and the coaches are incredibly supportive. Completely transformed my fitness journey.',
+                text: "Best gym I've ever been to! The equipment is top-notch and the coaches are incredibly supportive. Completely transformed my fitness journey.",
                 date: 'May 7, 2025',
                 branch: 'BGC'
             },
             {
                 name: 'Jose Reyes',
                 rating: 5,
-                text: 'Signed up for the annual plan and it was worth every peso. The multi-branch access is super convenient for my work schedule.',
+                text: "Signed up for the annual plan and it was worth every peso. The multi-branch access is super convenient for my work schedule.",
                 date: 'May 5, 2025',
                 branch: 'Makati'
             },
             {
                 name: 'Anonymous',
                 rating: 4,
-                text: 'Great facilities overall. Would love to see more yoga class slots added — they fill up really fast.',
+                text: "Great facilities overall. Would love to see more yoga class slots added — they fill up really fast.",
                 date: 'May 3, 2025',
                 branch: 'Quezon City'
             },
             {
                 name: 'Liza Navarro',
                 rating: 5,
-                text: 'The staff here makes all the difference. Always welcoming and the atmosphere pushes you to go harder every session.',
+                text: "The staff here makes all the difference. Always welcoming and the atmosphere pushes you to go harder every session.",
                 date: 'Apr 30, 2025',
                 branch: 'Eastwood'
             },
             {
                 name: 'Anonymous',
                 rating: 3,
-                text: 'Equipment is great but the locker rooms get crowded during peak hours. Still a solid gym overall.',
+                text: "Equipment is great but the locker rooms get crowded during peak hours. Still a solid gym overall.",
                 date: 'Apr 28, 2025',
                 branch: 'Ortigas'
             },
             {
                 name: 'Ramon Torres',
                 rating: 5,
-                text: 'Personal training sessions are worth it. My PT is knowledgeable and keeps me accountable. Renewed for another year!',
+                text: "Personal training sessions are worth it. My PT is knowledgeable and keeps me accountable. Renewed for another year!",
                 date: 'Apr 25, 2025',
                 branch: 'BGC'
             },
@@ -1523,80 +1463,80 @@
 
         function buildSparkline() {
             const max = Math.max(...sparkData);
-            const el = document.getElementById('sparkline-chart');
-            el.innerHTML = sparkData.map((v, i) => {
+            document.getElementById('sparkline-chart').innerHTML = sparkData.map((v, i) => {
                 const h = Math.round((v / max) * 100);
                 const hi = i === sparkData.length - 1;
-                return `<div class="spark-bar${hi?' hi':''}" style="height:${h}%" title="${v} signups"></div>`;
+                return `<div class="spark-bar${hi ? ' hi' : ''}" style="height:${h}%" title="${v} signups"></div>`;
             }).join('');
         }
 
         function renderRecentMembers() {
-            const el = document.getElementById('recent-members-tbody');
-            el.innerHTML = members.slice(-5).reverse().map(m => memberRow(m, true)).join('');
+            document.getElementById('recent-members-tbody').innerHTML =
+                members.slice(-5).reverse().map(m => memberRow(m, true)).join('');
         }
 
         function renderMembers() {
             const q = (document.getElementById('memberSearch').value || '').toLowerCase();
             const plan = (document.getElementById('planFilter')?.value || '');
-            let data = members.filter(m => {
+            const data = members.filter(m => {
                 const txt = `${m.fname} ${m.lname} ${m.email} ${m.branch}`.toLowerCase();
                 return (!q || txt.includes(q)) && (!plan || m.plan === plan);
             });
-            const el = document.getElementById('members-tbody');
-            el.innerHTML = data.map(m => memberRow(m, false)).join('') || '<tr><td colspan="7" class="text-center text-secondary py-4">No members found</td></tr>';
+            document.getElementById('members-tbody').innerHTML =
+                data.map(m => memberRow(m, false)).join('') ||
+                '<tr><td colspan="7" class="text-center text-secondary py-4">No members found</td></tr>';
             document.getElementById('member-count-label').textContent = `${data.length} of ${members.length}`;
         }
 
         function memberRow(m, compact) {
             const initials = (m.fname[0] || '') + (m.lname[0] || '');
-            const status = `<span class="status-dot ${m.status}"></span>${m.fname[0]==='M'&&m.status==='active'?'Active':m.status.charAt(0).toUpperCase()+m.status.slice(1)}`;
-            const plan = `<span class="plan-badge ${planClass[m.plan]||''}">${m.plan}</span>`;
+            const status = `<span class="status-dot ${m.status}"></span>${m.status.charAt(0).toUpperCase() + m.status.slice(1)}`;
+            const plan = `<span class="plan-badge ${planClass[m.plan] || ''}">${m.plan}</span>`;
             const date = new Date(m.joined).toLocaleDateString('en-PH', {
                 month: 'short',
                 day: 'numeric',
                 year: 'numeric'
             });
             const avatar = `<div class="member-avatar">${initials}</div>`;
-            if (compact) {
-                return `<tr>
-            <td><div class="d-flex align-items-center gap-2">${avatar}<span>${m.fname} ${m.lname}</span></div></td>
-            <td>${plan}</td>
-            <td class="col-hide-xs"><span style="font-size:.8rem;color:var(--text-muted)">${m.branch}</span></td>
-            <td class="col-hide-xs"><span style="font-size:.8rem;color:var(--text-muted)">${date}</span></td>
-            <td>${status}</td>
-        </tr>`;
-            }
+
+            if (compact) return `<tr>
+                <td><div class="d-flex align-items-center gap-2">${avatar}<span>${m.fname} ${m.lname}</span></div></td>
+                <td>${plan}</td>
+                <td class="col-hide-xs"><span style="font-size:.8rem;color:var(--text-muted)">${m.branch}</span></td>
+                <td class="col-hide-xs"><span style="font-size:.8rem;color:var(--text-muted)">${date}</span></td>
+                <td>${status}</td>
+            </tr>`;
+
             return `<tr>
-        <td><div class="d-flex align-items-center gap-2">${avatar}<div><div style="font-weight:600">${m.fname} ${m.lname}</div><div style="font-size:.7rem;color:var(--text-dimmed)">#${String(m.id).padStart(5,'0')}</div></div></div></td>
-        <td class="col-hide-xs"><span style="font-size:.82rem;color:var(--text-muted)">${m.email}</span></td>
-        <td>${plan}</td>
-        <td class="col-hide-xs"><span style="font-size:.8rem;color:var(--text-muted)">${m.branch}</span></td>
-        <td class="col-hide-xs"><span style="font-size:.8rem;color:var(--text-muted)">${date}</span></td>
-        <td>${status}</td>
-        <td>
-            <div class="d-flex gap-1">
-                <button class="tbl-btn" title="Edit" onclick="editMember(${m.id})"><i class="ti ti-edit"></i></button>
-                <button class="tbl-btn danger" title="Delete" onclick="deleteMember(${m.id})"><i class="ti ti-trash"></i></button>
-            </div>
-        </td>
-    </tr>`;
+                <td><div class="d-flex align-items-center gap-2">${avatar}<div>
+                    <div style="font-weight:600">${m.fname} ${m.lname}</div>
+                    <div style="font-size:.7rem;color:var(--text-dimmed)">#${String(m.id).padStart(5,'0')}</div>
+                </div></div></td>
+                <td class="col-hide-xs"><span style="font-size:.82rem;color:var(--text-muted)">${m.email}</span></td>
+                <td>${plan}</td>
+                <td class="col-hide-xs"><span style="font-size:.8rem;color:var(--text-muted)">${m.branch}</span></td>
+                <td class="col-hide-xs"><span style="font-size:.8rem;color:var(--text-muted)">${date}</span></td>
+                <td>${status}</td>
+                <td><div class="d-flex gap-1">
+                    <button class="tbl-btn" title="Edit" onclick="editMember(${m.id})"><i class="ti ti-edit"></i></button>
+                    <button class="tbl-btn danger" title="Delete" onclick="deleteMember(${m.id})"><i class="ti ti-trash"></i></button>
+                </div></td>
+            </tr>`;
         }
 
         function renderFeedbacks() {
             document.getElementById('feedback-list').innerHTML = feedbacks.map(f => `
-        <div class="feedback-card">
-            <div class="d-flex justify-content-between align-items-start">
-                <div>
-                    <div style="font-weight:700;font-size:.88rem;color:var(--text-primary)">${f.name}</div>
-                    <div class="feedback-stars">${starsStr(f.rating)}</div>
-                </div>
-                <button class="tbl-btn danger" title="Delete feedback"><i class="ti ti-trash"></i></button>
-            </div>
-            <div class="feedback-text">"${f.text}"</div>
-            <div class="feedback-meta"><i class="ti ti-map-pin" style="font-size:.8rem"></i> ${f.branch} &nbsp;·&nbsp; ${f.date}</div>
-        </div>
-    `).join('');
+                <div class="feedback-card">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div style="font-weight:700;font-size:.88rem;color:var(--text-primary)">${f.name}</div>
+                            <div class="feedback-stars">${starsStr(f.rating)}</div>
+                        </div>
+                        <button class="tbl-btn danger" title="Delete feedback"><i class="ti ti-trash"></i></button>
+                    </div>
+                    <div class="feedback-text">"${f.text}"</div>
+                    <div class="feedback-meta"><i class="ti ti-map-pin" style="font-size:.8rem"></i> ${f.branch} &nbsp;·&nbsp; ${f.date}</div>
+                </div>`).join('');
         }
 
         /* ── NAVIGATION ── */
@@ -1605,8 +1545,9 @@
             document.getElementById('page-' + id).classList.add('active');
 
             document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
-            if (btn) btn.classList.add('active');
-            else {
+            if (btn) {
+                btn.classList.add('active');
+            } else {
                 document.querySelectorAll('.sidebar-link').forEach(l => {
                     if (l.textContent.trim().toLowerCase().includes(id)) l.classList.add('active');
                 });
@@ -1630,10 +1571,10 @@
         }
 
         function filterMembers() {
-            renderMembers();
+            renderMembers()
         }
 
-        /* ── ADD MEMBER ── */
+        /* ── ADD / EDIT / DELETE MEMBER ── */
         function addMember() {
             const fname = document.getElementById('new-fname').value.trim();
             const lname = document.getElementById('new-lname').value.trim();
@@ -1642,8 +1583,9 @@
             const branch = document.getElementById('new-branch').value;
             if (!fname || !lname || !email) {
                 alert('Please fill in all fields.');
-                return;
+                return
             }
+
             const newId = Math.max(...members.map(m => m.id)) + 1;
             members.push({
                 id: newId,
@@ -1655,8 +1597,10 @@
                 joined: new Date().toISOString().split('T')[0],
                 status: 'active'
             });
-            document.getElementById('pill-members').textContent = members.length >= 1000 ?
-                Math.round(members.length / 1000 * 10) / 10 + 'K' : members.length;
+
+            document.getElementById('pill-members').textContent =
+                members.length >= 1000 ? Math.round(members.length / 1000 * 10) / 10 + 'K' : members.length;
+
             bootstrap.Modal.getInstance(document.getElementById('addMemberModal')).hide();
             ['new-fname', 'new-lname', 'new-email'].forEach(id => document.getElementById(id).value = '');
             renderMembers();
@@ -1702,7 +1646,7 @@
             if (isOpen) document.getElementById('memberSearchMobile').focus();
             else {
                 document.getElementById('memberSearchMobile').value = '';
-                filterMembers();
+                filterMembers()
             }
         }
 
@@ -1715,8 +1659,8 @@
         function updateThemeLogos() {
             const isLight = document.documentElement.getAttribute('data-bs-theme') === 'light';
             document.querySelectorAll('[data-logo-dark][data-logo-light]').forEach(logo => {
-                const nextSrc = isLight ? logo.dataset.logoLight : logo.dataset.logoDark;
-                if (logo.getAttribute('src') !== nextSrc) logo.setAttribute('src', nextSrc);
+                const src = isLight ? logo.dataset.logoLight : logo.dataset.logoDark;
+                if (logo.getAttribute('src') !== src) logo.setAttribute('src', src);
             });
         }
 
@@ -1724,20 +1668,16 @@
             const html = document.documentElement;
             const isDark = html.getAttribute('data-bs-theme') === 'dark';
             html.setAttribute('data-bs-theme', isDark ? 'light' : 'dark');
-            document.getElementById('knob-icon').className = isDark ? 'ti ti-sun' : 'ti ti-moon';
-            localStorage.setItem('fs-admin-theme', isDark ? 'light' : 'dark');
+            localStorage.setItem('fs-theme', isDark ? 'light' : 'dark');
             updateThemeLogos();
         }
-        // Restore saved theme
+
+        /* Restore saved theme on load */
         (function() {
-            const saved = localStorage.getItem('fs-admin-theme');
-            if (saved) {
-                document.documentElement.setAttribute('data-bs-theme', saved);
-                const knob = document.getElementById('knob-icon');
-                if (knob) knob.className = saved === 'light' ? 'ti ti-sun' : 'ti ti-moon';
-            }
+            const saved = localStorage.getItem('fs-theme');
+            if (saved) document.documentElement.setAttribute('data-bs-theme', saved);
+            updateThemeLogos();
         })();
-        updateThemeLogos();
 
         /* ── BOOT ── */
         init();
