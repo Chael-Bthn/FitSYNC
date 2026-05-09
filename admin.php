@@ -742,6 +742,13 @@
             z-index: 1039;
         }
 
+        /* Table scroll wrapper for all screen sizes */
+        .admin-table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* ── TABLET (≤ 991px) — sidebar becomes a drawer ── */
         @media(max-width:991px) {
             .sidebar {
                 transform: translateX(-100%);
@@ -766,6 +773,225 @@
             .topbar-toggle {
                 display: flex;
             }
+
+            .main-content {
+                padding: 1.25rem;
+            }
+
+            /* Shrink search on tablet */
+            .topbar-search input {
+                width: 160px;
+            }
+        }
+
+        /* ── MOBILE (≤ 767px) ── */
+        @media(max-width:767px) {
+            .main-content {
+                padding: 1rem;
+            }
+
+            /* Topbar: hide search bar, keep it accessible via a toggle state */
+            .topbar {
+                padding: 0 1rem;
+                gap: .6rem;
+                flex-wrap: nowrap;
+            }
+
+            .topbar-search {
+                display: none;
+            }
+
+            .topbar-breadcrumb {
+                display: none;
+            }
+
+            .topbar-title {
+                font-size: .9rem;
+            }
+
+            /* Stat cards: shrink font on mobile */
+            .stat-value {
+                font-size: 1.6rem;
+            }
+
+            .stat-card {
+                padding: 1rem 1.1rem;
+            }
+
+            .stat-icon {
+                width: 36px;
+                height: 36px;
+                font-size: 1rem;
+                margin-bottom: .6rem;
+            }
+
+            /* Section header: stack on small screens */
+            .section-header {
+                flex-wrap: wrap;
+                gap: .6rem;
+            }
+
+            /* Members toolbar: stack filter + button */
+            #page-members .section-header>div.d-flex {
+                flex-wrap: wrap;
+                width: 100%;
+                gap: .5rem;
+            }
+
+            #page-members .section-header>div.d-flex .fs-select {
+                flex: 1;
+            }
+
+            #page-members .section-header>div.d-flex .btn {
+                flex: 1;
+                justify-content: center;
+            }
+
+            /* Feedback rating: stack vertically */
+            #page-feedbacks .row {
+                --bs-gutter-x: .75rem;
+            }
+
+            /* Sparkline month labels: fewer chars */
+            .spark-month {
+                display: none;
+            }
+
+            .spark-month.show {
+                display: inline;
+            }
+
+            /* Modal: full-screen feel */
+            .modal-dialog {
+                margin: .5rem;
+            }
+
+            .modal-content {
+                border-radius: 14px;
+            }
+        }
+
+        /* ── SMALL PHONES (≤ 479px) ── */
+        @media(max-width:479px) {
+            .main-content {
+                padding: .75rem;
+            }
+
+            /* Stat cards: full width on very small screens */
+            .stat-card {
+                padding: .85rem 1rem;
+            }
+
+            .stat-value {
+                font-size: 1.45rem;
+                letter-spacing: -.5px;
+            }
+
+            .stat-label {
+                font-size: .68rem;
+            }
+
+            .stat-delta {
+                font-size: .7rem;
+            }
+
+            /* Topbar */
+            .topbar {
+                padding: 0 .75rem;
+                gap: .4rem;
+            }
+
+            .topbar-avatar {
+                width: 30px;
+                height: 30px;
+                font-size: .75rem;
+            }
+
+            .theme-toggle {
+                width: 44px;
+                height: 24px;
+            }
+
+            .theme-toggle .tog-knob {
+                width: 16px;
+                height: 16px;
+                top: 3px;
+                left: 3px;
+            }
+
+            [data-bs-theme="light"] .theme-toggle .tog-knob {
+                transform: translateX(20px);
+            }
+
+            /* Admin table: hide lower-priority columns */
+            .admin-table .col-hide-xs {
+                display: none;
+            }
+
+            /* Quick actions: compact */
+            .quick-action {
+                padding: .75rem .9rem;
+            }
+
+            .quick-action-icon {
+                width: 32px;
+                height: 32px;
+                font-size: .95rem;
+            }
+        }
+
+        /* ── MOBILE SEARCH BAR ── */
+        .mobile-search-bar {
+            display: none;
+            position: fixed;
+            top: var(--topbar-h);
+            left: 0;
+            right: 0;
+            background: var(--topbar-bg);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--card-border);
+            padding: .6rem 1rem;
+            align-items: center;
+            gap: .5rem;
+            z-index: 1029;
+        }
+
+        .mobile-search-bar.open {
+            display: flex;
+        }
+
+        .mobile-search-bar i {
+            color: var(--search-icon);
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+
+        .mobile-search-bar input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--input-color);
+            font-family: 'Outfit', sans-serif;
+            font-size: .88rem;
+        }
+
+        .mobile-search-bar input::placeholder {
+            color: var(--input-ph);
+        }
+
+        .mobile-search-bar button {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 1rem;
+            padding: .1rem;
+        }
+
+        /* When mobile search is open, push content down */
+        .mobile-search-open .main-wrap {
+            padding-top: calc(var(--topbar-h) + 44px);
         }
 
         /* ── MODAL CLOSE BTN ── */
@@ -867,20 +1093,28 @@
     <!-- ════════════════ TOPBAR ════════════════ -->
     <div class="topbar">
         <button class="topbar-toggle" onclick="openSidebar()"><i class="ti ti-menu-2"></i></button>
-        <div>
+        <div class="me-auto">
             <div class="topbar-title" id="topbar-title">Dashboard</div>
             <div class="topbar-breadcrumb">FitSync Admin &rsaquo; <span id="topbar-crumb">Overview</span></div>
         </div>
-        <div class="topbar-search">
+        <div class="topbar-search" id="topbarSearch">
             <i class="ti ti-search"></i>
             <input type="text" placeholder="Search members…" id="memberSearch" oninput="filterMembers()" />
         </div>
+        <button class="topbar-toggle d-md-none" id="searchToggleBtn" onclick="toggleMobileSearch()" aria-label="Search"><i class="ti ti-search"></i></button>
         <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Toggle theme">
             <i class="ti ti-moon tog-icon-dark"></i>
             <i class="ti ti-sun tog-icon-light"></i>
             <span class="tog-knob" id="tog-knob"><i class="ti ti-moon" id="knob-icon"></i></span>
         </button>
         <div class="topbar-avatar" title="Administrator">A</div>
+    </div>
+
+    <!-- Mobile search bar (drops below topbar on small screens) -->
+    <div class="mobile-search-bar" id="mobileSearchBar">
+        <i class="ti ti-search"></i>
+        <input type="text" placeholder="Search members…" id="memberSearchMobile" oninput="syncMobileSearch(this)" />
+        <button onclick="toggleMobileSearch()"><i class="ti ti-x"></i></button>
     </div>
 
     <!-- ════════════════ MAIN ════════════════ -->
@@ -988,8 +1222,8 @@
                             <tr>
                                 <th>Member</th>
                                 <th>Plan</th>
-                                <th>Branch</th>
-                                <th>Joined</th>
+                                <th class="col-hide-xs">Branch</th>
+                                <th class="col-hide-xs">Joined</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
@@ -1021,10 +1255,10 @@
                         <thead>
                             <tr>
                                 <th>Member</th>
-                                <th>Email</th>
+                                <th class="col-hide-xs">Email</th>
                                 <th>Plan</th>
-                                <th>Branch</th>
-                                <th>Joined</th>
+                                <th class="col-hide-xs">Branch</th>
+                                <th class="col-hide-xs">Joined</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
@@ -1328,17 +1562,17 @@
                 return `<tr>
             <td><div class="d-flex align-items-center gap-2">${avatar}<span>${m.fname} ${m.lname}</span></div></td>
             <td>${plan}</td>
-            <td><span style="font-size:.8rem;color:var(--text-muted)">${m.branch}</span></td>
-            <td><span style="font-size:.8rem;color:var(--text-muted)">${date}</span></td>
+            <td class="col-hide-xs"><span style="font-size:.8rem;color:var(--text-muted)">${m.branch}</span></td>
+            <td class="col-hide-xs"><span style="font-size:.8rem;color:var(--text-muted)">${date}</span></td>
             <td>${status}</td>
         </tr>`;
             }
             return `<tr>
         <td><div class="d-flex align-items-center gap-2">${avatar}<div><div style="font-weight:600">${m.fname} ${m.lname}</div><div style="font-size:.7rem;color:var(--text-dimmed)">#${String(m.id).padStart(5,'0')}</div></div></div></td>
-        <td><span style="font-size:.82rem;color:var(--text-muted)">${m.email}</span></td>
+        <td class="col-hide-xs"><span style="font-size:.82rem;color:var(--text-muted)">${m.email}</span></td>
         <td>${plan}</td>
-        <td><span style="font-size:.8rem;color:var(--text-muted)">${m.branch}</span></td>
-        <td><span style="font-size:.8rem;color:var(--text-muted)">${date}</span></td>
+        <td class="col-hide-xs"><span style="font-size:.8rem;color:var(--text-muted)">${m.branch}</span></td>
+        <td class="col-hide-xs"><span style="font-size:.8rem;color:var(--text-muted)">${date}</span></td>
         <td>${status}</td>
         <td>
             <div class="d-flex gap-1">
@@ -1458,6 +1692,23 @@
         function closeSidebar() {
             document.getElementById('sidebar').classList.remove('open');
             document.getElementById('sidebarOverlay').classList.remove('open');
+        }
+
+        /* ── MOBILE SEARCH ── */
+        function toggleMobileSearch() {
+            const bar = document.getElementById('mobileSearchBar');
+            const isOpen = bar.classList.toggle('open');
+            document.body.classList.toggle('mobile-search-open', isOpen);
+            if (isOpen) document.getElementById('memberSearchMobile').focus();
+            else {
+                document.getElementById('memberSearchMobile').value = '';
+                filterMembers();
+            }
+        }
+
+        function syncMobileSearch(el) {
+            document.getElementById('memberSearch').value = el.value;
+            filterMembers();
         }
 
         /* ── THEME ── */

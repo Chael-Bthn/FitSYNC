@@ -185,10 +185,8 @@
             background-size: cover;
             background-position: center top;
             background-color: #1a1a1a;
-            /* fallback */
         }
 
-        /* Cinematic multi-layer overlay */
         .hero-bg::after {
             content: '';
             position: absolute;
@@ -203,7 +201,7 @@
             z-index: 2;
             width: 100%;
             padding-bottom: 6rem;
-            padding-top: 120px
+            padding-top: 76px
         }
 
         .hero-eyebrow {
@@ -232,7 +230,7 @@
         }
 
         .hero-title {
-            font-size: clamp(2.8rem, 7vw, 5.2rem);
+            font-size: clamp(2.4rem, 7vw, 5.2rem);
             font-weight: 900;
             line-height: 1.02;
             color: #fff;
@@ -278,6 +276,21 @@
             letter-spacing: .7px;
             color: rgba(255, 255, 255, .45);
             margin-top: .2rem
+        }
+
+        /* Hero CTA row */
+        .hero-cta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .75rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Hero stats row */
+        .hero-stats-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.25rem 2rem;
         }
 
         /* scroll indicator */
@@ -398,7 +411,6 @@
             cursor: pointer
         }
 
-        /* photo fills */
         .gcard-img-wrap {
             width: 100%;
             height: 100%;
@@ -418,7 +430,6 @@
             transform: scale(1.08)
         }
 
-        /* fallback when image fails to load */
         .gcard-no-img {
             display: flex;
             align-items: center;
@@ -479,10 +490,28 @@
             border-radius: 50px;
         }
 
+        /* Gallery tab scroll on mobile */
+        .gallery-tabs-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            padding-bottom: 2px;
+        }
+
+        .gallery-tabs-wrap::-webkit-scrollbar {
+            display: none;
+        }
+
+        #gallery-tabs {
+            flex-wrap: nowrap;
+            min-width: max-content;
+        }
+
         /* ── PLANS ── */
         .plan-card {
             border-radius: 20px;
-            padding: 2rem 1.75rem;
+            padding: 1.5rem 1.25rem;
             position: relative;
             transition: transform .25s, border-color .25s, box-shadow .25s
         }
@@ -496,6 +525,11 @@
         .plan-card.popular {
             border-color: var(--fs-red) !important;
             border-width: 2px !important
+        }
+
+        /* Popular col gets top padding so badge doesn't clip */
+        .plan-popular-col {
+            padding-top: 14px;
         }
 
         .plan-popular-badge {
@@ -514,39 +548,143 @@
             white-space: nowrap
         }
 
+        .plan-label {
+            font-size: .72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .7px;
+            color: var(--fs-red);
+            margin-bottom: .35rem;
+        }
+
         .plan-price {
-            font-size: 2.6rem;
+            font-size: 2rem;
             font-weight: 800;
             line-height: 1;
-            letter-spacing: -1px
+            letter-spacing: -1px;
+            margin-bottom: .15rem;
         }
 
         .plan-price sub {
-            font-size: .82rem;
+            font-size: .75rem;
             font-weight: 400;
             color: var(--bs-secondary-color)
         }
 
         .plan-orig {
-            font-size: .8rem;
+            font-size: .75rem;
             text-decoration: line-through;
-            color: var(--bs-secondary-color)
+            color: var(--bs-secondary-color);
+            margin-bottom: 0;
+        }
+
+        .plan-divider {
+            margin: .75rem 0;
+        }
+
+        .plan-features {
+            display: flex;
+            flex-direction: column;
+            gap: .5rem;
+            margin-bottom: 1rem;
         }
 
         .plan-feature {
             display: flex;
             align-items: center;
-            gap: .5rem;
-            font-size: .84rem;
-            color: var(--bs-secondary-color)
+            gap: .4rem;
+            font-size: .8rem;
+            color: var(--bs-secondary-color);
+            line-height: 1.3;
         }
 
         .plan-feature.yes {
             color: var(--bs-body-color)
         }
 
-        .plan-feature i.yes {
-            color: var(--fs-red)
+        .plan-feature.yes i {
+            color: var(--fs-red);
+            flex-shrink: 0;
+        }
+
+        .plan-feature:not(.yes) i {
+            color: var(--bs-secondary-color);
+            flex-shrink: 0;
+        }
+
+        .plan-btn {
+            font-size: .82rem;
+            padding: .45rem .75rem;
+        }
+
+        /* Desktop — restore roomier padding */
+        @media (min-width: 1200px) {
+            .plan-card {
+                padding: 2rem 1.75rem;
+            }
+
+            .plan-price {
+                font-size: 2.6rem;
+            }
+
+            .plan-feature {
+                font-size: .84rem;
+            }
+
+            .plan-btn {
+                font-size: .9rem;
+                padding: .5rem 1rem;
+            }
+        }
+
+        /* xs — tighten further for 2-col grid */
+        @media (max-width: 575.98px) {
+            .plan-card {
+                padding: 1rem .85rem;
+                border-radius: 14px;
+            }
+
+            .plan-label {
+                font-size: .62rem;
+                margin-bottom: .2rem;
+            }
+
+            .plan-price {
+                font-size: 1.4rem;
+                letter-spacing: -.5px;
+            }
+
+            .plan-price sub {
+                font-size: .62rem;
+            }
+
+            .plan-orig {
+                font-size: .68rem;
+            }
+
+            .plan-divider {
+                margin: .5rem 0;
+            }
+
+            .plan-features {
+                gap: .35rem;
+                margin-bottom: .75rem;
+            }
+
+            .plan-feature {
+                font-size: .72rem;
+                gap: .3rem;
+            }
+
+            .plan-btn {
+                font-size: .75rem;
+                padding: .35rem .5rem;
+                border-radius: 50px;
+            }
+
+            .plan-popular-col {
+                padding-top: 16px;
+            }
         }
 
         /* ── FOOTER ── */
@@ -675,6 +813,183 @@
         .fab-main.open {
             transform: rotate(45deg)
         }
+
+        /* ════════════════════════════════════════
+           RESPONSIVE FIXES
+        ════════════════════════════════════════ */
+
+        /* ── Navbar mobile (collapsed state) ── */
+        @media (max-width: 991.98px) {
+            #navMenu {
+                padding: 1rem 0 1.25rem;
+                border-top: 1px solid rgba(255, 255, 255, .08);
+                margin-top: .5rem;
+            }
+
+            [data-bs-theme="light"] #navMenu {
+                border-top-color: rgba(0, 0, 0, .08);
+            }
+
+            .navbar-nav {
+                gap: 0 !important;
+                margin-bottom: .75rem;
+            }
+
+            .nav-link {
+                padding: .55rem .25rem !important;
+            }
+
+            /* Buttons & toggle row — stack vertically */
+            #navMenu>.d-flex {
+                flex-direction: column;
+                align-items: stretch !important;
+                gap: .5rem !important;
+                margin-top: 0 !important;
+            }
+
+            #navMenu>.d-flex .btn {
+                width: 100%;
+                text-align: center;
+                justify-content: center;
+            }
+
+            /* Keep theme toggle left-aligned and appropriately sized */
+            #navMenu>.d-flex .theme-toggle {
+                align-self: flex-start;
+                margin-top: .25rem;
+            }
+        }
+
+        /* ── Hero — center content on mobile, reduce top padding ── */
+        @media (max-width: 767.98px) {
+            #home {
+                align-items: center;
+                min-height: 100svh;
+            }
+
+            .hero-content {
+                padding-top: 72px;
+                padding-bottom: 3rem;
+            }
+
+            .hero-sub {
+                font-size: .95rem;
+                max-width: 100%;
+            }
+
+            .hero-divider {
+                margin: 1.1rem 0;
+            }
+        }
+
+        /* ── Hero CTA buttons — full-width on xs ── */
+        @media (max-width: 575.98px) {
+            .hero-content {
+                padding-top: 28px;
+                padding-bottom: 2.5rem;
+            }
+
+            .hero-cta-row {
+                flex-direction: column;
+            }
+
+            .hero-cta-row .btn {
+                width: 100%;
+                justify-content: center;
+                padding-left: 1.5rem !important;
+                padding-right: 1.5rem !important;
+            }
+
+            /* Tighten stat numbers & labels */
+            .hero-stat-num {
+                font-size: 1.35rem;
+            }
+
+            .hero-stat-label {
+                font-size: .6rem;
+            }
+
+            .hero-stats-row {
+                gap: 1rem 1.5rem;
+            }
+
+            /* Eyebrow pill — prevent overflow */
+            .hero-eyebrow {
+                font-size: .68rem;
+                padding: .3rem .8rem;
+            }
+        }
+
+        /* ── Scroll hint — hide on very short viewports ── */
+        @media (max-height: 620px) {
+            .scroll-hint {
+                display: none;
+            }
+        }
+
+        /* ── Gallery — tighter cards on xs 2-column layout ── */
+        @media (max-width: 575.98px) {
+            .gcard {
+                aspect-ratio: 1/1;
+                border-radius: 12px;
+            }
+
+            .gcard-info {
+                padding: .75rem;
+                opacity: 1;
+                transform: none;
+            }
+
+            .gcard-overlay {
+                opacity: 1;
+            }
+
+            .gcard-info .fw-bold {
+                font-size: .78rem !important;
+            }
+
+            .gcard-info .text-white-50 {
+                font-size: .62rem !important;
+            }
+
+            #gallery-grid .g-3 {
+                --bs-gutter-x: .5rem;
+                --bs-gutter-y: .5rem;
+            }
+        }
+
+        /* ── Footer — stack link columns on xs ── */
+        @media (max-width: 575.98px) {
+            footer .col-6 {
+                flex: 0 0 50%;
+                max-width: 50%;
+            }
+
+            footer .plugin-badge-row {
+                justify-content: flex-start !important;
+                flex-wrap: wrap;
+            }
+
+            /* Copyright + badges: stack vertically */
+            footer .d-flex.justify-content-between {
+                flex-direction: column;
+                gap: .75rem;
+            }
+        }
+
+        /* ── FAB — slightly smaller on mobile ── */
+        @media (max-width: 575.98px) {
+            .fab-wrap {
+                bottom: 1.25rem;
+                right: 1.25rem;
+            }
+
+            .fab-main {
+                width: 46px;
+                height: 46px;
+                font-size: 1.15rem;
+            }
+        }
     </style>
 </head>
 
@@ -704,7 +1019,6 @@
                         <i class="ti ti-sun tog-icon-light text-warning"></i>
                         <span class="tog-knob"><i class="ti ti-moon" id="knob-icon"></i></span>
                     </button>
-
                 </div>
             </div>
         </div>
@@ -734,14 +1048,16 @@
                             Train smarter with world-class equipment, expert coaches, and a community that keeps you accountable — every rep, every day.
                         </p>
 
-                        <div class="d-flex flex-wrap gap-3 mb-5">
+                        <!-- CTA Buttons — use hero-cta-row for responsive stacking -->
+                        <div class="hero-cta-row mb-4">
                             <a href="auth.php?mode=register" class="btn btn-fs btn-lg px-5 py-3 rounded-pill">
                                 <i class="ti ti-bolt me-1"></i>Join Now
                             </a>
                             <a href="#plans" class="btn btn-fs-outline btn-lg px-5 py-3 rounded-pill">View Plans</a>
                         </div>
 
-                        <div class="d-flex flex-wrap gap-4">
+                        <!-- Stats — use hero-stats-row for responsive wrapping -->
+                        <div class="hero-stats-row">
                             <div class="hero-stat">
                                 <div class="hero-stat-num">12K+</div>
                                 <div class="hero-stat-label">Members</div>
@@ -784,13 +1100,16 @@
                 <h2 class="section-title">World-Class Facilities</h2>
                 <p class="text-secondary">State-of-the-art equipment across all our branches</p>
             </div>
-            <div class="d-flex justify-content-center flex-wrap gap-2 mb-4" id="gallery-tabs">
-                <button class="btn btn-sm btn-fs rounded-pill active-tab" onclick="filterGallery('all',this)">All</button>
-                <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="filterGallery('gym',this)">Gym Floor</button>
-                <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="filterGallery('class',this)">Classes</button>
-                <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="filterGallery('location',this)">Locations</button>
+            <!-- Scrollable tabs on mobile — no wrapping overflow -->
+            <div class="gallery-tabs-wrap mb-4">
+                <div class="d-flex justify-content-center gap-2" id="gallery-tabs">
+                    <button class="btn btn-sm btn-fs rounded-pill active-tab" onclick="filterGallery('all',this)">All</button>
+                    <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="filterGallery('gym',this)">Gym Floor</button>
+                    <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="filterGallery('class',this)">Classes</button>
+                    <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="filterGallery('location',this)">Locations</button>
+                </div>
             </div>
-            <div class="row g-3" id="gallery-grid"></div>
+            <div class="row g-2 g-sm-3" id="gallery-grid"></div>
         </div>
     </section>
 
@@ -802,74 +1121,78 @@
                 <h2 class="section-title">Choose Your Plan</h2>
                 <p class="text-secondary">Flexible memberships. No hidden fees. Cancel anytime.</p>
             </div>
-            <div class="row g-4 justify-content-center">
+            <div class="row g-3 g-xl-4 justify-content-center">
 
-                <div class="col-sm-6 col-xl-3">
+                <!-- 1 Month -->
+                <div class="col-6 col-xl-3">
                     <div class="plan-card border h-100 d-flex flex-column">
-                        <div class="text-uppercase fs-red fw-bold mb-1" style="font-size:.72rem;letter-spacing:.7px">1 Month</div>
+                        <div class="plan-label">1 Month</div>
                         <div class="plan-price">₱999<sub>/mo</sub></div>
-                        <div class="plan-orig mb-3">₱1,299</div>
-                        <hr class="my-2" />
-                        <ul class="list-unstyled d-flex flex-column gap-2 mb-4 flex-grow-1">
-                            <li class="plan-feature yes"><i class="ti ti-check fs-red yes"></i>Full gym access</li>
-                            <li class="plan-feature yes"><i class="ti ti-check fs-red yes"></i>Locker room &amp; showers</li>
-                            <li class="plan-feature yes"><i class="ti ti-check fs-red yes"></i>2 group classes/week</li>
-                            <li class="plan-feature"><i class="ti ti-x text-secondary"></i>Personal trainer</li>
-                            <li class="plan-feature"><i class="ti ti-x text-secondary"></i>Multi-branch access</li>
+                        <div class="plan-orig">₱1,299</div>
+                        <hr class="plan-divider" />
+                        <ul class="list-unstyled plan-features flex-grow-1">
+                            <li class="plan-feature yes"><i class="ti ti-check"></i><span>Full gym access</span></li>
+                            <li class="plan-feature yes"><i class="ti ti-check"></i><span>Locker &amp; showers</span></li>
+                            <li class="plan-feature yes"><i class="ti ti-check"></i><span>2 classes/week</span></li>
+                            <li class="plan-feature"><i class="ti ti-x"></i><span>Personal trainer</span></li>
+                            <li class="plan-feature"><i class="ti ti-x"></i><span>Multi-branch</span></li>
                         </ul>
-                        <a href="auth.php?plan=1mo" class="btn btn-outline-secondary w-100 fw-semibold rounded-pill">Get Started</a>
+                        <a href="auth.php?plan=1mo" class="btn btn-outline-secondary w-100 fw-semibold rounded-pill plan-btn">Get Started</a>
                     </div>
                 </div>
 
-                <div class="col-sm-6 col-xl-3">
+                <!-- 3 Months -->
+                <div class="col-6 col-xl-3">
                     <div class="plan-card border h-100 d-flex flex-column">
-                        <div class="text-uppercase fs-red fw-bold mb-1" style="font-size:.72rem;letter-spacing:.7px">3 Months</div>
+                        <div class="plan-label">3 Months</div>
                         <div class="plan-price">₱2,699<sub>/3mo</sub></div>
-                        <div class="plan-orig mb-3">₱3,897</div>
-                        <hr class="my-2" />
-                        <ul class="list-unstyled d-flex flex-column gap-2 mb-4 flex-grow-1">
-                            <li class="plan-feature yes"><i class="ti ti-check fs-red yes"></i>Full gym access</li>
-                            <li class="plan-feature yes"><i class="ti ti-check fs-red yes"></i>Locker room &amp; showers</li>
-                            <li class="plan-feature yes"><i class="ti ti-check fs-red yes"></i>Unlimited group classes</li>
-                            <li class="plan-feature yes"><i class="ti ti-check fs-red yes"></i>1 PT session/month</li>
-                            <li class="plan-feature"><i class="ti ti-x text-secondary"></i>Multi-branch access</li>
+                        <div class="plan-orig">₱3,897</div>
+                        <hr class="plan-divider" />
+                        <ul class="list-unstyled plan-features flex-grow-1">
+                            <li class="plan-feature yes"><i class="ti ti-check"></i><span>Full gym access</span></li>
+                            <li class="plan-feature yes"><i class="ti ti-check"></i><span>Locker &amp; showers</span></li>
+                            <li class="plan-feature yes"><i class="ti ti-check"></i><span>Unlimited classes</span></li>
+                            <li class="plan-feature yes"><i class="ti ti-check"></i><span>1 PT session/mo</span></li>
+                            <li class="plan-feature"><i class="ti ti-x"></i><span>Multi-branch</span></li>
                         </ul>
-                        <a href="auth.php?plan=3mo" class="btn btn-outline-secondary w-100 fw-semibold rounded-pill">Get Started</a>
+                        <a href="auth.php?plan=3mo" class="btn btn-outline-secondary w-100 fw-semibold rounded-pill plan-btn">Get Started</a>
                     </div>
                 </div>
 
-                <div class="col-sm-6 col-xl-3">
+                <!-- 6 Months — Popular -->
+                <div class="col-6 col-xl-3 plan-popular-col">
                     <div class="plan-card popular border h-100 d-flex flex-column">
                         <div class="plan-popular-badge">Most Popular</div>
-                        <div class="text-uppercase fs-red fw-bold mb-1" style="font-size:.72rem;letter-spacing:.7px">6 Months</div>
+                        <div class="plan-label">6 Months</div>
                         <div class="plan-price">₱4,799<sub>/6mo</sub></div>
-                        <div class="plan-orig mb-3">₱7,794</div>
-                        <hr class="my-2" />
-                        <ul class="list-unstyled d-flex flex-column gap-2 mb-4 flex-grow-1">
-                            <li class="plan-feature yes"><i class="ti ti-check fs-red yes"></i>Full gym access</li>
-                            <li class="plan-feature yes"><i class="ti ti-check fs-red yes"></i>Locker room &amp; showers</li>
-                            <li class="plan-feature yes"><i class="ti ti-check fs-red yes"></i>Unlimited group classes</li>
-                            <li class="plan-feature yes"><i class="ti ti-check fs-red yes"></i>2 PT sessions/month</li>
-                            <li class="plan-feature yes"><i class="ti ti-check fs-red yes"></i>Multi-branch access</li>
+                        <div class="plan-orig">₱7,794</div>
+                        <hr class="plan-divider" />
+                        <ul class="list-unstyled plan-features flex-grow-1">
+                            <li class="plan-feature yes"><i class="ti ti-check"></i><span>Full gym access</span></li>
+                            <li class="plan-feature yes"><i class="ti ti-check"></i><span>Locker &amp; showers</span></li>
+                            <li class="plan-feature yes"><i class="ti ti-check"></i><span>Unlimited classes</span></li>
+                            <li class="plan-feature yes"><i class="ti ti-check"></i><span>2 PT sessions/mo</span></li>
+                            <li class="plan-feature yes"><i class="ti ti-check"></i><span>Multi-branch</span></li>
                         </ul>
-                        <a href="auth.php?plan=6mo" class="btn btn-fs w-100 fw-semibold rounded-pill">Get Started</a>
+                        <a href="auth.php?plan=6mo" class="btn btn-fs w-100 fw-semibold rounded-pill plan-btn">Get Started</a>
                     </div>
                 </div>
 
-                <div class="col-sm-6 col-xl-3">
+                <!-- 12 Months -->
+                <div class="col-6 col-xl-3">
                     <div class="plan-card border h-100 d-flex flex-column">
-                        <div class="text-uppercase fs-red fw-bold mb-1" style="font-size:.72rem;letter-spacing:.7px">12 Months</div>
+                        <div class="plan-label">12 Months</div>
                         <div class="plan-price">₱7,999<sub>/yr</sub></div>
-                        <div class="plan-orig mb-3">₱15,588</div>
-                        <hr class="my-2" />
-                        <ul class="list-unstyled d-flex flex-column gap-2 mb-4 flex-grow-1">
-                            <li class="plan-feature yes"><i class="ti ti-check fs-red yes"></i>Full gym access</li>
-                            <li class="plan-feature yes"><i class="ti ti-check fs-red yes"></i>Locker room &amp; showers</li>
-                            <li class="plan-feature yes"><i class="ti ti-check fs-red yes"></i>Unlimited group classes</li>
-                            <li class="plan-feature yes"><i class="ti ti-check fs-red yes"></i>4 PT sessions/month</li>
-                            <li class="plan-feature yes"><i class="ti ti-check fs-red yes"></i>Multi-branch access</li>
+                        <div class="plan-orig">₱15,588</div>
+                        <hr class="plan-divider" />
+                        <ul class="list-unstyled plan-features flex-grow-1">
+                            <li class="plan-feature yes"><i class="ti ti-check"></i><span>Full gym access</span></li>
+                            <li class="plan-feature yes"><i class="ti ti-check"></i><span>Locker &amp; showers</span></li>
+                            <li class="plan-feature yes"><i class="ti ti-check"></i><span>Unlimited classes</span></li>
+                            <li class="plan-feature yes"><i class="ti ti-check"></i><span>4 PT sessions/mo</span></li>
+                            <li class="plan-feature yes"><i class="ti ti-check"></i><span>Multi-branch</span></li>
                         </ul>
-                        <a href="auth.php?plan=12mo" class="btn btn-outline-secondary w-100 fw-semibold rounded-pill">Get Started</a>
+                        <a href="auth.php?plan=12mo" class="btn btn-outline-secondary w-100 fw-semibold rounded-pill plan-btn">Get Started</a>
                     </div>
                 </div>
 
@@ -1019,7 +1342,7 @@
         function renderGallery(f) {
             const items = f === 'all' ? galleryData : galleryData.filter(i => i.tag === f);
             document.getElementById('gallery-grid').innerHTML = items.map(i => `
-      <div class="col-sm-6 col-md-4 col-lg-3">
+      <div class="col-6 col-md-4 col-lg-3">
         <div class="gcard">
           <div class="gcard-img-wrap">
             <img
