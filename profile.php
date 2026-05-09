@@ -649,7 +649,7 @@
     <div class="sb-header">
         <!-- Brand -->
         <a class="sb-brand" href="index.php">
-            <img src="FitSYNC Emblem.svg" alt="FitSync" width="30" height="30" />
+            <img class="theme-logo" src="FitSYNC Emblem Light.svg" data-logo-dark="FitSYNC Emblem Light.svg" data-logo-light="FitSYNC Emblem.svg" alt="FitSync" width="30" height="30" />
             <span class="brand-text"><span class="fit">FIT</span><span class="sync">SYNC</span></span>
         </a>
 
@@ -1011,11 +1011,22 @@
 <script>
 
 /* ── THEME ── */
+function updateThemeLogos() {
+    const isLight = document.documentElement.getAttribute('data-bs-theme') === 'light';
+    document.querySelectorAll('[data-logo-dark][data-logo-light]').forEach(logo => {
+        const nextSrc = isLight ? logo.dataset.logoLight : logo.dataset.logoDark;
+        if (logo.getAttribute('src') !== nextSrc) logo.setAttribute('src', nextSrc);
+    });
+}
+
 function toggleTheme() {
     const html = document.documentElement;
     const isDark = html.getAttribute('data-bs-theme') === 'dark';
     html.setAttribute('data-bs-theme', isDark ? 'light' : 'dark');
+    updateThemeLogos();
 }
+
+updateThemeLogos();
 
 /* ── SIDEBAR (MOBILE) ── */
 function openSidebar() {

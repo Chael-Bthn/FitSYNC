@@ -57,7 +57,7 @@
         .auth-visual-bg {
             position: absolute;
             inset: 0;
-            background-image: url('gallery/BG Photo.png');
+            background-image: url('gallery/Counter.png');
             background-size: cover;
             background-position: center;
             background-color: #1a1a1a;
@@ -91,6 +91,7 @@
 
         .brand-text .fit { font-size: 1.15rem; font-weight: 900; letter-spacing: 1px; color: #fff }
         .brand-text .sync { font-size: 1.15rem; font-weight: 900; color: var(--fs-red); letter-spacing: 1px }
+        [data-bs-theme="light"] .auth-form-panel .brand-text .fit { color: var(--bs-body-color) }
 
         .auth-quote {
             font-size: clamp(1.6rem, 3vw, 2.5rem);
@@ -125,30 +126,6 @@
 
         .auth-stat-num { font-size: 1.4rem; font-weight: 800; color: #fff; line-height: 1 }
         .auth-stat-lbl { font-size: .62rem; text-transform: uppercase; letter-spacing: .7px; color: rgba(255,255,255,.4); margin-top: .15rem }
-
-        /* Marquee on visual (bottom strip) */
-        .auth-strip {
-            background: var(--fs-red);
-            overflow: hidden;
-            white-space: nowrap;
-            padding: .55rem 0;
-            position: relative;
-            z-index: 3;
-        }
-
-        .auth-strip-track {
-            display: inline-flex;
-            gap: 2.5rem;
-            animation: stripScroll 20s linear infinite;
-        }
-
-        .auth-strip-track span { font-size: .68rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,.9) }
-        .auth-strip-track .dot { color: rgba(255,255,255,.4); font-size: .85rem }
-
-        @keyframes stripScroll {
-            from { transform: translateX(0) }
-            to { transform: translateX(-50%) }
-        }
 
         /* RIGHT — form panel */
         .auth-form-panel {
@@ -493,7 +470,7 @@
         <div class="auth-visual-bg"></div>
 
         <a class="auth-brand" href="index.php">
-            <img src="FitSYNC Emblem.svg" alt="FitSync" width="32" height="32" />
+            <img class="theme-logo" src="FitSYNC Emblem Light.svg" data-logo-dark="FitSYNC Emblem Light.svg" data-logo-light="FitSYNC Emblem.svg" alt="FitSync" width="32" height="32" />
             <span class="brand-text"><span class="fit">FIT</span><span class="sync">SYNC</span></span>
         </a>
 
@@ -523,11 +500,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- Marquee strip -->
-        <div class="auth-strip">
-            <div class="auth-strip-track" id="stripTrack"></div>
-        </div>
     </div>
 
     <!-- ── RIGHT: FORM PANEL ── -->
@@ -545,7 +517,7 @@
 
             <!-- Mobile brand (only shows on small screens) -->
             <div class="auth-mobile-brand align-items-center gap-2 mb-4" style="display:none">
-                <img src="FitSYNC Emblem.svg" alt="FitSync" width="30" height="30" />
+                <img class="theme-logo" src="FitSYNC Emblem Light.svg" data-logo-dark="FitSYNC Emblem Light.svg" data-logo-light="FitSYNC Emblem.svg" alt="FitSync" width="30" height="30" />
                 <span class="brand-text"><span class="fit">FIT</span><span class="sync">SYNC</span></span>
             </div>
 
@@ -745,19 +717,25 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 
-/* ── MARQUEE ── */
-const slogans = ['Train Hard · Live Well','No Limits · No Excuses','Your Best Self Starts Here','Sweat · Strength · Sync','Built Different','Every Rep Counts'];
-const t = document.getElementById('stripTrack');
-const doubled = [...slogans, ...slogans];
-t.innerHTML = doubled.map(s => `<span>${s}</span><span class="dot">✦</span>`).join('');
 
 /* ── THEME ── */
+function updateThemeLogos() {
+    const isLight = document.documentElement.getAttribute('data-bs-theme') === 'light';
+    document.querySelectorAll('[data-logo-dark][data-logo-light]').forEach(logo => {
+        const nextSrc = isLight ? logo.dataset.logoLight : logo.dataset.logoDark;
+        if (logo.getAttribute('src') !== nextSrc) logo.setAttribute('src', nextSrc);
+    });
+}
+
 function toggleTheme() {
     const html = document.documentElement;
     const isDark = html.getAttribute('data-bs-theme') === 'dark';
     html.setAttribute('data-bs-theme', isDark ? 'light' : 'dark');
     document.getElementById('themeIcon').className = isDark ? 'ti ti-moon' : 'ti ti-sun';
+    updateThemeLogos();
 }
+
+updateThemeLogos();
 
 /* ── TABS ── */
 function switchTab(tab) {

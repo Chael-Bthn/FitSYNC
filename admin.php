@@ -1060,7 +1060,7 @@
     <aside class="sidebar" id="sidebar">
 
         <a class="sidebar-brand" href="index.php">
-            <img src="FitSYNC Emblem.svg" alt="FitSync" width="32" height="32" />
+            <img class="theme-logo" src="FitSYNC Emblem Light.svg" data-logo-dark="FitSYNC Emblem Light.svg" data-logo-light="FitSYNC Emblem.svg" alt="FitSync" width="32" height="32" />
             <span class="brand-text"><span class="fit">FIT</span><span class="sync">SYNC</span></span>
         </a>
 
@@ -1712,12 +1712,21 @@
         }
 
         /* ── THEME ── */
+        function updateThemeLogos() {
+            const isLight = document.documentElement.getAttribute('data-bs-theme') === 'light';
+            document.querySelectorAll('[data-logo-dark][data-logo-light]').forEach(logo => {
+                const nextSrc = isLight ? logo.dataset.logoLight : logo.dataset.logoDark;
+                if (logo.getAttribute('src') !== nextSrc) logo.setAttribute('src', nextSrc);
+            });
+        }
+
         function toggleTheme() {
             const html = document.documentElement;
             const isDark = html.getAttribute('data-bs-theme') === 'dark';
             html.setAttribute('data-bs-theme', isDark ? 'light' : 'dark');
             document.getElementById('knob-icon').className = isDark ? 'ti ti-sun' : 'ti ti-moon';
             localStorage.setItem('fs-admin-theme', isDark ? 'light' : 'dark');
+            updateThemeLogos();
         }
         // Restore saved theme
         (function() {
@@ -1728,6 +1737,7 @@
                 if (knob) knob.className = saved === 'light' ? 'ti ti-sun' : 'ti ti-moon';
             }
         })();
+        updateThemeLogos();
 
         /* ── BOOT ── */
         init();

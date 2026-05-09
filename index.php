@@ -999,7 +999,7 @@
     <nav class="navbar navbar-expand-lg fixed-top">
         <div class="container">
             <a class="navbar-brand d-flex align-items-center gap-2 text-decoration-none" href="#home">
-                <img src="FitSYNC Emblem.svg" alt="FitSync" width="36" height="36" style="flex-shrink:0" />
+                <img class="theme-logo" src="FitSYNC Emblem Light.svg" data-logo-dark="FitSYNC Emblem Light.svg" data-logo-light="FitSYNC Emblem.svg" alt="FitSync" width="36" height="36" style="flex-shrink:0" />
                 <span class="brand-text"><span class="fit">FIT</span><span class="sync">SYNC</span></span>
             </a>
             <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu" aria-label="Toggle navigation">
@@ -1206,7 +1206,7 @@
             <div class="row g-4 mb-4">
                 <div class="col-lg-4">
                     <div class="d-flex align-items-center gap-2 mb-3">
-                        <img src="FitSYNC Logo.svg" alt="FitSync" height="30" />
+                        <img class="theme-logo" src="FitSYNC Logo Light.svg" data-logo-dark="FitSYNC Logo Light.svg" data-logo-light="FitSYNC Logo.svg" alt="FitSync" height="30" />
                     </div>
                     <p class="text-secondary" style="font-size:.85rem;line-height:1.8">Your ultimate fitness companion. Track progress, book classes, and connect with coaches — all in one place.</p>
                     <div class="d-flex gap-2 flex-wrap mt-3">
@@ -1376,12 +1376,38 @@
         }
 
         /* ── THEME ── */
+        function updateThemeLogos() {
+            const isLight = document.documentElement.getAttribute('data-bs-theme') === 'light';
+            document.querySelectorAll('[data-logo-dark][data-logo-light]').forEach(logo => {
+                const nextSrc = isLight ? logo.dataset.logoLight : logo.dataset.logoDark;
+                if (logo.getAttribute('src') !== nextSrc) logo.setAttribute('src', nextSrc);
+            });
+        }
+
         function toggleTheme() {
             const html = document.documentElement;
+            const logo = document.getElementById('navbarLogo');
+
             const isDark = html.getAttribute('data-bs-theme') === 'dark';
-            html.setAttribute('data-bs-theme', isDark ? 'light' : 'dark');
-            document.getElementById('knob-icon').className = isDark ? 'ti ti-sun' : 'ti ti-moon';
+
+            if (isDark) {
+                html.setAttribute('data-bs-theme', 'light');
+
+                // Change logo for light mode
+                logo.src = 'FitSYNC Emblem Light.svg';
+
+                document.getElementById('knob-icon').className = 'ti ti-sun';
+            } else {
+                html.setAttribute('data-bs-theme', 'dark');
+
+                // Change logo for dark mode
+                logo.src = 'FitSYNC Emblem.svg';
+
+                document.getElementById('knob-icon').className = 'ti ti-moon';
+            }
         }
+
+        updateThemeLogos();
 
         /* ── FAB ── */
         let fabOpen = false;
