@@ -178,22 +178,109 @@
             overflow: hidden;
         }
 
-        .hero-bg {
+        /* ── HERO SLIDESHOW ── */
+        .hero-slideshow {
             position: absolute;
             inset: 0;
-            background-image: url('gallery/BG Photo.png');
-            background-size: cover;
-            background-position: center top;
             background-color: #1a1a1a;
         }
 
-        .hero-bg::after {
+        .hero-slide {
+            position: absolute;
+            inset: 0;
+            background-size: cover;
+            background-position: center top;
+            opacity: 0;
+            transition: opacity 1.4s cubic-bezier(0.4, 0, 0.2, 1);
+            /* Ken Burns zoom effect on each slide */
+            animation: kenBurns 8s ease-in-out infinite alternate;
+        }
+
+        .hero-slide.active {
+            opacity: 1;
+        }
+
+        /* Stagger ken burns direction per slide */
+        .hero-slide:nth-child(odd) {
+            animation: kenBurnsA 8s ease-in-out infinite alternate;
+        }
+
+        .hero-slide:nth-child(even) {
+            animation: kenBurnsB 8s ease-in-out infinite alternate;
+        }
+
+        @keyframes kenBurnsA {
+            from {
+                transform: scale(1) translateX(0) translateY(0);
+            }
+
+            to {
+                transform: scale(1.07) translateX(-1.5%) translateY(-1%);
+            }
+        }
+
+        @keyframes kenBurnsB {
+            from {
+                transform: scale(1.05) translateX(1%) translateY(.5%);
+            }
+
+            to {
+                transform: scale(1) translateX(0) translateY(0);
+            }
+        }
+
+        /* Dark overlay on top of slideshow */
+        .hero-slideshow::after {
             content: '';
             position: absolute;
             inset: 0;
             background:
                 linear-gradient(to top, rgba(0, 0, 0, .92) 0%, rgba(0, 0, 0, .55) 45%, rgba(0, 0, 0, .18) 100%),
                 linear-gradient(100deg, rgba(0, 0, 0, .5) 0%, transparent 60%);
+            z-index: 1;
+        }
+
+        /* Slide indicator dots */
+        .hero-dots {
+            position: absolute;
+            bottom: 2.5rem;
+            right: 2rem;
+            z-index: 3;
+            display: flex;
+            flex-direction: column;
+            gap: .45rem;
+        }
+
+        .hero-dot {
+            width: 3px;
+            height: 20px;
+            border-radius: 2px;
+            background: rgba(255, 255, 255, .25);
+            cursor: pointer;
+            transition: background .3s, height .3s;
+            border: none;
+            padding: 0;
+        }
+
+        .hero-dot.active {
+            background: var(--fs-red);
+            height: 32px;
+        }
+
+        .hero-dot:hover:not(.active) {
+            background: rgba(255, 255, 255, .5);
+        }
+
+        /* Progress bar for current slide */
+        .hero-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 3px;
+            background: var(--fs-red);
+            z-index: 3;
+            width: 0%;
+            transition: width linear;
         }
 
         .hero-content {
@@ -1098,6 +1185,11 @@
                 font-size: .68rem;
                 padding: .3rem .8rem;
             }
+
+            /* Hide dots on mobile, use progress bar only */
+            .hero-dots {
+                display: none;
+            }
         }
 
         @media (max-height: 620px) {
@@ -1233,7 +1325,18 @@
 
     <!-- ════════════════ HERO ════════════════ -->
     <section id="home">
-        <div class="hero-bg"></div>
+
+        <!-- ── SLIDESHOW BACKGROUND ── -->
+        <div class="hero-slideshow" id="heroSlideshow">
+            <!-- Slides injected by JS -->
+        </div>
+
+        <!-- Progress bar at very bottom of hero -->
+        <div class="hero-progress" id="heroProgress"></div>
+
+        <!-- Vertical dot navigation (right side) -->
+        <div class="hero-dots" id="heroDots"></div>
+
         <div class="hero-content">
             <div class="container">
                 <div class="row">
@@ -1277,7 +1380,6 @@
                 </div>
             </div>
         </div>
-
 
         <div class="scroll-hint">
             <div class="scroll-dot"></div>
@@ -1531,6 +1633,170 @@
         const t = document.getElementById('stripTrack');
         const doubled = [...slogans, ...slogans];
         t.innerHTML = doubled.map(s => `<span>${s}</span><span class="dot">✦</span>`).join('');
+
+        /* ══════════════════════════════════════════
+           HERO SLIDESHOW
+        ══════════════════════════════════════════ */
+        const heroSlides = [{
+                img: 'gallery/BG Photo.png',
+                label: 'Main Floor'
+            },
+            {
+                img: 'gallery/Plyo area.png',
+                label: 'Plyometrics Area'
+            },
+            {
+                img: 'gallery/Boxing ring.png',
+                label: 'Boxing Ring'
+            },
+            {
+                img: 'gallery/Mirror room.png',
+                label: 'Yoga Studio'
+            },
+            {
+                img: 'gallery/Lounge.png',
+                label: 'Lounge Area'
+            },
+            {
+                img: 'gallery/Locker 1.png',
+                label: 'Locker Room'
+            },
+            {
+                img: 'gallery/Counter.png',
+                label: 'Reception'
+            },
+        ];
+
+        const SLIDE_DURATION = 5000; // ms each slide stays visible
+        const FADE_DURATION = 1400; // ms — must match CSS transition
+
+        let slideIndex = 0;
+        let slideTimer = null;
+        let progressRAF = null;
+        let progressStart = null;
+
+        const slideshowEl = document.getElementById('heroSlideshow');
+        const dotsEl = document.getElementById('heroDots');
+        const progressEl = document.getElementById('heroProgress');
+
+        /* Build slide elements */
+        heroSlides.forEach((s, i) => {
+            const el = document.createElement('div');
+            el.className = 'hero-slide' + (i === 0 ? ' active' : '');
+            el.style.backgroundImage = `url('${s.img}')`;
+            slideshowEl.appendChild(el);
+        });
+
+        /* Build dot buttons */
+        heroSlides.forEach((s, i) => {
+            const btn = document.createElement('button');
+            btn.className = 'hero-dot' + (i === 0 ? ' active' : '');
+            btn.setAttribute('aria-label', `Go to slide: ${s.label}`);
+            btn.addEventListener('click', () => goToSlide(i));
+            dotsEl.appendChild(btn);
+        });
+
+        const slideEls = slideshowEl.querySelectorAll('.hero-slide');
+        const dotEls = dotsEl.querySelectorAll('.hero-dot');
+
+        function goToSlide(next) {
+            /* Clear running timers */
+            clearTimeout(slideTimer);
+            cancelAnimationFrame(progressRAF);
+
+            const prev = slideIndex;
+            if (next === prev) {
+                startProgress();
+                return;
+            }
+
+            slideIndex = next;
+
+            slideEls[prev].classList.remove('active');
+            slideEls[next].classList.add('active');
+
+            dotEls[prev].classList.remove('active');
+            dotEls[next].classList.add('active');
+
+            startProgress();
+        }
+
+        function nextSlide() {
+            goToSlide((slideIndex + 1) % heroSlides.length);
+        }
+
+        /* Smooth progress bar via rAF */
+        function startProgress() {
+            progressEl.style.transition = 'none';
+            progressEl.style.width = '0%';
+
+            /* Force reflow so the reset is visible */
+            progressEl.getBoundingClientRect();
+
+            progressStart = performance.now();
+
+            function tick(now) {
+                const elapsed = now - progressStart;
+                const pct = Math.min((elapsed / SLIDE_DURATION) * 100, 100);
+                progressEl.style.width = pct + '%';
+
+                if (pct < 100) {
+                    progressRAF = requestAnimationFrame(tick);
+                } else {
+                    /* Tiny pause so the bar reaches 100% visually before resetting */
+                    slideTimer = setTimeout(nextSlide, 80);
+                }
+            }
+
+            progressRAF = requestAnimationFrame(tick);
+        }
+
+        /* Pause on hover */
+        let pausedAt = null;
+        slideshowEl.addEventListener('mouseenter', () => {
+            cancelAnimationFrame(progressRAF);
+            clearTimeout(slideTimer);
+            pausedAt = performance.now() - progressStart;
+            progressEl.style.transition = 'none';
+        });
+
+        slideshowEl.addEventListener('mouseleave', () => {
+            if (pausedAt === null) return;
+            /* Resume from where we left off */
+            progressStart = performance.now() - pausedAt;
+            pausedAt = null;
+
+            function tick(now) {
+                const elapsed = now - progressStart;
+                const pct = Math.min((elapsed / SLIDE_DURATION) * 100, 100);
+                progressEl.style.width = pct + '%';
+                if (pct < 100) {
+                    progressRAF = requestAnimationFrame(tick);
+                } else {
+                    slideTimer = setTimeout(nextSlide, 80);
+                }
+            }
+            progressRAF = requestAnimationFrame(tick);
+        });
+
+        /* Touch swipe support */
+        let touchStartX = 0;
+        slideshowEl.addEventListener('touchstart', e => {
+            touchStartX = e.touches[0].clientX;
+        }, {
+            passive: true
+        });
+        slideshowEl.addEventListener('touchend', e => {
+            const dx = e.changedTouches[0].clientX - touchStartX;
+            if (Math.abs(dx) > 50) goToSlide(dx < 0 ?
+                (slideIndex + 1) % heroSlides.length :
+                (slideIndex - 1 + heroSlides.length) % heroSlides.length);
+        }, {
+            passive: true
+        });
+
+        /* Kick off */
+        startProgress();
 
         /* ── GALLERY DATA ── */
         const galleryData = [{
