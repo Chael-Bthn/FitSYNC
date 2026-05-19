@@ -1,3 +1,7 @@
+<?php
+require_once __DIR__ . '/config/auth_guard.php';
+requireRole('member');
+?>
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="dark">
 
@@ -8,6 +12,19 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <script>
+        /* Apply saved theme & fix logos before first paint */
+        (function () {
+            var saved = localStorage.getItem('fs-theme');
+            if (saved) document.documentElement.setAttribute('data-bs-theme', saved);
+            document.addEventListener('DOMContentLoaded', function () {
+                var isLight = document.documentElement.getAttribute('data-bs-theme') === 'light';
+                document.querySelectorAll('[data-logo-dark][data-logo-light]').forEach(function (logo) {
+                    logo.src = isLight ? logo.dataset.logoLight : logo.dataset.logoDark;
+                });
+            });
+        })();
+    </script>
     <style>
         :root,
         [data-bs-theme="dark"] {
@@ -986,7 +1003,7 @@
         <div class="sb-header">
             <!-- Brand -->
             <a class="sb-brand" href="index.php">
-                <img class="theme-logo" src="FitSYNC Emblem Light.svg" data-logo-dark="FitSYNC Emblem Light.svg" data-logo-light="FitSYNC Emblem.svg" alt="FitSync" width="30" height="30" />
+                <img class="theme-logo" src="assets/FitSYNC%20Emblem%20Light.svg" data-logo-dark="assets/FitSYNC%20Emblem%20Light.svg" data-logo-light="assets/FitSYNC%20Emblem.svg" alt="FitSync" width="30" height="30" />
                 <span class="brand-text"><span class="fit">FIT</span><span class="sync">SYNC</span></span>
             </a>
 
@@ -1053,7 +1070,7 @@
             </div>
 
             <!-- Logout -->
-            <a href="index.php" class="sb-logout">
+            <a href="logout.php" class="sb-logout">
                 <i class="ti ti-logout"></i> Log Out
             </a>
         </div>
@@ -1350,8 +1367,7 @@
         function updateThemeLogos() {
             const isLight = document.documentElement.getAttribute('data-bs-theme') === 'light';
             document.querySelectorAll('[data-logo-dark][data-logo-light]').forEach(logo => {
-                const nextSrc = isLight ? logo.dataset.logoLight : logo.dataset.logoDark;
-                if (logo.getAttribute('src') !== nextSrc) logo.setAttribute('src', nextSrc);
+                logo.setAttribute('src', isLight ? logo.dataset.logoLight : logo.dataset.logoDark);
             });
         }
 

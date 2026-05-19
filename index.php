@@ -8,6 +8,19 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <script>
+        /* Apply saved theme & fix logos before first paint */
+        (function () {
+            var saved = localStorage.getItem('fs-theme');
+            if (saved) document.documentElement.setAttribute('data-bs-theme', saved);
+            document.addEventListener('DOMContentLoaded', function () {
+                var isLight = document.documentElement.getAttribute('data-bs-theme') === 'light';
+                document.querySelectorAll('[data-logo-dark][data-logo-light]').forEach(function (logo) {
+                    logo.src = isLight ? logo.dataset.logoLight : logo.dataset.logoDark;
+                });
+            });
+        })();
+    </script>
     <style>
         :root,
         [data-bs-theme="dark"] {
@@ -1298,7 +1311,7 @@
     <nav class="navbar navbar-expand-lg fixed-top">
         <div class="container">
             <a class="navbar-brand d-flex align-items-center gap-2 text-decoration-none" href="#home">
-                <img class="theme-logo" src="FitSYNC Emblem Light.svg" data-logo-dark="FitSYNC Emblem Light.svg" data-logo-light="FitSYNC Emblem.svg" alt="FitSync" width="36" height="36" style="flex-shrink:0" />
+                <img class="theme-logo" src="assets/FitSYNC%20Emblem%20Light.svg" data-logo-dark="assets/FitSYNC%20Emblem%20Light.svg" data-logo-light="assets/FitSYNC%20Emblem.svg" alt="FitSync" width="36" height="36" style="flex-shrink:0" />
                 <span class="brand-text"><span class="fit">FIT</span><span class="sync">SYNC</span></span>
             </a>
             <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu" aria-label="Toggle navigation">
@@ -1552,7 +1565,7 @@
             <div class="row g-4 mb-4">
                 <div class="col-lg-4">
                     <div class="d-flex align-items-center gap-2 mb-3">
-                        <img class="theme-logo" src="FitSYNC Logo Light.svg" data-logo-dark="FitSYNC Logo Light.svg" data-logo-light="FitSYNC Logo.svg" alt="FitSync" height="30" />
+                        <img class="theme-logo" src="assets/FitSYNC%20Logo%20Light.svg" data-logo-dark="assets/FitSYNC%20Logo%20Light.svg" data-logo-light="assets/FitSYNC%20Logo.svg" alt="FitSync" height="30" />
                     </div>
                     <p class="text-secondary" style="font-size:.85rem;line-height:1.8">Your ultimate fitness companion. Track progress, book classes, and connect with coaches — all in one place.</p>
                     <div class="d-flex gap-2 flex-wrap mt-3">
@@ -1638,31 +1651,31 @@
            HERO SLIDESHOW
         ══════════════════════════════════════════ */
         const heroSlides = [{
-                img: 'gallery/BG Photo.png',
+                img: 'assets/BG Photo.png',
                 label: 'Main Floor'
             },
             {
-                img: 'gallery/Plyo area.png',
+                img: 'assets/Plyo area.png',
                 label: 'Plyometrics Area'
             },
             {
-                img: 'gallery/Boxing ring.png',
+                img: 'assets/Boxing ring.png',
                 label: 'Boxing Ring'
             },
             {
-                img: 'gallery/Mirror room.png',
+                img: 'assets/Mirror room.png',
                 label: 'Yoga Studio'
             },
             {
-                img: 'gallery/Lounge.png',
+                img: 'assets/Lounge.png',
                 label: 'Lounge Area'
             },
             {
-                img: 'gallery/Locker 1.png',
+                img: 'assets/Locker 1.png',
                 label: 'Locker Room'
             },
             {
-                img: 'gallery/Counter.png',
+                img: 'assets/Counter.png',
                 label: 'Reception'
             },
         ];
@@ -1801,49 +1814,49 @@
         /* ── GALLERY DATA ── */
         const galleryData = [{
                 tag: 'gym',
-                img: 'gallery/Plyo area.png',
+                img: 'assets/Plyo area.png',
                 title: 'Plyometrics Area',
                 loc: 'Main Branch — Quezon City'
             },
             {
                 tag: 'gym',
-                img: 'gallery/Boxing ring.png',
+                img: 'assets/Boxing ring.png',
                 title: 'Boxing Ring',
                 loc: 'Makati Branch'
             },
             {
                 tag: 'class',
-                img: 'gallery/Mirror room.png',
+                img: 'assets/Mirror room.png',
                 title: 'Yoga Studio',
                 loc: 'BGC Branch'
             },
             {
                 tag: 'class',
-                img: 'gallery/Lounge.png',
+                img: 'assets/Lounge.png',
                 title: 'Lounge Area',
                 loc: 'Main Branch — Quezon City'
             },
             {
                 tag: 'location',
-                img: 'gallery/Locker 1.png',
+                img: 'assets/Locker 1.png',
                 title: 'Locker Room 1',
                 loc: 'Bonifacio Global City'
             },
             {
                 tag: 'location',
-                img: 'gallery/Locker 2.png',
+                img: 'assets/Locker 2.png',
                 title: 'Locker Room 2',
                 loc: 'Ortigas Center, Pasig'
             },
             {
                 tag: 'gym',
-                img: 'gallery/Counter.png',
+                img: 'assets/Counter.png',
                 title: 'Counter',
                 loc: 'Eastwood Branch'
             },
             {
                 tag: 'gym',
-                img: 'gallery/Boxing ring.png',
+                img: 'assets/Boxing ring.png',
                 title: 'Boxing Ring',
                 loc: 'Makati Branch'
             },
@@ -1934,8 +1947,7 @@
         function updateThemeLogos() {
             const isLight = document.documentElement.getAttribute('data-bs-theme') === 'light';
             document.querySelectorAll('[data-logo-dark][data-logo-light]').forEach(logo => {
-                const nextSrc = isLight ? logo.dataset.logoLight : logo.dataset.logoDark;
-                if (logo.getAttribute('src') !== nextSrc) logo.setAttribute('src', nextSrc);
+                logo.setAttribute('src', isLight ? logo.dataset.logoLight : logo.dataset.logoDark);
             });
         }
 

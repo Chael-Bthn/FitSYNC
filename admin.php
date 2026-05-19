@@ -1,3 +1,75 @@
+<?php
+require_once __DIR__ . '/config/auth_guard.php';
+requireRole('admin');
+require_once __DIR__ . '/config/db.php';
+
+$pdo = db();
+
+$adminUser = currentUser();
+$adminInitial = strtoupper(substr(trim($adminUser['name'] ?: $adminUser['email'] ?: 'A'), 0, 1));
+
+$totalMembers = (int) $pdo->query("SELECT COUNT(*) FROM users WHERE role = 'member'")->fetchColumn();
+$totalBranches = (int) $pdo->query("SELECT COUNT(*) FROM branches WHERE is_active = 1")->fetchColumn();
+$totalFeedbacks = (int) $pdo->query("SELECT COUNT(*) FROM feedback WHERE is_visible = 1")->fetchColumn();
+$monthlyRevenue = (float) $pdo->query(
+    "SELECT COALESCE(SUM(amount_paid), 0) FROM memberships
+     WHERE MONTH(starts_at) = MONTH(CURDATE()) AND YEAR(starts_at) = YEAR(CURDATE())"
+)->fetchColumn();
+$averageRating = $pdo->query("SELECT AVG(rating) FROM feedback WHERE is_visible = 1")->fetchColumn();
+$averageRating = $averageRating ? round((float) $averageRating, 1) : 0.0;
+
+$memberRows = $pdo->query("SELECT u.id, u.first_name AS fname, u.last_name AS lname, u.email, u.is_active,
+           COALESCE(m.starts_at, u.created_at) AS joined,
+           COALESCE(m.ends_at, u.created_at) AS expiry,
+           COALESCE(p.label, 'No Plan') AS plan,
+           COALESCE(m.status, 'active') AS status
+    FROM users u
+    LEFT JOIN memberships m ON m.user_id = u.id
+    LEFT JOIN membership_plans p ON p.id = m.plan_id
+    WHERE u.role = 'member'
+    ORDER BY COALESCE(m.starts_at, u.created_at) DESC")->fetchAll(PDO::FETCH_ASSOC);
+
+$memberships = $pdo->query("SELECT m.id, u.first_name AS fname, u.last_name AS lname,
+           p.label AS plan, b.name AS branch,
+           m.starts_at, m.ends_at, m.amount_paid, m.payment_method, m.status
+    FROM memberships m
+    INNER JOIN users u ON u.id = m.user_id
+    INNER JOIN membership_plans p ON p.id = m.plan_id
+    INNER JOIN branches b ON b.id = m.branch_id
+    ORDER BY m.starts_at DESC")->fetchAll(PDO::FETCH_ASSOC);
+
+$branches = $pdo->query("SELECT id, name, city, address, is_active FROM branches ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
+$plans = $pdo->query("SELECT label FROM membership_plans WHERE is_active = 1 ORDER BY sort_order")->fetchAll(PDO::FETCH_ASSOC);
+
+$feedbacks = $pdo->query("SELECT f.id, COALESCE(u.first_name, 'Anonymous') AS fname, COALESCE(u.last_name, '') AS lname,
+           f.rating, f.body AS text, COALESCE(b.name, 'Unknown') AS branch, f.created_at AS date
+    FROM feedback f
+    LEFT JOIN users u ON u.id = f.user_id
+    LEFT JOIN branches b ON b.id = f.branch_id
+    WHERE f.is_visible = 1
+    ORDER BY f.created_at DESC")->fetchAll(PDO::FETCH_ASSOC);
+
+$totalMemberships = (int) $pdo->query("SELECT COUNT(*) FROM memberships")->fetchColumn();
+$activePlans = count($plans);
+
+$monthlyLabels = [];
+$signupData = [];
+$revenueData = [];
+for ($i = 11; $i >= 0; $i--) {
+    $month = new DateTime("first day of -{$i} month");
+    $monthlyLabels[] = $month->format('M');
+    $start = $month->format('Y-m-01');
+    $end = $month->format('Y-m-t');
+
+    $signupStmt = $pdo->prepare("SELECT COUNT(*) FROM memberships WHERE starts_at BETWEEN ? AND ?");
+    $signupStmt->execute([$start, $end]);
+    $signupData[] = (int) $signupStmt->fetchColumn();
+
+    $revenueStmt = $pdo->prepare("SELECT COALESCE(SUM(amount_paid), 0) FROM memberships WHERE starts_at BETWEEN ? AND ?");
+    $revenueStmt->execute([$start, $end]);
+    $revenueData[] = (float) $revenueStmt->fetchColumn();
+}
+?>
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="dark">
 
@@ -8,6 +80,19 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <script>
+        /* Apply saved theme & fix logos before first paint */
+        (function () {
+            var saved = localStorage.getItem('fs-theme');
+            if (saved) document.documentElement.setAttribute('data-bs-theme', saved);
+            document.addEventListener('DOMContentLoaded', function () {
+                var isLight = document.documentElement.getAttribute('data-bs-theme') === 'light';
+                document.querySelectorAll('[data-logo-dark][data-logo-light]').forEach(function (logo) {
+                    logo.src = isLight ? logo.dataset.logoLight : logo.dataset.logoDark;
+                });
+            });
+        })();
+    </script>
     <style>
         :root,
         [data-bs-theme="dark"] {
@@ -750,6 +835,21 @@
             box-shadow: none !important
         }
 
+        .fs-input option {
+            background: var(--card-bg);
+            color: var(--text-primary);
+        }
+        
+        [data-bs-theme="dark"] .fs-input option {
+            background: #1a1a1a;
+            color: #fff;
+        }
+        
+        [data-bs-theme="light"] .fs-input option {
+            background: #fff;
+            color: #000;
+        }
+
         .fs-label {
             font-size: .75rem;
             color: var(--text-muted)
@@ -998,7 +1098,7 @@
     <aside class="sidebar" id="sidebar">
 
         <a class="sidebar-brand" href="index.php">
-            <img class="theme-logo" src="FitSYNC Emblem Light.svg" data-logo-dark="FitSYNC Emblem Light.svg" data-logo-light="FitSYNC Emblem.svg" alt="FitSync" width="32" height="32" />
+            <img class="theme-logo" src="assets/FitSYNC%20Emblem%20Light.svg" data-logo-dark="assets/FitSYNC%20Emblem%20Light.svg" data-logo-light="assets/FitSYNC%20Emblem.svg" alt="FitSync" width="32" height="32" />
             <span class="brand-text"><span class="fit">FIT</span><span class="sync">SYNC</span></span>
         </a>
 
@@ -1013,11 +1113,21 @@
             <div class="nav-section-label">Management</div>
             <a class="sidebar-link" onclick="showPage('members',this)">
                 <i class="ti ti-users"></i> Members
-                <span class="nav-pill" id="pill-members">12K</span>
+                <span class="nav-pill" id="pill-members"><?= number_format($totalMembers) ?></span>
+            </a>
+            <a class="sidebar-link" onclick="showPage('branches',this)">
+                <i class="ti ti-building-store"></i> Branches
+                <span class="nav-pill" id="pill-branches"><?= number_format($totalBranches) ?></span>
             </a>
             <a class="sidebar-link" onclick="showPage('feedbacks',this)">
                 <i class="ti ti-message-star"></i> Feedbacks
-                <span class="nav-pill" id="pill-feedbacks">6</span>
+                <span class="nav-pill" id="pill-feedbacks"><?= number_format($totalFeedbacks) ?></span>
+            </a>
+            <a class="sidebar-link" onclick="showPage('reports',this)">
+                <i class="ti ti-chart-pie"></i> Reports
+            </a>
+            <a class="sidebar-link" onclick="showPage('settings',this)">
+                <i class="ti ti-settings"></i> Settings
             </a>
         </nav>
 
@@ -1032,7 +1142,7 @@
                 </button>
             </div>
 
-            <a class="sidebar-link logout" href="index.php">
+            <a class="sidebar-link logout" href="logout.php">
                 <i class="ti ti-logout"></i> Logout
             </a>
         </div>
@@ -1053,7 +1163,7 @@
         <button class="topbar-toggle d-md-none" onclick="toggleMobileSearch()" aria-label="Search">
             <i class="ti ti-search"></i>
         </button>
-        <div class="topbar-avatar" title="Administrator">A</div>
+        <div class="topbar-avatar" title="Administrator"><?= htmlspecialchars($adminInitial) ?></div>
     </div>
 
     <!-- Mobile search bar -->
@@ -1074,23 +1184,23 @@
                     <div class="col-6 col-xl-3">
                         <div class="stat-card">
                             <div class="stat-icon"><i class="ti ti-users"></i></div>
-                            <div class="stat-value">12,483</div>
+                            <div class="stat-value"><?= number_format($totalMembers) ?></div>
                             <div class="stat-label">Total Members</div>
-                            <div class="stat-delta up"><i class="ti ti-trending-up"></i> +342 this month</div>
+                            <div class="stat-delta up"><i class="ti ti-trending-up"></i> Active & Live</div>
                         </div>
                     </div>
                     <div class="col-6 col-xl-3">
                         <div class="stat-card">
                             <div class="stat-icon"><i class="ti ti-cash"></i></div>
-                            <div class="stat-value">₱1.2M</div>
+                            <div class="stat-value">₱<?= number_format($monthlyRevenue, 0) ?></div>
                             <div class="stat-label">Monthly Revenue</div>
-                            <div class="stat-delta up"><i class="ti ti-trending-up"></i> +18% vs last month</div>
+                            <div class="stat-delta up"><i class="ti ti-trending-up"></i> This month</div>
                         </div>
                     </div>
                     <div class="col-6 col-xl-3">
                         <div class="stat-card">
                             <div class="stat-icon"><i class="ti ti-building-store"></i></div>
-                            <div class="stat-value">8</div>
+                            <div class="stat-value"><?= number_format($totalBranches) ?></div>
                             <div class="stat-label">Active Branches</div>
                             <div class="stat-delta up"><i class="ti ti-point"></i> All operational</div>
                         </div>
@@ -1098,9 +1208,9 @@
                     <div class="col-6 col-xl-3">
                         <div class="stat-card">
                             <div class="stat-icon"><i class="ti ti-star"></i></div>
-                            <div class="stat-value">4.8</div>
+                            <div class="stat-value"><?= $averageRating ?></div>
                             <div class="stat-label">Avg. Rating</div>
-                            <div class="stat-delta up"><i class="ti ti-trending-up"></i> +0.2 this quarter</div>
+                            <div class="stat-delta up"><i class="ti ti-trending-up"></i> Based on feedback</div>
                         </div>
                     </div>
                 </div>
@@ -1136,7 +1246,7 @@
                                     <div class="quick-action-icon"><i class="ti ti-message-star"></i></div>
                                     <div>
                                         <div class="quick-action-label">Review Feedbacks</div>
-                                        <div class="quick-action-sub">6 new unread reviews</div>
+                                        <div class="quick-action-sub"><?= number_format($totalFeedbacks) ?> new reviews</div>
                                     </div>
                                 </a>
                                 <a class="quick-action" href="index.php" target="_blank">
@@ -1181,10 +1291,9 @@
                     <div class="d-flex gap-2">
                         <select class="form-select form-select-sm fs-select" id="planFilter" onchange="filterMembers()">
                             <option value="">All Plans</option>
-                            <option value="1 Month">1 Month</option>
-                            <option value="3 Months">3 Months</option>
-                            <option value="6 Months">6 Months</option>
-                            <option value="12 Months">12 Months</option>
+                            <?php foreach ($plans as $plan) : ?>
+                                <option value="<?= htmlspecialchars($plan['label']) ?>"><?= htmlspecialchars($plan['label']) ?></option>
+                            <?php endforeach ?>
                         </select>
                         <button class="btn btn-sm btn-fs rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#addMemberModal">
                             <i class="ti ti-plus"></i> Add Member
@@ -1198,8 +1307,8 @@
                                 <th>Member</th>
                                 <th class="col-hide-xs">Email</th>
                                 <th>Plan</th>
-                                <th class="col-hide-xs">Branch</th>
                                 <th class="col-hide-xs">Joined</th>
+                                <th class="col-hide-xs">Expires</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
@@ -1208,6 +1317,125 @@
                     </table>
                 </div>
             </div><!-- /members -->
+
+            <!-- ══ BRANCHES ══ -->
+            <div class="page-section" id="page-branches">
+                <div class="section-header mb-3">
+                    <div class="section-h">Branches <small><?= number_format($totalBranches) ?> active</small></div>
+                </div>
+                <div class="mb-3" style="font-size:.85rem;color:var(--text-muted)">Once a user registers, they may access any active branch across the network.</div>
+                <div class="row g-3" id="branches-list"></div>
+            </div><!-- /branches -->
+
+            <!-- ══ REPORTS ══ -->
+            <div class="page-section" id="page-reports">
+                <div class="row g-3 mb-4">
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ti ti-users"></i></div>
+                            <div class="stat-value"><?= number_format($totalMembers) ?></div>
+                            <div class="stat-label">Total Members</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ti ti-cash"></i></div>
+                            <div class="stat-value">₱<?= number_format($monthlyRevenue, 2) ?></div>
+                            <div class="stat-label">Revenue This Month</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ti ti-building-store"></i></div>
+                            <div class="stat-value"><?= number_format($totalBranches) ?></div>
+                            <div class="stat-label">Branches</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ti ti-star"></i></div>
+                            <div class="stat-value"><?= $averageRating ?></div>
+                            <div class="stat-label">Avg. Rating</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-lg-6">
+                        <div class="admin-table-wrap p-3">
+                            <div class="section-header mb-3">
+                                <div class="section-h">Monthly Signups</div>
+                            </div>
+                            <div class="sparkline" id="report-signup-chart" style="height:90px;gap:5px"></div>
+                            <div class="d-flex justify-content-between mt-1" id="report-signup-labels" style="font-size:.65rem;color:var(--text-dimmed)"></div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="admin-table-wrap p-3">
+                            <div class="section-header mb-3">
+                                <div class="section-h">Revenue Trend</div>
+                            </div>
+                            <div id="revenue-bars"></div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- /reports -->
+
+            <!-- ══ SETTINGS ══ -->
+            <div class="page-section" id="page-settings">
+                <div class="section-header mb-3">
+                    <div class="section-h">Settings</div>
+                </div>
+                <div class="row g-3 mb-4">
+                    <div class="col-lg-6">
+                        <div class="admin-table-wrap p-3">
+                            <div class="section-header mb-3">
+                                <div class="section-h">Administrator</div>
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <strong>Name</strong>
+                                    <div class="text-muted"><?= htmlspecialchars($adminUser['name'] ?: 'Administrator') ?></div>
+                                </div>
+                                <div class="col-12">
+                                    <strong>Email</strong>
+                                    <div class="text-muted"><?= htmlspecialchars($adminUser['email'] ?: 'admin@fitsync.com') ?></div>
+                                </div>
+                                <div class="col-12">
+                                    <strong>Role</strong>
+                                    <div class="text-muted">Admin</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="admin-table-wrap p-3">
+                            <div class="section-header mb-3">
+                                <div class="section-h">System Summary</div>
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-6"><strong>Plans</strong><div class="text-muted"><?= number_format($activePlans) ?></div></div>
+                                <div class="col-6"><strong>Branches</strong><div class="text-muted"><?= number_format($totalBranches) ?></div></div>
+                                <div class="col-6"><strong>Memberships</strong><div class="text-muted"><?= number_format($totalMemberships) ?></div></div>
+                                <div class="col-6"><strong>Feedbacks</strong><div class="text-muted"><?= number_format($totalFeedbacks) ?></div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="admin-table-wrap p-3">
+                    <div class="section-header mb-3">
+                        <div class="section-h">Active Plans</div>
+                    </div>
+                    <div class="row row-cols-1 row-cols-md-2 g-3">
+                        <?php foreach ($plans as $plan) : ?>
+                            <div class="col">
+                                <div class="stat-card" style="padding:1rem">
+                                    <div class="stat-value" style="font-size:1rem; margin-bottom:.4rem"><?= htmlspecialchars($plan['label']) ?></div>
+                                </div>
+                            </div>
+                        <?php endforeach ?>
+                    </div>
+                </div>
+            </div><!-- /settings -->
 
             <!-- ══ FEEDBACKS ══ -->
             <div class="page-section" id="page-feedbacks">
@@ -1250,37 +1478,74 @@
                     <h5 class="modal-title fw-bold" style="font-size:.95rem">Add New Member</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                     <div class="row g-3">
+                        <!-- Name Row -->
                         <div class="col-6">
                             <label class="form-label fs-label">First Name</label>
                             <input type="text" class="form-control fs-input" placeholder="Juan" id="new-fname">
                         </div>
                         <div class="col-6">
                             <label class="form-label fs-label">Last Name</label>
-                            <input type="text" class="form-control fs-input" placeholder="dela Cruz" id="new-lname">
+                            <input type="text" class="form-control fs-input" placeholder="Dela Cruz" id="new-lname">
                         </div>
+                        
+                        <!-- Gender -->
+                        <div class="col-12">
+                            <label class="form-label fs-label">Gender</label>
+                            <select class="form-select fs-input" id="new-gender">
+                                <option value="">Select gender</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="nonbinary">Non-binary</option>
+                                <option value="other">Prefer not to say</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Birthdate -->
+                        <div class="col-12">
+                            <label class="form-label fs-label">Birthdate</label>
+                            <input type="date" class="form-control fs-input" id="new-birthdate" max="<?= date('Y-m-d', strtotime('-16 years')) ?>">
+                        </div>
+                        
+                        <!-- Email -->
                         <div class="col-12">
                             <label class="form-label fs-label">Email</label>
                             <input type="email" class="form-control fs-input" placeholder="juan@email.com" id="new-email">
                         </div>
-                        <div class="col-6">
+                        
+                        <!-- Password -->
+                        <div class="col-12">
+                            <label class="form-label fs-label">Password</label>
+                            <input type="password" class="form-control fs-input" placeholder="Min. 8 characters" id="new-password">
+                        </div>
+                        
+                        <!-- Confirm Password -->
+                        <div class="col-12">
+                            <label class="form-label fs-label">Confirm Password</label>
+                            <input type="password" class="form-control fs-input" placeholder="Repeat password" id="new-confirm-password">
+                        </div>
+                        
+                        <!-- Plan -->
+                        <div class="col-12">
                             <label class="form-label fs-label">Plan</label>
                             <select class="form-select fs-input" id="new-plan">
-                                <option>1 Month</option>
-                                <option>3 Months</option>
-                                <option selected>6 Months</option>
-                                <option>12 Months</option>
+                                <?php foreach ($plans as $plan) : ?>
+                                    <option><?= htmlspecialchars($plan['label']) ?></option>
+                                <?php endforeach ?>
                             </select>
                         </div>
-                        <div class="col-6">
-                            <label class="form-label fs-label">Branch</label>
-                            <select class="form-select fs-input" id="new-branch">
-                                <option>Quezon City</option>
-                                <option>Makati</option>
-                                <option>BGC</option>
-                                <option>Ortigas</option>
-                                <option>Eastwood</option>
+                        
+                        <!-- Payment Method -->
+                        <div class="col-12">
+                            <label class="form-label fs-label">Payment Method</label>
+                            <select class="form-select fs-input" id="new-payment">
+                                <option value="gcash">GCash</option>
+                                <option value="maya">Maya</option>
+                                <option value="credit_card">Credit Card</option>
+                                <option value="debit_card">Debit Card</option>
+                                <option value="bank_transfer">Bank Transfer</option>
+                                <option value="cash" selected>Cash / Walk-in</option>
                             </select>
                         </div>
                     </div>
@@ -1298,153 +1563,13 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         /* ── DATA ── */
-        let members = [{
-                id: 1,
-                fname: 'Maria',
-                lname: 'Santos',
-                email: 'maria@example.com',
-                plan: '6 Months',
-                branch: 'BGC',
-                joined: '2025-01-15',
-                status: 'active'
-            },
-            {
-                id: 2,
-                fname: 'Jose',
-                lname: 'Reyes',
-                email: 'jose@example.com',
-                plan: '12 Months',
-                branch: 'Makati',
-                joined: '2025-02-03',
-                status: 'active'
-            },
-            {
-                id: 3,
-                fname: 'Ana',
-                lname: 'Cruz',
-                email: 'ana@example.com',
-                plan: '3 Months',
-                branch: 'Quezon City',
-                joined: '2025-03-22',
-                status: 'active'
-            },
-            {
-                id: 4,
-                fname: 'Carlos',
-                lname: 'Garcia',
-                email: 'carlos@example.com',
-                plan: '1 Month',
-                branch: 'Ortigas',
-                joined: '2025-04-08',
-                status: 'inactive'
-            },
-            {
-                id: 5,
-                fname: 'Liza',
-                lname: 'Navarro',
-                email: 'liza@example.com',
-                plan: '6 Months',
-                branch: 'Eastwood',
-                joined: '2025-04-18',
-                status: 'active'
-            },
-            {
-                id: 6,
-                fname: 'Ramon',
-                lname: 'Torres',
-                email: 'ramon@example.com',
-                plan: '12 Months',
-                branch: 'BGC',
-                joined: '2025-04-25',
-                status: 'active'
-            },
-            {
-                id: 7,
-                fname: 'Patricia',
-                lname: 'Mendoza',
-                email: 'pat@example.com',
-                plan: '3 Months',
-                branch: 'Makati',
-                joined: '2025-05-01',
-                status: 'pending'
-            },
-            {
-                id: 8,
-                fname: 'Dennis',
-                lname: 'Villanueva',
-                email: 'dennis@example.com',
-                plan: '1 Month',
-                branch: 'Quezon City',
-                joined: '2025-05-05',
-                status: 'active'
-            },
-            {
-                id: 9,
-                fname: 'Rosa',
-                lname: 'Aquino',
-                email: 'rosa@example.com',
-                plan: '6 Months',
-                branch: 'Ortigas',
-                joined: '2025-05-07',
-                status: 'active'
-            },
-            {
-                id: 10,
-                fname: 'Miguel',
-                lname: 'Dela Cruz',
-                email: 'miguel@example.com',
-                plan: '12 Months',
-                branch: 'Eastwood',
-                joined: '2025-05-08',
-                status: 'inactive'
-            },
-        ];
-
-        const feedbacks = [{
-                name: 'Maria Santos',
-                rating: 5,
-                text: "Best gym I've ever been to! The equipment is top-notch and the coaches are incredibly supportive. Completely transformed my fitness journey.",
-                date: 'May 7, 2025',
-                branch: 'BGC'
-            },
-            {
-                name: 'Jose Reyes',
-                rating: 5,
-                text: "Signed up for the annual plan and it was worth every peso. The multi-branch access is super convenient for my work schedule.",
-                date: 'May 5, 2025',
-                branch: 'Makati'
-            },
-            {
-                name: 'Anonymous',
-                rating: 4,
-                text: "Great facilities overall. Would love to see more yoga class slots added — they fill up really fast.",
-                date: 'May 3, 2025',
-                branch: 'Quezon City'
-            },
-            {
-                name: 'Liza Navarro',
-                rating: 5,
-                text: "The staff here makes all the difference. Always welcoming and the atmosphere pushes you to go harder every session.",
-                date: 'Apr 30, 2025',
-                branch: 'Eastwood'
-            },
-            {
-                name: 'Anonymous',
-                rating: 3,
-                text: "Equipment is great but the locker rooms get crowded during peak hours. Still a solid gym overall.",
-                date: 'Apr 28, 2025',
-                branch: 'Ortigas'
-            },
-            {
-                name: 'Ramon Torres',
-                rating: 5,
-                text: "Personal training sessions are worth it. My PT is knowledgeable and keeps me accountable. Renewed for another year!",
-                date: 'Apr 25, 2025',
-                branch: 'BGC'
-            },
-        ];
-
-        const sparkData = [120, 185, 210, 178, 230, 195, 260, 300, 278, 320, 290, 342];
+        let members = <?= json_encode($memberRows, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+        const memberships = <?= json_encode($memberships, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+        const branches = <?= json_encode($branches, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+        const feedbacks = <?= json_encode($feedbacks, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+        const monthlyLabels = <?= json_encode($monthlyLabels, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+        const signupData = <?= json_encode($signupData, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+        const revenueData = <?= json_encode($revenueData, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
         const planClass = {
             '1 Month': 'mo1',
             '3 Months': 'mo3',
@@ -1455,73 +1580,175 @@
 
         /* ── INIT ── */
         function init() {
+            var pf = document.getElementById('planFilter');
+            if (pf) pf.selectedIndex = 0;
+            var ms = document.getElementById('memberSearch');
+            if (ms) ms.value = '';
+
             buildSparkline();
+            buildRevenueBars();
             renderRecentMembers();
             renderMembers();
             renderFeedbacks();
+            renderBranches();
         }
 
         function buildSparkline() {
-            const max = Math.max(...sparkData);
-            document.getElementById('sparkline-chart').innerHTML = sparkData.map((v, i) => {
+            const max = Math.max(...signupData, 1);
+            const html = signupData.map((v, i) => {
                 const h = Math.round((v / max) * 100);
-                const hi = i === sparkData.length - 1;
+                const hi = i === signupData.length - 1;
                 return `<div class="spark-bar${hi ? ' hi' : ''}" style="height:${h}%" title="${v} signups"></div>`;
             }).join('');
+            document.getElementById('sparkline-chart').innerHTML = html;
+            document.getElementById('report-signup-chart').innerHTML = html;
+            document.getElementById('report-signup-labels').innerHTML = monthlyLabels.map(label => `<span>${label}</span>`).join('');
+        }
+
+        function buildRevenueBars() {
+            const max = Math.max(...revenueData, 1);
+            document.getElementById('revenue-bars').innerHTML = revenueData.map((value, i) => `
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span style="width: 38px; font-size:.75rem; color: var(--text-muted)">${monthlyLabels[i]}</span>
+                    <div class="flex-grow-1" style="height:10px; background: var(--input-bg); border-radius:999px; overflow:hidden;">
+                        <div style="width:${Math.round((value / max) * 100)}%; height:100%; background: var(--fs-red);"></div>
+                    </div>
+                    <span style="width:90px; text-align:right; font-size:.75rem; color: var(--text-muted)">₱${value.toLocaleString('en-PH', {maximumFractionDigits:2,minimumFractionDigits:2})}</span>
+                </div>
+            `).join('');
         }
 
         function renderRecentMembers() {
             document.getElementById('recent-members-tbody').innerHTML =
-                members.slice(-5).reverse().map(m => memberRow(m, true)).join('');
+                members.slice(0, 5).map(m => memberRow(m, true)).join('');
         }
 
         function renderMembers() {
-            const q = (document.getElementById('memberSearch').value || '').toLowerCase();
-            const plan = (document.getElementById('planFilter')?.value || '');
-            const data = members.filter(m => {
-                const txt = `${m.fname} ${m.lname} ${m.email} ${m.branch}`.toLowerCase();
-                return (!q || txt.includes(q)) && (!plan || m.plan === plan);
+            const q    = (document.getElementById('memberSearch')?.value  || '').trim().toLowerCase();
+            const plan = (document.getElementById('planFilter')?.value    || '').trim();
+
+            const data = members.filter(function(m) {
+                var txt = ((m.fname||'') + ' ' + (m.lname||'') + ' ' + (m.email||'')).toLowerCase();
+                var planOk = !plan || (m.plan||'') === plan;
+                var txtOk  = !q    || txt.includes(q);
+                return planOk && txtOk;
             });
-            document.getElementById('members-tbody').innerHTML =
-                data.map(m => memberRow(m, false)).join('') ||
-                '<tr><td colspan="7" class="text-center text-secondary py-4">No members found</td></tr>';
-            document.getElementById('member-count-label').textContent = `${data.length} of ${members.length}`;
+
+            var tbody = document.getElementById('members-tbody');
+            if (!tbody) return;
+
+            if (!data.length) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-secondary py-4">No members found</td></tr>';
+                document.getElementById('member-count-label').textContent = '0 of ' + members.length;
+                return;
+            }
+
+            var html = '';
+            for (var i = 0; i < data.length; i++) {
+                try { html += memberRow(data[i], false); }
+                catch(e) { console.error('memberRow error', data[i], e); }
+            }
+            tbody.innerHTML = html || '<tr><td colspan="7" class="text-center text-secondary py-4">No members found</td></tr>';
+            document.getElementById('member-count-label').textContent = data.length + ' of ' + members.length;
         }
 
-        function memberRow(m, compact) {
-            const initials = (m.fname[0] || '') + (m.lname[0] || '');
-            const status = `<span class="status-dot ${m.status}"></span>${m.status.charAt(0).toUpperCase() + m.status.slice(1)}`;
-            const plan = `<span class="plan-badge ${planClass[m.plan] || ''}">${m.plan}</span>`;
-            const date = new Date(m.joined).toLocaleDateString('en-PH', {
+        function renderMemberships() {
+            document.getElementById('memberships-tbody').innerHTML =
+                memberships.map(m => membershipRow(m)).join('') ||
+                '<tr><td colspan="7" class="text-center text-secondary py-4">No memberships found</td></tr>';
+        }
+
+        function renderBranches() {
+            document.getElementById('branches-list').innerHTML = branches.map(b => `
+                <div class="col-md-6 col-xl-4">
+                    <div class="feedback-card">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h5 style="margin:0;font-size:1rem;color:var(--text-primary)">${b.name}</h5>
+                                <div style="font-size:.82rem;color:var(--text-muted)">${b.city}</div>
+                            </div>
+                            <span class="status-dot ${b.is_active ? 'active' : 'inactive'}"></span>
+                        </div>
+                        <div style="font-size:.82rem;color:var(--text-muted)">${b.address || 'Address not set'}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function membershipRow(m) {
+            const starts = formatDate(m.starts_at);
+            const ends = formatDate(m.ends_at);
+            return `<tr>
+                <td>${m.fname} ${m.lname}</td>
+                <td class="col-hide-xs">${m.plan}</td>
+                <td class="col-hide-xs">${m.branch}</td>
+                <td>${starts}</td>
+                <td class="col-hide-xs">${ends}</td>
+                <td>₱${Number(m.amount_paid).toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                <td class="col-hide-xs">${capitalize(m.status)}</td>
+            </tr>`;
+        }
+
+        function formatDate(value) {
+            if (!value) return '—';
+            return new Date(value).toLocaleDateString('en-PH', {
                 month: 'short',
                 day: 'numeric',
                 year: 'numeric'
             });
-            const avatar = `<div class="member-avatar">${initials}</div>`;
+        }
 
-            if (compact) return `<tr>
-                <td><div class="d-flex align-items-center gap-2">${avatar}<span>${m.fname} ${m.lname}</span></div></td>
-                <td>${plan}</td>
-                <td class="col-hide-xs"><span style="font-size:.8rem;color:var(--text-muted)">${m.branch}</span></td>
-                <td class="col-hide-xs"><span style="font-size:.8rem;color:var(--text-muted)">${date}</span></td>
-                <td>${status}</td>
-            </tr>`;
+        function capitalize(value) {
+            return value ? value.charAt(0).toUpperCase() + value.slice(1) : '—';
+        }
 
-            return `<tr>
-                <td><div class="d-flex align-items-center gap-2">${avatar}<div>
-                    <div style="font-weight:600">${m.fname} ${m.lname}</div>
-                    <div style="font-size:.7rem;color:var(--text-dimmed)">#${String(m.id).padStart(5,'0')}</div>
-                </div></div></td>
-                <td class="col-hide-xs"><span style="font-size:.82rem;color:var(--text-muted)">${m.email}</span></td>
-                <td>${plan}</td>
-                <td class="col-hide-xs"><span style="font-size:.8rem;color:var(--text-muted)">${m.branch}</span></td>
-                <td class="col-hide-xs"><span style="font-size:.8rem;color:var(--text-muted)">${date}</span></td>
-                <td>${status}</td>
-                <td><div class="d-flex gap-1">
-                    <button class="tbl-btn" title="Edit" onclick="editMember(${m.id})"><i class="ti ti-edit"></i></button>
-                    <button class="tbl-btn danger" title="Delete" onclick="deleteMember(${m.id})"><i class="ti ti-trash"></i></button>
-                </div></td>
-            </tr>`;
+        function memberRow(m, compact) {
+            var fname    = m.fname   || '';
+            var lname    = m.lname   || '';
+            var email    = m.email   || '';
+            var plan     = m.plan    || 'No Plan';
+            var status   = m.status  || 'active';
+            var initials = ((fname[0] || '?') + (lname[0] || '?')).toUpperCase();
+            var date     = formatDate(m.joined);
+            var expiry   = formatDate(m.expiry);
+            var id       = m.id || 0;
+            var idStr    = String(id).padStart(5, '0');
+            var cls      = planClass[plan] || '';
+
+            var avatar   = '<div class="member-avatar">' + initials + '</div>';
+            var statusHtml = '<span class="status-dot ' + status + '"></span>' + capitalize(status);
+            var planBadge  = '<span class="plan-badge ' + cls + '">' + plan + '</span>';
+
+            var planOptions = '';
+            Object.keys(planClass).forEach(function(p) {
+                planOptions += '<option value="' + p + '"' + (p === plan ? ' selected' : '') + '>' + p + '</option>';
+            });
+            var planSelect = '<select class="form-select" style="font-size:.85rem;padding:.4rem" onchange="changeMemberPlan(' + id + ', this)">' + planOptions + '</select>';
+
+            if (compact) {
+                return '<tr>'
+                    + '<td><div class="d-flex align-items-center gap-2">' + avatar + '<span>' + fname + ' ' + lname + '</span></div></td>'
+                    + '<td>' + planBadge + '</td>'
+                    + '<td class="col-hide-xs"><span style="font-size:.8rem;color:var(--text-muted)">' + date + '</span></td>'
+                    + '<td class="col-hide-xs"><span style="font-size:.8rem;color:var(--text-muted)">' + expiry + '</span></td>'
+                    + '<td>' + statusHtml + '</td>'
+                    + '</tr>';
+            }
+
+            return '<tr>'
+                + '<td><div class="d-flex align-items-center gap-2">' + avatar + '<div>'
+                +   '<div style="font-weight:600">' + fname + ' ' + lname + '</div>'
+                +   '<div style="font-size:.7rem;color:var(--text-dimmed)">#' + idStr + '</div>'
+                + '</div></div></td>'
+                + '<td class="col-hide-xs"><span style="font-size:.82rem;color:var(--text-muted)">' + email + '</span></td>'
+                + '<td>' + planSelect + '</td>'
+                + '<td class="col-hide-xs"><span style="font-size:.8rem;color:var(--text-muted)">' + date + '</span></td>'
+                + '<td class="col-hide-xs"><span style="font-size:.8rem;color:var(--text-muted)">' + expiry + '</span></td>'
+                + '<td>' + statusHtml + '</td>'
+                + '<td><div class="d-flex gap-1">'
+                +   '<button class="tbl-btn danger" title="Delete" onclick="deleteMember(' + id + ')"><i class="ti ti-trash"></i></button>'
+                + '</div></td>'
+                + '</tr>';
         }
 
         function renderFeedbacks() {
@@ -1529,13 +1756,13 @@
                 <div class="feedback-card">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <div style="font-weight:700;font-size:.88rem;color:var(--text-primary)">${f.name}</div>
+                            <div style="font-weight:700;font-size:.88rem;color:var(--text-primary)">${f.fname} ${f.lname}</div>
                             <div class="feedback-stars">${starsStr(f.rating)}</div>
                         </div>
                         <button class="tbl-btn danger" title="Delete feedback"><i class="ti ti-trash"></i></button>
                     </div>
                     <div class="feedback-text">"${f.text}"</div>
-                    <div class="feedback-meta"><i class="ti ti-map-pin" style="font-size:.8rem"></i> ${f.branch} &nbsp;·&nbsp; ${f.date}</div>
+                    <div class="feedback-meta"><i class="ti ti-map-pin" style="font-size:.8rem"></i> ${f.branch} &nbsp;·&nbsp; ${formatDate(f.date)}</div>
                 </div>`).join('');
         }
 
@@ -1556,17 +1783,35 @@
             const titles = {
                 dashboard: 'Dashboard',
                 members: 'Members',
-                feedbacks: 'Feedbacks'
+                memberships: 'Memberships',
+                branches: 'Branches',
+                feedbacks: 'Feedbacks',
+                reports: 'Reports',
+                settings: 'Settings'
             };
             const crumbs = {
                 dashboard: 'Overview',
                 members: 'Member Management',
-                feedbacks: 'Review Feedbacks'
+                memberships: 'Membership Management',
+                branches: 'Branch Overview',
+                feedbacks: 'Review Feedbacks',
+                reports: 'Revenue + Signups',
+                settings: 'System Settings'
             };
             document.getElementById('topbar-title').textContent = titles[id] || id;
             document.getElementById('topbar-crumb').textContent = crumbs[id] || id;
 
-            if (id === 'members') renderMembers();
+            if (id === 'members') {
+                var pf = document.getElementById('planFilter');
+                if (pf) pf.selectedIndex = 0;
+                renderMembers();
+            }
+            if (id === 'branches') renderBranches();
+            if (id === 'feedbacks') renderFeedbacks();
+            if (id === 'reports') {
+                buildSparkline();
+                buildRevenueBars();
+            }
             closeSidebar();
         }
 
@@ -1578,23 +1823,49 @@
         function addMember() {
             const fname = document.getElementById('new-fname').value.trim();
             const lname = document.getElementById('new-lname').value.trim();
+            const gender = document.getElementById('new-gender').value;
+            const birthdate = document.getElementById('new-birthdate').value;
             const email = document.getElementById('new-email').value.trim();
+            const password = document.getElementById('new-password').value;
+            const confirm = document.getElementById('new-confirm-password').value;
             const plan = document.getElementById('new-plan').value;
-            const branch = document.getElementById('new-branch').value;
-            if (!fname || !lname || !email) {
-                alert('Please fill in all fields.');
-                return
+            const payment = document.getElementById('new-payment').value;
+
+            // Validation
+            if (!fname || !lname) {
+                alert('Please enter your full name.');
+                return;
+            }
+            if (!gender) {
+                alert('Please select your gender.');
+                return;
+            }
+            if (!birthdate) {
+                alert('Please enter your birthdate.');
+                return;
+            }
+            if (!email) {
+                alert('Please enter your email.');
+                return;
+            }
+            if (!password || password.length < 8) {
+                alert('Password must be at least 8 characters.');
+                return;
+            }
+            if (password !== confirm) {
+                alert('Passwords do not match.');
+                return;
             }
 
-            const newId = Math.max(...members.map(m => m.id)) + 1;
+            const newId = Math.max(...members.map(m => m.id), 0) + 1;
             members.push({
                 id: newId,
                 fname,
                 lname,
                 email,
                 plan,
-                branch,
                 joined: new Date().toISOString().split('T')[0],
+                expiry: new Date().toISOString().split('T')[0],
                 status: 'active'
             });
 
@@ -1602,10 +1873,20 @@
                 members.length >= 1000 ? Math.round(members.length / 1000 * 10) / 10 + 'K' : members.length;
 
             bootstrap.Modal.getInstance(document.getElementById('addMemberModal')).hide();
-            ['new-fname', 'new-lname', 'new-email'].forEach(id => document.getElementById(id).value = '');
+            ['new-fname', 'new-lname', 'new-gender', 'new-birthdate', 'new-email', 'new-password', 'new-confirm-password'].forEach(id => document.getElementById(id).value = '');
             renderMembers();
             renderRecentMembers();
             showPage('members', null);
+            alert('Member added successfully!');
+        }
+
+        function changeMemberPlan(id, select) {
+            const m = members.find(m => m.id === id);
+            if (!m) return;
+            const newPlan = select.value;
+            m.plan = newPlan;
+            renderMembers();
+            renderRecentMembers();
         }
 
         function deleteMember(id) {
@@ -1659,8 +1940,7 @@
         function updateThemeLogos() {
             const isLight = document.documentElement.getAttribute('data-bs-theme') === 'light';
             document.querySelectorAll('[data-logo-dark][data-logo-light]').forEach(logo => {
-                const src = isLight ? logo.dataset.logoLight : logo.dataset.logoDark;
-                if (logo.getAttribute('src') !== src) logo.setAttribute('src', src);
+                logo.setAttribute('src', isLight ? logo.dataset.logoLight : logo.dataset.logoDark);
             });
         }
 
