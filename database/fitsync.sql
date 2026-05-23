@@ -51,6 +51,148 @@ INSERT INTO `branches` (`id`, `name`, `city`, `address`, `maps_embed`, `is_activ
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `classes`
+--
+
+CREATE TABLE `classes` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `title` varchar(120) NOT NULL,
+  `description` varchar(500) DEFAULT NULL,
+  `trainer_name` varchar(120) DEFAULT NULL,
+  `branch_id` smallint(5) UNSIGNED NOT NULL,
+  `duration_minutes` smallint(5) UNSIGNED NOT NULL DEFAULT 60,
+  `capacity` smallint(5) UNSIGNED DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `classes`
+--
+
+INSERT INTO `classes` (`id`, `title`, `description`, `trainer_name`, `branch_id`, `duration_minutes`, `capacity`, `is_active`, `created_at`) VALUES
+(1, 'Strength Basics', 'Foundational barbell and machine work for general strength.', 'Coach Marco', 1, 60, 18, 1, '2026-05-19 02:43:50'),
+(2, 'Mobility Flow', 'Low-impact mobility and flexibility session.', 'Coach Ana', 1, 45, 20, 1, '2026-05-19 02:43:50'),
+(3, 'HIIT Conditioning', 'Short interval conditioning class for all fitness levels.', 'Coach Lei', 2, 45, 16, 1, '2026-05-19 02:43:50');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `class_schedules`
+--
+
+CREATE TABLE `class_schedules` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `class_id` int(10) UNSIGNED NOT NULL,
+  `branch_id` smallint(5) UNSIGNED NOT NULL,
+  `scheduled_date` date NOT NULL,
+  `start_time` time NOT NULL,
+  `end_time` time NOT NULL,
+  `status` enum('scheduled','cancelled','completed') NOT NULL DEFAULT 'scheduled',
+  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `class_schedules`
+--
+
+INSERT INTO `class_schedules` (`id`, `class_id`, `branch_id`, `scheduled_date`, `start_time`, `end_time`, `status`, `created_at`) VALUES
+(1, 1, 1, '2026-05-23', '18:00:00', '19:00:00', 'scheduled', '2026-05-19 02:43:50'),
+(2, 2, 1, '2026-05-25', '07:00:00', '07:45:00', 'scheduled', '2026-05-19 02:43:50'),
+(3, 3, 2, '2026-05-26', '18:30:00', '19:15:00', 'scheduled', '2026-05-19 02:43:50');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `class_bookings`
+--
+
+CREATE TABLE `class_bookings` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `user_id` int(10) UNSIGNED NOT NULL,
+  `class_schedule_id` int(10) UNSIGNED NOT NULL,
+  `booking_status` enum('booked','cancelled','attended') NOT NULL DEFAULT 'booked',
+  `booked_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `cancelled_at` datetime DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `branch_announcements`
+--
+
+CREATE TABLE `branch_announcements` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `branch_id` smallint(5) UNSIGNED NOT NULL,
+  `title` varchar(140) NOT NULL,
+  `body` text NOT NULL,
+  `starts_at` datetime NOT NULL,
+  `ends_at` datetime DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `branch_announcements`
+--
+
+INSERT INTO `branch_announcements` (`id`, `branch_id`, `title`, `body`, `starts_at`, `ends_at`, `is_active`, `created_at`) VALUES
+(1, 1, 'Holiday operating hours', 'Main Branch will close at 6:00 PM on May 27 for scheduled maintenance.', '2026-05-23 00:00:00', '2026-05-27 18:00:00', 1, '2026-05-19 02:43:50'),
+(2, 2, 'Studio room maintenance', 'Makati studio room access may be limited during morning equipment inspection.', '2026-05-23 00:00:00', '2026-05-26 12:00:00', 1, '2026-05-19 02:43:50');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `branch_operating_hours`
+--
+
+CREATE TABLE `branch_operating_hours` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `branch_id` smallint(5) UNSIGNED NOT NULL,
+  `day_of_week` tinyint(3) UNSIGNED NOT NULL,
+  `open_time` time DEFAULT NULL,
+  `close_time` time DEFAULT NULL,
+  `is_closed` tinyint(1) NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `branch_operating_hours`
+--
+
+INSERT INTO `branch_operating_hours` (`id`, `branch_id`, `day_of_week`, `open_time`, `close_time`, `is_closed`) VALUES
+(1, 1, 1, '06:00:00', '22:00:00', 0),
+(2, 1, 2, '06:00:00', '22:00:00', 0),
+(3, 1, 3, '06:00:00', '22:00:00', 0),
+(4, 1, 4, '06:00:00', '22:00:00', 0),
+(5, 1, 5, '06:00:00', '22:00:00', 0),
+(6, 1, 6, '08:00:00', '20:00:00', 0),
+(7, 1, 7, '08:00:00', '18:00:00', 0),
+(8, 2, 1, '06:00:00', '21:00:00', 0),
+(9, 2, 2, '06:00:00', '21:00:00', 0),
+(10, 2, 3, '06:00:00', '21:00:00', 0),
+(11, 2, 4, '06:00:00', '21:00:00', 0),
+(12, 2, 5, '06:00:00', '21:00:00', 0),
+(13, 2, 6, '08:00:00', '18:00:00', 0),
+(14, 2, 7, NULL, NULL, 1);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `attendance_logs`
+--
+
+CREATE TABLE `attendance_logs` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `user_id` int(10) UNSIGNED NOT NULL,
+  `branch_id` smallint(5) UNSIGNED NOT NULL,
+  `check_in_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `notes` varchar(500) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `feedback`
 --
 
@@ -61,6 +203,23 @@ CREATE TABLE `feedback` (
   `rating` tinyint(3) UNSIGNED NOT NULL CHECK (`rating` between 1 and 5),
   `body` text NOT NULL,
   `is_visible` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `contact_messages`
+--
+
+CREATE TABLE `contact_messages` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `name` varchar(120) NOT NULL,
+  `email` varchar(191) NOT NULL,
+  `phone` varchar(40) DEFAULT NULL,
+  `subject` varchar(160) NOT NULL,
+  `message` text NOT NULL,
+  `status` enum('new','read','archived') NOT NULL DEFAULT 'new',
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -101,6 +260,20 @@ INSERT INTO `login_logs` (`id`, `user_id`, `email`, `ip_address`, `user_agent`, 
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `member_notes`
+--
+
+CREATE TABLE `member_notes` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `member_id` int(10) UNSIGNED NOT NULL,
+  `admin_id` int(10) UNSIGNED NOT NULL,
+  `note_body` text NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `memberships`
 --
 
@@ -113,7 +286,8 @@ CREATE TABLE `memberships` (
   `ends_at` date NOT NULL,
   `amount_paid` decimal(10,2) NOT NULL,
   `payment_method` enum('credit_card','debit_card','gcash','maya','bank_transfer','cash') NOT NULL DEFAULT 'cash',
-  `status` enum('active','expired','cancelled','frozen') NOT NULL DEFAULT 'active',
+  `payment_status` enum('pending','paid','failed','refunded') NOT NULL DEFAULT 'paid',
+  `status` enum('pending','active','expired','cancelled','frozen') NOT NULL DEFAULT 'active',
   `payment_ref` varchar(128) DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT current_timestamp(),
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
@@ -123,9 +297,9 @@ CREATE TABLE `memberships` (
 -- Dumping data for table `memberships`
 --
 
-INSERT INTO `memberships` (`id`, `user_id`, `plan_id`, `branch_id`, `starts_at`, `ends_at`, `amount_paid`, `payment_method`, `status`, `payment_ref`, `created_at`, `updated_at`) VALUES
-(1, 2, 3, 1, '2025-05-09', '2025-11-09', 4799.00, 'gcash', 'active', NULL, '2026-05-19 02:43:50', '2026-05-19 02:43:50'),
-(2, 3, 4, 1, '2026-05-19', '2027-05-19', 7999.00, 'gcash', 'active', NULL, '2026-05-19 11:15:10', '2026-05-19 11:15:10');
+INSERT INTO `memberships` (`id`, `user_id`, `plan_id`, `branch_id`, `starts_at`, `ends_at`, `amount_paid`, `payment_method`, `payment_status`, `status`, `payment_ref`, `created_at`, `updated_at`) VALUES
+(1, 2, 3, 1, '2026-05-09', '2026-11-09', 4799.00, 'gcash', 'paid', 'expired', NULL, '2026-05-19 02:43:50', '2026-05-19 02:43:50'),
+(2, 3, 4, 1, '2026-05-19', '2027-05-19', 7999.00, 'gcash', 'paid', 'active', NULL, '2026-05-19 11:15:10', '2026-05-19 11:15:10');
 
 -- --------------------------------------------------------
 
@@ -209,6 +383,15 @@ INSERT INTO `users` (`id`, `role`, `first_name`, `last_name`, `email`, `password
 --
 
 --
+-- Indexes for table `attendance_logs`
+--
+ALTER TABLE `attendance_logs`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_att_user` (`user_id`),
+  ADD KEY `idx_att_check_in` (`check_in_at`),
+  ADD KEY `idx_att_branch` (`branch_id`);
+
+--
 -- Indexes for table `branches`
 --
 ALTER TABLE `branches`
@@ -216,6 +399,48 @@ ALTER TABLE `branches`
   ADD KEY `idx_branch_active` (`is_active`);
 
 --
+-- Indexes for table `classes`
+--
+ALTER TABLE `classes`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_classes_branch` (`branch_id`),
+  ADD KEY `idx_classes_active` (`is_active`);
+
+--
+-- Indexes for table `class_schedules`
+--
+ALTER TABLE `class_schedules`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_class_schedules_class` (`class_id`),
+  ADD KEY `idx_class_schedules_branch_date` (`branch_id`, `scheduled_date`),
+  ADD KEY `idx_class_schedules_status` (`status`);
+
+--
+-- Indexes for table `class_bookings`
+--
+ALTER TABLE `class_bookings`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_class_bookings_user` (`user_id`),
+  ADD KEY `idx_class_bookings_schedule` (`class_schedule_id`),
+  ADD KEY `idx_class_bookings_status` (`booking_status`),
+  ADD KEY `idx_class_bookings_booked_at` (`booked_at`);
+
+--
+-- Indexes for table `branch_announcements`
+--
+ALTER TABLE `branch_announcements`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_branch_announcements_branch_dates` (`branch_id`, `starts_at`, `ends_at`),
+  ADD KEY `idx_branch_announcements_active` (`is_active`);
+
+--
+-- Indexes for table `branch_operating_hours`
+--
+ALTER TABLE `branch_operating_hours`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_branch_day` (`branch_id`, `day_of_week`);
+
+-- 
 -- Indexes for table `feedback`
 --
 ALTER TABLE `feedback`
@@ -223,6 +448,14 @@ ALTER TABLE `feedback`
   ADD KEY `idx_fb_user` (`user_id`),
   ADD KEY `idx_fb_branch` (`branch_id`),
   ADD KEY `idx_fb_rating` (`rating`);
+
+--
+-- Indexes for table `contact_messages`
+--
+ALTER TABLE `contact_messages`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_contact_status` (`status`),
+  ADD KEY `idx_contact_created` (`created_at`);
 
 --
 -- Indexes for table `login_logs`
@@ -240,9 +473,20 @@ ALTER TABLE `memberships`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_mem_user` (`user_id`),
   ADD KEY `idx_mem_status` (`status`),
+  ADD KEY `idx_mem_payment_status` (`payment_status`),
+  ADD KEY `idx_mem_starts` (`starts_at`),
   ADD KEY `idx_mem_ends` (`ends_at`),
   ADD KEY `fk_mem_plan` (`plan_id`),
   ADD KEY `fk_mem_branch` (`branch_id`);
+
+--
+-- Indexes for table `member_notes`
+--
+ALTER TABLE `member_notes`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_member_notes_member` (`member_id`),
+  ADD KEY `idx_member_notes_admin` (`admin_id`),
+  ADD KEY `idx_member_notes_created` (`created_at`);
 
 --
 -- Indexes for table `membership_plans`
@@ -280,10 +524,52 @@ ALTER TABLE `branches`
   MODIFY `id` smallint(5) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
+-- AUTO_INCREMENT for table `classes`
+--
+ALTER TABLE `classes`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT for table `class_schedules`
+--
+ALTER TABLE `class_schedules`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT for table `class_bookings`
+--
+ALTER TABLE `class_bookings`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `branch_announcements`
+--
+ALTER TABLE `branch_announcements`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT for table `branch_operating_hours`
+--
+ALTER TABLE `branch_operating_hours`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
+
+--
+-- AUTO_INCREMENT for table `attendance_logs`
+--
+ALTER TABLE `attendance_logs`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `feedback`
 --
 ALTER TABLE `feedback`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `contact_messages`
+--
+ALTER TABLE `contact_messages`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `login_logs`
@@ -296,6 +582,12 @@ ALTER TABLE `login_logs`
 --
 ALTER TABLE `memberships`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT for table `member_notes`
+--
+ALTER TABLE `member_notes`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `membership_plans`
@@ -320,6 +612,45 @@ ALTER TABLE `users`
 --
 
 --
+-- Constraints for table `attendance_logs`
+--
+ALTER TABLE `attendance_logs`
+  ADD CONSTRAINT `fk_att_branch` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`) ON DELETE RESTRICT,
+  ADD CONSTRAINT `fk_att_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `classes`
+--
+ALTER TABLE `classes`
+  ADD CONSTRAINT `fk_classes_branch` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`) ON DELETE RESTRICT;
+
+--
+-- Constraints for table `class_schedules`
+--
+ALTER TABLE `class_schedules`
+  ADD CONSTRAINT `fk_class_schedules_branch` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`) ON DELETE RESTRICT,
+  ADD CONSTRAINT `fk_class_schedules_class` FOREIGN KEY (`class_id`) REFERENCES `classes` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `class_bookings`
+--
+ALTER TABLE `class_bookings`
+  ADD CONSTRAINT `fk_class_bookings_schedule` FOREIGN KEY (`class_schedule_id`) REFERENCES `class_schedules` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_class_bookings_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `branch_announcements`
+--
+ALTER TABLE `branch_announcements`
+  ADD CONSTRAINT `fk_branch_announcements_branch` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `branch_operating_hours`
+--
+ALTER TABLE `branch_operating_hours`
+  ADD CONSTRAINT `fk_branch_operating_hours_branch` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`) ON DELETE CASCADE;
+
+--
 -- Constraints for table `feedback`
 --
 ALTER TABLE `feedback`
@@ -333,6 +664,13 @@ ALTER TABLE `memberships`
   ADD CONSTRAINT `fk_mem_branch` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`),
   ADD CONSTRAINT `fk_mem_plan` FOREIGN KEY (`plan_id`) REFERENCES `membership_plans` (`id`),
   ADD CONSTRAINT `fk_mem_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `member_notes`
+--
+ALTER TABLE `member_notes`
+  ADD CONSTRAINT `fk_member_notes_admin` FOREIGN KEY (`admin_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_member_notes_member` FOREIGN KEY (`member_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `password_resets`

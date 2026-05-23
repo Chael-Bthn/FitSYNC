@@ -6,25 +6,25 @@
 require_once __DIR__ . '/config/auth_guard.php';
 requireRole('member');
 require_once __DIR__ . '/config/db.php';
+require_once __DIR__ . '/includes/attendance_helpers.php';
+require_once __DIR__ . '/includes/membership_helpers.php';
+require_once __DIR__ . '/includes/member_dashboard_helpers.php';
+require_once __DIR__ . '/includes/schedule_helpers.php';
 
 $pdo    = db();
 $userId = (int) $_SESSION['user_id'];
+expireOldMemberships($pdo);
 
 $stmt = $pdo->prepare('SELECT * FROM users WHERE id = ? LIMIT 1');
 $stmt->execute([$userId]);
 $userRow = $stmt->fetch();
 
-$stmt = $pdo->prepare(
-    'SELECT m.*, p.label AS plan_label, p.slug AS plan_slug,
-            b.name AS branch_name, b.city AS branch_city
-     FROM memberships m
-     JOIN membership_plans p ON p.id = m.plan_id
-     JOIN branches b ON b.id = m.branch_id
-     WHERE m.user_id = ?
-     ORDER BY m.starts_at DESC LIMIT 1'
-);
-$stmt->execute([$userId]);
-$mem = $stmt->fetch();
+$mem = getLatestMembership($pdo, $userId);
+$activeMembership = getActiveMembership($pdo, $userId);
+$hasActiveMembership = (bool) $activeMembership;
+if ($activeMembership) {
+    $mem = $activeMembership;
+}
 
 $stmt = $pdo->prepare(
     'SELECT m.*, p.label AS plan_label, b.name AS branch_name
@@ -32,10 +32,11 @@ $stmt = $pdo->prepare(
      JOIN membership_plans p ON p.id = m.plan_id
      JOIN branches b ON b.id = m.branch_id
      WHERE m.user_id = ?
-     ORDER BY m.starts_at DESC'
+     ORDER BY m.created_at DESC, m.starts_at DESC'
 );
 $stmt->execute([$userId]);
 $allMems = $stmt->fetchAll();
+$membershipPlans = getMembershipPlans($pdo);
 
 $stmt = $pdo->prepare(
     'SELECT f.*, b.name AS branch_name
@@ -48,8 +49,20 @@ $stmt->execute([$userId]);
 $myFeedbacks = $stmt->fetchAll();
 
 $branches = $pdo->query(
-    'SELECT id, name, city FROM branches WHERE is_active = 1 ORDER BY name'
+    'SELECT id, name, city, address FROM branches WHERE is_active = 1 ORDER BY name'
 )->fetchAll();
+
+$attendanceDates = fitsyncAttendanceDates($pdo, $userId);
+$attendanceTotal = fitsyncAttendanceTotal($pdo, $userId);
+$currentStreak = fitsyncCurrentStreak($attendanceDates);
+$checkedInToday = in_array((new DateTimeImmutable('today'))->format('Y-m-d'), $attendanceDates, true);
+$lastAttendanceDate = $attendanceDates ? end($attendanceDates) : null;
+$monthlyVisitsStmt = $pdo->prepare(
+    'SELECT COUNT(*) FROM attendance_logs
+     WHERE user_id = ? AND check_in_at >= DATE_FORMAT(CURDATE(), "%Y-%m-01")'
+);
+$monthlyVisitsStmt->execute([$userId]);
+$monthlyVisits = (int) $monthlyVisitsStmt->fetchColumn();
 
 $daysRemaining = 0;
 $progressPct   = 0;
@@ -63,6 +76,9 @@ if ($mem) {
     $elapsed       = $start <= $cap ? (int) $start->diff($cap)->days : 0;
     $progressPct   = min(100, (int) round(($elapsed / $totalDays) * 100));
 }
+
+$scheduleContext = memberScheduleContext($pdo, $mem, $userId);
+$memberHub = memberDashboardData($mem, $allMems, $attendanceDates, $monthlyVisits, $daysRemaining, $hasActiveMembership, $scheduleContext);
 
 $initials = strtoupper(
     substr($userRow['first_name'] ?? 'U', 0, 1) .
@@ -361,12 +377,17 @@ $workoutPrograms = [
         /* ── STATUS BADGE ── */
         .status-badge { font-size: .65rem; font-weight: 700; padding: .2rem .65rem; border-radius: 50px; text-transform: uppercase; letter-spacing: .4px }
         .status-badge.active   { background: rgba(76,175,135,.12); color: #4caf87; border: 1px solid rgba(76,175,135,.25) }
+        .status-badge.pending  { background: rgba(255,193,7,.12); color: #d6a100; border: 1px solid rgba(255,193,7,.25) }
+        .status-badge.paid     { background: rgba(76,175,135,.12); color: #4caf87; border: 1px solid rgba(76,175,135,.25) }
+        .status-badge.failed,
+        .status-badge.refunded { background: rgba(220,53,69,.12); color: #e05656; border: 1px solid rgba(220,53,69,.25) }
         .status-badge.expired  { background: rgba(150,150,150,.12); color: #888; border: 1px solid rgba(150,150,150,.25) }
         .status-badge.cancelled{ background: rgba(220,53,69,.12); color: #e05656; border: 1px solid rgba(220,53,69,.25) }
 
         /* ── FORM INPUTS ── */
         .fs-label { font-size: .72rem; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--text-muted); margin-bottom: .35rem }
         .fs-input { background: var(--input-bg) !important; border: 1px solid var(--input-border) !important; color: var(--input-color) !important; border-radius: 12px !important; font-family: 'Outfit', sans-serif; font-size: .9rem; padding: .65rem 1rem; transition: border-color .2s }
+        select.fs-input { appearance: none; padding-right: 2.4rem !important; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238f8f8f' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important; background-repeat: no-repeat !important; background-position: right .85rem center !important; background-size: 14px 14px !important }
         .fs-input:focus { border-color: rgba(204,26,26,.5) !important; box-shadow: 0 0 0 3px rgba(204,26,26,.1) !important; outline: none }
         .fs-input::placeholder { color: var(--input-ph) !important }
         .fs-input:disabled, .fs-input[readonly] { opacity: .6; cursor: not-allowed }
@@ -483,6 +504,38 @@ $workoutPrograms = [
         .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-muted) }
         .empty-state i { font-size: 2.5rem; margin-bottom: .75rem; display: block; color: var(--text-dimmed) }
         .empty-state p { font-size: .85rem; margin: 0 }
+        .section-kicker { font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .7px; color: var(--fs-red); margin-bottom: .4rem }
+        .section-title { font-size: 1.15rem; font-weight: 900; color: var(--text-primary); margin-bottom: .25rem }
+        .section-subtitle { font-size: .85rem; color: var(--text-muted); line-height: 1.6 }
+        .member-hub-card { border-color: rgba(204,26,26,.18) }
+        .quick-action-row { display: flex; gap: .5rem; flex-wrap: wrap }
+        .quick-action-grid { display: grid; gap: .5rem }
+        .member-alert-list { display: grid; gap: .65rem }
+        .member-alert { display: flex; align-items: center; gap: .75rem; padding: .85rem 1rem; border-radius: 14px; border: 1px solid var(--card-border); background: var(--input-bg) }
+        .member-alert i { font-size: 1.15rem; color: var(--fs-red); flex-shrink: 0 }
+        .member-alert-title { font-size: .86rem; font-weight: 800; color: var(--text-primary) }
+        .member-alert-body { font-size: .76rem; color: var(--text-muted); line-height: 1.45 }
+        .member-alert-success { border-color: rgba(76,175,135,.22) }
+        .member-alert-success i { color: #4caf87 }
+        .member-alert-warning { border-color: rgba(255,193,7,.28) }
+        .member-alert-warning i { color: #d6a100 }
+        .member-alert-danger { border-color: rgba(220,53,69,.28) }
+        .member-alert-danger i { color: #e05656 }
+        .hub-metric { height: 100%; padding: 1rem; border: 1px solid var(--card-border); border-radius: 14px; background: var(--input-bg) }
+        .hub-metric-label, .detail-label { font-size: .68rem; color: var(--text-dimmed); text-transform: uppercase; letter-spacing: .55px; font-weight: 800 }
+        .hub-metric-value, .detail-value { font-size: .9rem; font-weight: 800; color: var(--text-primary); margin-top: .15rem }
+        .hub-metric-sub, .detail-muted { font-size: .74rem; color: var(--text-muted); margin-top: .15rem }
+        .hub-soft-panel { padding: 1rem; border: 1px solid var(--card-border); border-radius: 14px; background: var(--input-bg); font-size: .82rem; color: var(--text-muted) }
+        .hub-soft-panel strong { color: var(--text-primary); font-size: .8rem; text-align: right }
+        .empty-row { display: flex; align-items: center; gap: .65rem; padding: .65rem .75rem; border: 1px dashed var(--card-border); border-radius: 12px }
+        .empty-row i { color: var(--text-dimmed); font-size: 1.05rem }
+        .empty-row-label { color: var(--text-primary); font-size: .82rem; font-weight: 700 }
+        .empty-row-copy { color: var(--text-muted); font-size: .76rem }
+        .empty-inline { display: flex; align-items: center; gap: .6rem; padding: .8rem .95rem; border-radius: 12px; background: var(--input-bg); border: 1px dashed var(--card-border); color: var(--text-muted); font-size: .82rem }
+        .empty-inline i { color: var(--text-dimmed); font-size: 1.1rem }
+        .schedule-placeholder-list { display: grid; gap: .75rem }
+        .schedule-placeholder-row { display: flex; align-items: flex-start; gap: .75rem; padding: .75rem; border-radius: 12px; background: var(--input-bg); border: 1px solid var(--card-border) }
+        .schedule-placeholder-row i { color: var(--fs-red); font-size: 1.1rem; margin-top: .1rem }
 
         /* ── NO MEMBERSHIP NOTICE ── */
         .no-mem-card { background: var(--card-bg); border: 1px dashed var(--card-border); border-radius: 20px; padding: 2.5rem; text-align: center }
@@ -535,7 +588,7 @@ $workoutPrograms = [
             <span class="brand-text"><span class="fit">FIT</span><span class="sync">SYNC</span></span>
         </a>
         <div class="sb-avatar-card">
-            <?php if ($mem && $mem['status'] === 'active'): ?>
+            <?php if ($hasActiveMembership): ?>
                 <span class="sb-member-badge">Active</span>
             <?php endif ?>
             <div class="sb-avatar" id="sbAvatar">
@@ -543,7 +596,7 @@ $workoutPrograms = [
             </div>
             <div class="sb-member-name" id="sbMemberName"><?= $fullName ?></div>
             <div class="sb-member-plan">
-                <?= $mem ? htmlspecialchars($mem['plan_label']) . ' · Member' : 'No active plan' ?>
+                <?= $hasActiveMembership ? htmlspecialchars($mem['plan_label']) . ' · Member' : 'No active plan' ?>
             </div>
         </div>
     </div>
@@ -558,6 +611,9 @@ $workoutPrograms = [
         </button>
         <button class="sb-nav-item" onclick="showTab('billing', this)">
             <i class="ti ti-receipt"></i> Billing
+        </button>
+        <button class="sb-nav-item" onclick="showTab('schedule', this)">
+            <i class="ti ti-calendar-event"></i> Schedule
         </button>
         <button class="sb-nav-item" onclick="showTab('feedback', this)">
             <i class="ti ti-message-star"></i> Feedback
@@ -596,7 +652,7 @@ $workoutPrograms = [
             <div class="dash-hero-greeting"><?= $greeting ?>, <?= htmlspecialchars($userRow['first_name'] ?? 'Member') ?> 👋</div>
             <div class="dash-hero-sub"><?= date('l, F j, Y') ?> · Welcome back to FitSync</div>
             <div class="dash-hero-stats">
-                <?php if ($mem): ?>
+                <?php if ($hasActiveMembership): ?>
                 <div class="dash-mini-stat">
                     <div class="dash-mini-stat-val"><?= number_format($daysRemaining) ?></div>
                     <div class="dash-mini-stat-lbl">Days Left</div>
@@ -606,12 +662,12 @@ $workoutPrograms = [
                     <div class="dash-mini-stat-lbl">Plan Used</div>
                 </div>
                 <div class="dash-mini-stat">
-                    <div class="dash-mini-stat-val">₱<?= number_format((float)$mem['amount_paid'], 0) ?></div>
-                    <div class="dash-mini-stat-lbl">Paid</div>
+                    <div class="dash-mini-stat-val" id="attendanceTotalHero"><?= number_format($attendanceTotal) ?></div>
+                    <div class="dash-mini-stat-lbl">Total Visits</div>
                 </div>
                 <?php endif ?>
                 <div class="dash-mini-stat">
-                    <div class="dash-mini-stat-val" id="streakDisplay">0</div>
+                    <div class="dash-mini-stat-val" id="streakDisplay"><?= number_format($currentStreak) ?></div>
                     <div class="dash-mini-stat-lbl">Day Streak 🔥</div>
                 </div>
             </div>
@@ -622,184 +678,12 @@ $workoutPrograms = [
     <!-- ══ DASHBOARD ══ -->
     <div class="page-section active" id="tab-dashboard">
 
-        <?php if ($mem): ?>
-        <div class="row g-3 mb-4">
-            <div class="col-6 col-lg-3">
-                <div class="stat-card">
-                    <div class="stat-icon"><i class="ti ti-calendar-check"></i></div>
-                    <div class="stat-value"><?= number_format($daysRemaining) ?></div>
-                    <div class="stat-label">Days Remaining</div>
-                    <div class="stat-sub"><?= htmlspecialchars($mem['plan_label']) ?></div>
-                </div>
-            </div>
-            <div class="col-6 col-lg-3">
-                <div class="stat-card">
-                    <div class="stat-icon"><i class="ti ti-chart-line"></i></div>
-                    <div class="stat-value"><?= $progressPct ?>%</div>
-                    <div class="stat-label">Plan Used</div>
-                    <div class="stat-sub">Progress through plan</div>
-                </div>
-            </div>
-            <div class="col-6 col-lg-3">
-                <div class="stat-card">
-                    <div class="stat-icon"><i class="ti ti-cash"></i></div>
-                    <div class="stat-value">₱<?= number_format((float)$mem['amount_paid'], 0) ?></div>
-                    <div class="stat-label">Amount Paid</div>
-                    <div class="stat-sub"><?= payLabel($mem['payment_method']) ?></div>
-                </div>
-            </div>
-            <div class="col-6 col-lg-3">
-                <div class="stat-card">
-                    <div class="stat-icon"><i class="ti ti-flame"></i></div>
-                    <div class="stat-value" id="streakStat">0</div>
-                    <div class="stat-label">Day Streak</div>
-                    <div class="stat-sub">Consecutive gym days</div>
-                </div>
-            </div>
-        </div>
+        <?php include __DIR__ . '/includes/member_today_panel.php'; ?>
 
-        <div class="row g-3 mb-4">
-            <div class="col-lg-8">
-                <div class="membership-card">
-                    <div class="mem-tag"><span></span> Active Membership</div>
-                    <div class="mem-plan-name"><?= htmlspecialchars($mem['plan_label']) ?></div>
-                    <div class="mem-dates">
-                        <i class="ti ti-calendar" style="font-size:.85rem"></i>
-                        &nbsp;<?= date('M j, Y', strtotime($mem['starts_at'])) ?>
-                        &nbsp;—&nbsp;<?= date('M j, Y', strtotime($mem['ends_at'])) ?>
-                    </div>
-                    <div class="mem-progress-label">
-                        <span>Plan progress</span>
-                        <span><?= $progressPct ?>% complete</span>
-                    </div>
-                    <div class="progress-track">
-                        <div class="progress-fill" id="progressFill" style="width:0%"></div>
-                    </div>
-                    <div class="mem-pills mt-3">
-                        <span class="mem-pill"><i class="ti ti-check"></i> Full Gym Access</span>
-                        <span class="mem-pill"><i class="ti ti-check"></i> <?= htmlspecialchars($mem['branch_name']) ?></span>
-                        <span class="mem-pill"><i class="ti ti-check"></i> <?= htmlspecialchars(payLabel($mem['payment_method'])) ?></span>
-                        <span class="mem-pill"><i class="ti ti-check"></i> <?= $daysRemaining ?> days left</span>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-4">
-                <div class="fs-card h-100 d-flex flex-column">
-                    <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);margin-bottom:1rem">Membership Details</div>
-                    <div class="d-flex flex-column gap-3 flex-grow-1">
-                        <div>
-                            <div style="font-size:.7rem;color:var(--text-dimmed);text-transform:uppercase;letter-spacing:.5px">Plan</div>
-                            <div style="font-weight:700;font-size:.9rem;color:var(--text-primary)"><?= htmlspecialchars($mem['plan_label']) ?></div>
-                        </div>
-                        <div>
-                            <div style="font-size:.7rem;color:var(--text-dimmed);text-transform:uppercase;letter-spacing:.5px">Status</div>
-                            <span class="status-badge <?= htmlspecialchars($mem['status']) ?>"><?= ucfirst($mem['status']) ?></span>
-                        </div>
-                        <div>
-                            <div style="font-size:.7rem;color:var(--text-dimmed);text-transform:uppercase;letter-spacing:.5px">Expires</div>
-                            <div style="font-weight:700;font-size:.9rem;color:var(--text-primary)"><?= date('M j, Y', strtotime($mem['ends_at'])) ?></div>
-                        </div>
-                        <div>
-                            <div style="font-size:.7rem;color:var(--text-dimmed);text-transform:uppercase;letter-spacing:.5px">Branch</div>
-                            <div style="font-weight:700;font-size:.9rem;color:var(--text-primary)"><?= htmlspecialchars($mem['branch_name']) ?></div>
-                        </div>
-                    </div>
-                    <button class="btn btn-fs w-100 rounded-pill mt-3" onclick="showTab('billing', null)">
-                        <i class="ti ti-refresh me-1"></i>Renew / Upgrade
-                    </button>
-                </div>
-            </div>
-        </div>
-        <?php else: ?>
-        <div class="no-mem-card mb-4">
-            <i class="ti ti-id-badge-off"></i>
-            <div style="font-size:1.1rem;font-weight:700;color:var(--text-primary);margin-bottom:.5rem">No Active Membership</div>
-            <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1.5rem">You don't have an active plan yet. Choose one to get started.</p>
-            <a href="auth.php?mode=register" class="btn btn-fs rounded-pill px-4"><i class="ti ti-bolt me-1"></i>Get a Plan</a>
-        </div>
-        <?php endif ?>
+        <?php include __DIR__ . '/includes/member_membership_section.php'; ?>
 
-        <!-- Gym Calendar + Quick Actions -->
-        <div class="row g-3">
-            <div class="col-lg-8">
-                <!-- GYM ATTENDANCE CALENDAR -->
-                <div class="gym-calendar-wrap">
-                    <div class="cal-header">
-                        <div class="cal-title" id="calTitle">May 2026</div>
-                        <div class="cal-nav">
-                            <button class="cal-nav-btn" onclick="calNav(-1)"><i class="ti ti-chevron-left"></i></button>
-                            <button class="cal-nav-btn" onclick="calNav(1)"><i class="ti ti-chevron-right"></i></button>
-                        </div>
-                    </div>
-                    <div class="cal-days-header">
-                        <div class="cal-day-name">Sun</div>
-                        <div class="cal-day-name">Mon</div>
-                        <div class="cal-day-name">Tue</div>
-                        <div class="cal-day-name">Wed</div>
-                        <div class="cal-day-name">Thu</div>
-                        <div class="cal-day-name">Fri</div>
-                        <div class="cal-day-name">Sat</div>
-                    </div>
-                    <div class="cal-grid" id="calGrid"></div>
-                    <div class="cal-streak-bar">
-                        <div>
-                            <div class="cal-streak-num" id="streakNum">0</div>
-                            <div class="cal-streak-lbl">Day Streak 🔥</div>
-                        </div>
-                        <div style="flex:1;height:6px;background:var(--input-bg);border-radius:3px;overflow:hidden;margin-left:.5rem">
-                            <div id="streakBar" style="height:100%;background:var(--fs-red);border-radius:3px;transition:width .5s;width:0%"></div>
-                        </div>
-                        <div style="font-size:.75rem;color:var(--text-muted)" id="streakGoal">/ 7 day goal</div>
-                    </div>
-                    <div class="cal-legend">
-                        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--fs-red)"></div> Gym Day</div>
-                        <div class="cal-legend-item"><div class="cal-legend-dot" style="border:1px solid var(--fs-red);background:transparent"></div> Today</div>
-                        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--input-bg)"></div> No Visit</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-4">
-                <div class="fs-card mb-3">
-                    <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);margin-bottom:1rem">Account Info</div>
-                    <div class="d-flex flex-column gap-3">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span style="font-size:.82rem;color:var(--text-muted)"><i class="ti ti-mail me-1"></i>Email</span>
-                            <span style="font-size:.82rem;font-weight:600;color:var(--text-primary)"><?= htmlspecialchars($userRow['email']) ?></span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span style="font-size:.82rem;color:var(--text-muted)"><i class="ti ti-calendar me-1"></i>Member Since</span>
-                            <span style="font-size:.82rem;font-weight:600;color:var(--text-primary)"><?= date('M j, Y', strtotime($userRow['created_at'])) ?></span>
-                        </div>
-                        <?php if ($userRow['last_login_at']): ?>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span style="font-size:.82rem;color:var(--text-muted)"><i class="ti ti-clock me-1"></i>Last Login</span>
-                            <span style="font-size:.82rem;font-weight:600;color:var(--text-primary)"><?= date('M j g:i A', strtotime($userRow['last_login_at'])) ?></span>
-                        </div>
-                        <?php endif ?>
-                    </div>
-                </div>
-                <div class="fs-card">
-                    <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);margin-bottom:1rem">Quick Actions</div>
-                    <div class="d-flex flex-column gap-2">
-                        <button class="btn btn-outline-secondary rounded-pill text-start d-flex align-items-center gap-2" onclick="showTab('profile', null)">
-                            <i class="ti ti-user-edit" style="color:var(--fs-red)"></i> Edit Profile
-                        </button>
-                        <button class="btn btn-outline-secondary rounded-pill text-start d-flex align-items-center gap-2" onclick="showTab('programs', null)">
-                            <i class="ti ti-barbell" style="color:var(--fs-red)"></i> View Programs
-                        </button>
-                        <button class="btn btn-outline-secondary rounded-pill text-start d-flex align-items-center gap-2" onclick="showTab('feedback', null)">
-                            <i class="ti ti-message-star" style="color:var(--fs-red)"></i> Leave a Review
-                        </button>
-                        <button class="btn btn-outline-secondary rounded-pill text-start d-flex align-items-center gap-2" onclick="logTodayGym()">
-                            <i class="ti ti-check" style="color:var(--fs-red)"></i> <span id="logBtnText">Log Today's Visit</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <?php include __DIR__ . '/includes/member_attendance_section.php'; ?>
     </div>
-
-    <!-- ══ MY PROFILE ══ -->
     <div class="page-section" id="tab-profile">
         <div class="row g-3">
             <div class="col-lg-8">
@@ -886,7 +770,7 @@ $workoutPrograms = [
                     <table class="table fs-table">
                         <thead>
                             <tr>
-                                <th>Plan</th><th>Branch</th><th>Start</th><th>End</th><th>Amount</th><th>Payment</th><th>Status</th>
+                                <th>Plan</th><th>Branch</th><th>Start</th><th>End</th><th>Amount</th><th>Method</th><th>Payment</th><th>Status</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -898,6 +782,7 @@ $workoutPrograms = [
                                 <td style="color:var(--text-muted)"><?= date('M j, Y', strtotime($m['ends_at'])) ?></td>
                                 <td><strong>₱<?= number_format((float)$m['amount_paid'], 2) ?></strong></td>
                                 <td style="color:var(--text-muted)"><?= payLabel($m['payment_method']) ?></td>
+                                <td><span class="status-badge <?= htmlspecialchars($m['payment_status']) ?>"><?= ucfirst($m['payment_status']) ?></span></td>
                                 <td><span class="status-badge <?= htmlspecialchars($m['status']) ?>"><?= ucfirst($m['status']) ?></span></td>
                             </tr>
                             <?php endforeach ?>
@@ -912,20 +797,65 @@ $workoutPrograms = [
                     <i class="ti ti-refresh" style="color:var(--fs-red);font-size:1.2rem"></i>
                 </div>
                 <div class="flex-grow-1">
-                    <div style="font-weight:700;font-size:.9rem;color:var(--text-primary)">Ready to renew or upgrade?</div>
-                    <div style="font-size:.78rem;color:var(--text-muted)">Contact the front desk or register a new plan online.</div>
+                    <div style="font-weight:700;font-size:.9rem;color:var(--text-primary)">Ready to renew?</div>
+                    <div style="font-size:.78rem;color:var(--text-muted)">Submit a renewal for admin payment approval.</div>
                 </div>
-                <a href="auth.php?mode=register" class="btn btn-fs rounded-pill px-4 flex-shrink-0">
-                    <i class="ti ti-bolt me-1"></i>New Plan
-                </a>
+                <button class="btn btn-fs rounded-pill px-4 flex-shrink-0" data-bs-toggle="modal" data-bs-target="#renewModal">
+                    <i class="ti ti-refresh me-1"></i>Renew
+                </button>
             </div>
         </div>
         <?php else: ?>
-        <div class="empty-state"><i class="ti ti-receipt-off"></i><p>No billing history found.</p></div>
+        <div class="no-mem-card">
+            <i class="ti ti-receipt-off"></i>
+            <div style="font-size:1.1rem;font-weight:700;color:var(--text-primary);margin-bottom:.5rem">No Billing History Yet</div>
+            <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1.5rem">Membership renewals and payment approvals will appear here after your first request.</p>
+            <button class="btn btn-fs rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#renewModal">
+                <i class="ti ti-refresh me-1"></i>Request Membership
+            </button>
+        </div>
         <?php endif ?>
     </div>
 
     <!-- ══ PROGRAMS ══ -->
+    <div class="modal fade" id="renewModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:18px">
+                <div class="modal-header" style="border-color:var(--card-border)">
+                    <h5 class="modal-title" style="font-weight:800;color:var(--text-primary)">Renew Membership</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="renewAlert" class="alert d-none" style="font-size:.85rem"></div>
+                    <label class="form-label fs-label">Plan</label>
+                    <select class="form-select fs-input mb-3" id="renew-plan">
+                        <?php foreach ($membershipPlans as $plan): ?>
+                            <option value="<?= (int) $plan['id'] ?>"><?= htmlspecialchars($plan['label']) ?> - ₱<?= number_format((float) $plan['price'], 2) ?></option>
+                        <?php endforeach ?>
+                    </select>
+                    <label class="form-label fs-label">Payment Method</label>
+                    <select class="form-select fs-input" id="renew-payment">
+                        <option value="gcash">GCash</option>
+                        <option value="maya">Maya</option>
+                        <option value="credit_card">Credit Card</option>
+                        <option value="debit_card">Debit Card</option>
+                        <option value="bank_transfer">Bank Transfer</option>
+                        <option value="cash">Cash / Walk-in</option>
+                    </select>
+                </div>
+                <div class="modal-footer" style="border-color:var(--card-border)">
+                    <button class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-fs rounded-pill px-4" onclick="submitRenewal()">Submit Renewal</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCHEDULE -->
+    <div class="page-section" id="tab-schedule">
+        <?php include __DIR__ . '/includes/member_schedule_section.php'; ?>
+    </div>
+
     <div class="page-section" id="tab-programs">
         <div id="programsListView">
             <div style="margin-bottom:1.5rem">
@@ -1148,19 +1078,27 @@ $workoutPrograms = [
 <script>
     const CSRF = <?= json_encode($csrf) ?>;
     const USER_ID = <?= $userId ?>;
+    let attendanceDates = <?= json_encode($attendanceDates, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+    let attendanceTotal = <?= (int) $attendanceTotal ?>;
+    let currentStreak = <?= (int) $currentStreak ?>;
+    const HAS_ACTIVE_MEMBERSHIP = <?= $hasActiveMembership ? 'true' : 'false' ?>;
 
     // Workout programs data
     const programs = <?= json_encode($workoutPrograms, JSON_HEX_TAG) ?>;
 
     /* ── TAB NAV ── */
     function showTab(id, btn) {
+        const section = document.getElementById('tab-' + id);
+        if (!section) return;
+
         document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
         document.querySelectorAll('.page-tab').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.sb-nav-item').forEach(n => n.classList.remove('active'));
-        document.getElementById('tab-' + id).classList.add('active');
+        section.classList.add('active');
         document.querySelector(`.page-tab[data-tab="${id}"]`)?.classList.add('active');
         if (btn) btn.classList.add('active');
         else document.querySelector(`.sb-nav-item[onclick*="'${id}'"]`)?.classList.add('active');
+        history.replaceState(null, '', '#' + id);
         if (window.innerWidth < 992) closeSidebar();
         // Sync settings fields when opening settings
         if (id === 'settings') syncSettingsFields();
@@ -1170,6 +1108,11 @@ $workoutPrograms = [
     });
 
     /* ── SIDEBAR ── */
+    const initialTab = location.hash.replace('#', '');
+    if (['dashboard', 'programs', 'billing', 'schedule', 'feedback', 'settings'].includes(initialTab)) {
+        showTab(initialTab, null);
+    }
+
     function openSidebar()  { document.getElementById('sidebar').classList.add('open'); document.getElementById('sbOverlay').classList.add('active'); document.body.style.overflow = 'hidden' }
     function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sbOverlay').classList.remove('active'); document.body.style.overflow = '' }
 
@@ -1381,18 +1324,51 @@ $workoutPrograms = [
         } catch { showAlert('pwAlert', 'Connection error. Please try again.') }
     }
 
+    async function submitRenewal() {
+        hideAlert('renewAlert');
+        const plan_id = document.getElementById('renew-plan').value;
+        const payment_method = document.getElementById('renew-payment').value;
+        try {
+            const data = await apiPost({ action: 'renew_membership', plan_id, payment_method });
+            if (data.success) {
+                showAlert('renewAlert', data.message, 'success');
+                setTimeout(() => location.reload(), 900);
+            } else {
+                showAlert('renewAlert', data.message);
+            }
+        } catch {
+            showAlert('renewAlert', 'Connection error. Please try again.');
+        }
+    }
+
+    async function bookClass(scheduleId) {
+        try {
+            const data = await apiPost({ action: 'book_class', schedule_id: scheduleId });
+            alert(data.message || (data.success ? 'Class reserved.' : 'Unable to reserve class.'));
+            if (data.success && data.reload) location.reload();
+        } catch {
+            alert('Connection error. Please try again.');
+        }
+    }
+
+    async function cancelClassBooking(bookingId) {
+        if (!confirm('Cancel this class reservation?')) return;
+        try {
+            const data = await apiPost({ action: 'cancel_booking', booking_id: bookingId });
+            alert(data.message || (data.success ? 'Booking cancelled.' : 'Unable to cancel booking.'));
+            if (data.success && data.reload) location.reload();
+        } catch {
+            alert('Connection error. Please try again.');
+        }
+    }
+
     /* ════════════════════════════════════
        GYM ATTENDANCE CALENDAR
     ════════════════════════════════════ */
-    const STORAGE_KEY = 'fs_gym_attendance_' + USER_ID;
     let calYear, calMonth;
 
     function loadAttendance() {
-        try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
-        catch { return []; }
-    }
-    function saveAttendance(arr) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify([...new Set(arr)]));
+        return [...new Set(attendanceDates)];
     }
 
     function todayStr() {
@@ -1415,12 +1391,15 @@ $workoutPrograms = [
     }
 
     function updateStreakDisplays() {
-        const attended = loadAttendance();
-        const streak = calcStreak(attended);
+        const streak = currentStreak;
         document.getElementById('streakNum').textContent = streak;
         document.getElementById('streakDisplay').textContent = streak;
         const streakStat = document.getElementById('streakStat');
         if (streakStat) streakStat.textContent = streak;
+        const totalHero = document.getElementById('attendanceTotalHero');
+        if (totalHero) totalHero.textContent = attendanceTotal.toLocaleString('en-PH');
+        const totalStat = document.getElementById('attendanceTotalStat');
+        if (totalStat) totalStat.textContent = attendanceTotal.toLocaleString('en-PH');
         const pct = Math.min(100, Math.round((streak / 7) * 100));
         document.getElementById('streakBar').style.width = pct + '%';
     }
@@ -1451,7 +1430,7 @@ $workoutPrograms = [
             if (isFuture) cls += ' cal-future';
             if (isToday) cls += ' cal-today';
             if (isAttended) cls += ' cal-attended';
-            html += `<div class="${cls}" onclick="toggleAttendance('${dateStr}')" title="${dateStr}">${d}</div>`;
+            html += `<div class="${cls}" title="${dateStr}">${d}</div>`;
         }
 
         const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
@@ -1464,16 +1443,6 @@ $workoutPrograms = [
         updateLogBtn();
     }
 
-    function toggleAttendance(dateStr) {
-        if (dateStr > todayStr()) return; // can't log future
-        let arr = loadAttendance();
-        const idx = arr.indexOf(dateStr);
-        if (idx === -1) arr.push(dateStr);
-        else arr.splice(idx, 1);
-        saveAttendance(arr);
-        renderCalendar();
-    }
-
     function calNav(dir) {
         calMonth += dir;
         if (calMonth > 11) { calMonth = 0; calYear++; }
@@ -1481,24 +1450,35 @@ $workoutPrograms = [
         renderCalendar();
     }
 
-    function logTodayGym() {
-        const t = todayStr();
-        let arr = loadAttendance();
-        const already = arr.includes(t);
-        if (!already) {
-            arr.push(t);
-            saveAttendance(arr);
+    async function logTodayGym() {
+        if (!HAS_ACTIVE_MEMBERSHIP) {
+            alert('An active membership is required before checking in.');
+            return;
         }
-        // Navigate to dashboard and re-render
-        showTab('dashboard', null);
-        setTimeout(renderCalendar, 50);
+
+        try {
+            const data = await apiPost({ action: 'log_attendance' });
+            if (data.attendance_dates) attendanceDates = data.attendance_dates;
+            if (typeof data.attendance_total !== 'undefined') attendanceTotal = Number(data.attendance_total);
+            if (typeof data.current_streak !== 'undefined') currentStreak = Number(data.current_streak);
+
+            updateLogBtn();
+            showTab('dashboard', null);
+            setTimeout(renderCalendar, 50);
+
+            if (!data.success && !data.already_logged) {
+                alert(data.message || 'Unable to log attendance.');
+            }
+        } catch {
+            alert('Connection error. Please try again.');
+        }
     }
 
     function updateLogBtn() {
         const t = todayStr();
         const attended = loadAttendance();
-        const logBtn = document.getElementById('logBtnText');
-        if (logBtn) logBtn.textContent = attended.includes(t) ? "Today's Visit Logged ✓" : "Log Today's Visit";
+        const label = attended.includes(t) ? "Today's Visit Logged" : "Log Today's Visit";
+        document.querySelectorAll('.log-btn-text').forEach(logBtn => { logBtn.textContent = label; });
     }
 
     /* ════════════════════════════════════

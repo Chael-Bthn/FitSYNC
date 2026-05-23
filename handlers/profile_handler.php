@@ -3,7 +3,7 @@
 //  FitSync — Profile Handler
 //  handlers/profile_handler.php
 //
-//  Actions: update_profile | change_password | submit_feedback
+//  Actions: update_profile | change_password | submit_feedback | log_attendance
 // ============================================================
 
 declare(strict_types=1);
@@ -11,6 +11,9 @@ declare(strict_types=1);
 session_start();
 
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/attendance_helpers.php';
+require_once __DIR__ . '/../includes/membership_helpers.php';
+require_once __DIR__ . '/../includes/schedule_helpers.php';
 
 header('Content-Type: application/json');
 
@@ -47,6 +50,10 @@ match ($action) {
     'update_profile'  => actionUpdateProfile($data, $userId),
     'change_password' => actionChangePassword($data, $userId),
     'submit_feedback' => actionSubmitFeedback($data, $userId),
+    'log_attendance'  => actionLogAttendance($data, $userId),
+    'renew_membership'=> actionRenewMembership($data, $userId),
+    'book_class'      => actionBookClass($data, $userId),
+    'cancel_booking'  => actionCancelBooking($data, $userId),
     default           => respond(false, 'Unknown action.'),
 };
 
@@ -202,6 +209,184 @@ function actionSubmitFeedback(array $data, int $userId): void
 // ─────────────────────────────────────────────────────────
 //  HELPER
 // ─────────────────────────────────────────────────────────
+function actionLogAttendance(array $data, int $userId): void
+{
+    if (($_SESSION['user_role'] ?? '') !== 'member') {
+        http_response_code(403);
+        respond(false, 'Only members can log attendance.');
+    }
+
+    $notes = trim((string) ($data['notes'] ?? ''));
+    if (strlen($notes) > 500) {
+        respond(false, 'Notes must be 500 characters or fewer.');
+    }
+
+    $pdo = db();
+    $membership = fitsyncActiveMembership($pdo, $userId);
+    if (!$membership) {
+        respond(false, 'An active membership is required before checking in.');
+    }
+
+    try {
+        $pdo->beginTransaction();
+
+        $lock = $pdo->prepare('SELECT id FROM users WHERE id = ? FOR UPDATE');
+        $lock->execute([$userId]);
+
+        $exists = $pdo->prepare(
+            'SELECT id FROM attendance_logs
+             WHERE user_id = ? AND DATE(check_in_at) = CURDATE()
+             LIMIT 1'
+        );
+        $exists->execute([$userId]);
+        if ($exists->fetch()) {
+            $pdo->rollBack();
+            $dates = fitsyncAttendanceDates($pdo, $userId);
+            respond(false, 'Your visit is already logged for today.', [
+                'already_logged' => true,
+                'attendance_dates' => $dates,
+                'attendance_total' => fitsyncAttendanceTotal($pdo, $userId),
+                'current_streak' => fitsyncCurrentStreak($dates),
+            ]);
+        }
+
+        $stmt = $pdo->prepare(
+            'INSERT INTO attendance_logs (user_id, branch_id, check_in_at, notes)
+             VALUES (?, ?, NOW(), ?)'
+        );
+        $stmt->execute([
+            $userId,
+            (int) $membership['branch_id'],
+            $notes !== '' ? $notes : null,
+        ]);
+
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        error_log('[FitSync Attendance] Check-in failed: ' . $e->getMessage());
+        http_response_code(500);
+        respond(false, 'Unable to log attendance right now. Please try again.');
+    }
+
+    $dates = fitsyncAttendanceDates($pdo, $userId);
+    respond(true, 'Check-in logged successfully.', [
+        'attendance_dates' => $dates,
+        'attendance_total' => fitsyncAttendanceTotal($pdo, $userId),
+        'current_streak' => fitsyncCurrentStreak($dates),
+        'checked_in_at' => date('Y-m-d H:i:s'),
+        'branch_name' => $membership['branch_name'],
+    ]);
+}
+
+function actionRenewMembership(array $data, int $userId): void
+{
+    if (($_SESSION['user_role'] ?? '') !== 'member') {
+        http_response_code(403);
+        respond(false, 'Only members can renew memberships.');
+    }
+
+    $planId = (int) ($data['plan_id'] ?? 0);
+    $paymentMethod = trim((string) ($data['payment_method'] ?? 'cash'));
+    $allowedPayments = ['credit_card', 'debit_card', 'gcash', 'maya', 'bank_transfer', 'cash'];
+    if (!in_array($paymentMethod, $allowedPayments, true)) {
+        respond(false, 'Invalid payment method selected.');
+    }
+
+    $pdo = db();
+    expireOldMemberships($pdo);
+
+    $planStmt = $pdo->prepare(
+        'SELECT id, label, duration_days, price
+         FROM membership_plans
+         WHERE id = ? AND is_active = 1
+         LIMIT 1'
+    );
+    $planStmt->execute([$planId]);
+    $plan = $planStmt->fetch();
+    if (!$plan) {
+        respond(false, 'Invalid plan selected.');
+    }
+
+    $pendingStmt = $pdo->prepare(
+        'SELECT id FROM memberships
+         WHERE user_id = ? AND payment_status = "pending" AND status = "pending"
+         LIMIT 1'
+    );
+    $pendingStmt->execute([$userId]);
+    if ($pendingStmt->fetch()) {
+        respond(false, 'You already have a renewal pending approval.');
+    }
+
+    $latest = getLatestMembership($pdo, $userId);
+    $branchId = (int) ($latest['branch_id'] ?? 1);
+    $today = new DateTimeImmutable('today');
+    $active = getActiveMembership($pdo, $userId);
+    $start = $active
+        ? (new DateTimeImmutable($active['ends_at']))->modify('+1 day')
+        : $today;
+    $end = $start->modify('+' . (int) $plan['duration_days'] . ' days');
+
+    $stmt = $pdo->prepare(
+        'INSERT INTO memberships
+            (user_id, plan_id, branch_id, starts_at, ends_at, amount_paid, payment_method, payment_status, status, payment_ref)
+         VALUES (?, ?, ?, ?, ?, ?, ?, "pending", "pending", ?)'
+    );
+    $stmt->execute([
+        $userId,
+        (int) $plan['id'],
+        $branchId,
+        $start->format('Y-m-d'),
+        $end->format('Y-m-d'),
+        (float) $plan['price'],
+        $paymentMethod,
+        'RNW-' . strtoupper(bin2hex(random_bytes(4))),
+    ]);
+
+    respond(true, 'Renewal submitted. An admin will approve your payment.', [
+        'reload' => true,
+    ]);
+}
+
+function actionBookClass(array $data, int $userId): void
+{
+    if (($_SESSION['user_role'] ?? '') !== 'member') {
+        http_response_code(403);
+        respond(false, 'Only members can reserve classes.');
+    }
+
+    $scheduleId = (int) ($data['schedule_id'] ?? 0);
+    if ($scheduleId <= 0) {
+        respond(false, 'Invalid class schedule.');
+    }
+
+    $pdo = db();
+    expireOldMemberships($pdo);
+    if (!hasActiveMembership($pdo, $userId)) {
+        respond(false, 'An active membership is required before reserving classes.');
+    }
+
+    $result = scheduleReserveClass($pdo, $userId, $scheduleId);
+    respond((bool) $result['success'], (string) $result['message'], ['reload' => (bool) $result['success']]);
+}
+
+function actionCancelBooking(array $data, int $userId): void
+{
+    if (($_SESSION['user_role'] ?? '') !== 'member') {
+        http_response_code(403);
+        respond(false, 'Only members can cancel bookings.');
+    }
+
+    $bookingId = (int) ($data['booking_id'] ?? 0);
+    if ($bookingId <= 0) {
+        respond(false, 'Invalid booking.');
+    }
+
+    $result = scheduleCancelBooking(db(), $userId, $bookingId);
+    respond((bool) $result['success'], (string) $result['message'], ['reload' => (bool) $result['success']]);
+}
+
 function respond(bool $success, string $message, array $extra = []): never
 {
     echo json_encode(array_merge(['success' => $success, 'message' => $message], $extra));

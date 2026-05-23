@@ -206,8 +206,8 @@ function actionRegister(array $data): void
 
         $pdo->prepare(
             'INSERT INTO memberships
-                (user_id, plan_id, branch_id, starts_at, ends_at, amount_paid, payment_method, status)
-             VALUES (?, ?, 1, ?, ?, ?, ?, "active")'
+                (user_id, plan_id, branch_id, starts_at, ends_at, amount_paid, payment_method, payment_status, status)
+             VALUES (?, ?, 1, ?, ?, ?, ?, "paid", "active")'
         )->execute([
             $userId,
             $plan['id'],

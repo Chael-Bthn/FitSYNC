@@ -2,8 +2,17 @@
 require_once __DIR__ . '/config/auth_guard.php';
 requireRole('admin');
 require_once __DIR__ . '/config/db.php';
+require_once __DIR__ . '/includes/membership_helpers.php';
+require_once __DIR__ . '/includes/report_helpers.php';
+require_once __DIR__ . '/includes/schedule_helpers.php';
 
 $pdo = db();
+expireOldMemberships($pdo);
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+$csrf = $_SESSION['csrf_token'];
+$reportRange = reportDateRange($_GET);
 
 $adminUser = currentUser();
 $adminInitial = strtoupper(substr(trim($adminUser['name'] ?: $adminUser['email'] ?: 'A'), 0, 1));
@@ -13,33 +22,146 @@ $totalBranches = (int) $pdo->query("SELECT COUNT(*) FROM branches WHERE is_activ
 $totalFeedbacks = (int) $pdo->query("SELECT COUNT(*) FROM feedback WHERE is_visible = 1")->fetchColumn();
 $monthlyRevenue = (float) $pdo->query(
     "SELECT COALESCE(SUM(amount_paid), 0) FROM memberships
-     WHERE MONTH(starts_at) = MONTH(CURDATE()) AND YEAR(starts_at) = YEAR(CURDATE())"
+     WHERE payment_status = 'paid'
+       AND MONTH(starts_at) = MONTH(CURDATE()) AND YEAR(starts_at) = YEAR(CURDATE())"
 )->fetchColumn();
 $averageRating = $pdo->query("SELECT AVG(rating) FROM feedback WHERE is_visible = 1")->fetchColumn();
 $averageRating = $averageRating ? round((float) $averageRating, 1) : 0.0;
 
-$memberRows = $pdo->query("SELECT u.id, u.first_name AS fname, u.last_name AS lname, u.email, u.is_active,
+$todayCheckIns = (int) $pdo->query(
+    "SELECT COUNT(*) FROM attendance_logs WHERE DATE(check_in_at) = CURDATE()"
+)->fetchColumn();
+
+$recentAttendance = $pdo->query(
+    "SELECT al.id, al.check_in_at, al.notes,
+            u.first_name AS fname, u.last_name AS lname, u.email,
+            b.name AS branch
+     FROM attendance_logs al
+     INNER JOIN users u ON u.id = al.user_id
+     INNER JOIN branches b ON b.id = al.branch_id
+     ORDER BY al.check_in_at DESC
+     LIMIT 8"
+)->fetchAll(PDO::FETCH_ASSOC);
+
+$mostActiveMembers = $pdo->query(
+    "SELECT u.id, u.first_name AS fname, u.last_name AS lname, u.email,
+            COUNT(al.id) AS visits,
+            MAX(al.check_in_at) AS last_check_in
+     FROM attendance_logs al
+     INNER JOIN users u ON u.id = al.user_id
+     WHERE al.check_in_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+     GROUP BY u.id, u.first_name, u.last_name, u.email
+     ORDER BY visits DESC, last_check_in DESC
+     LIMIT 5"
+)->fetchAll(PDO::FETCH_ASSOC);
+
+$inactiveMembers = $pdo->query(
+    "SELECT u.id, u.first_name AS fname, u.last_name AS lname, u.email,
+            MAX(al.check_in_at) AS last_check_in
+     FROM users u
+     INNER JOIN memberships m ON m.user_id = u.id
+        AND m.status = 'active'
+        AND m.payment_status = 'paid'
+        AND m.starts_at <= CURDATE()
+        AND m.ends_at >= CURDATE()
+     LEFT JOIN attendance_logs al ON al.user_id = u.id
+     WHERE u.role = 'member' AND u.is_active = 1
+     GROUP BY u.id, u.first_name, u.last_name, u.email
+     HAVING MAX(al.check_in_at) IS NULL OR MAX(al.check_in_at) < DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+     ORDER BY MAX(al.check_in_at) IS NULL DESC, MAX(al.check_in_at) ASC
+     LIMIT 5"
+)->fetchAll(PDO::FETCH_ASSOC);
+
+$attendanceByBranch = $pdo->query(
+    "SELECT b.id, b.name, b.city,
+            COUNT(al.id) AS total_visits,
+            SUM(CASE WHEN DATE(al.check_in_at) = CURDATE() THEN 1 ELSE 0 END) AS today_visits,
+            SUM(CASE WHEN al.check_in_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) AS visits_30d
+     FROM branches b
+     LEFT JOIN attendance_logs al ON al.branch_id = b.id
+     WHERE b.is_active = 1
+     GROUP BY b.id, b.name, b.city
+     ORDER BY visits_30d DESC, b.name ASC"
+)->fetchAll(PDO::FETCH_ASSOC);
+$totalVisitsLast30Days = array_sum(array_map('intval', array_column($attendanceByBranch, 'visits_30d')));
+
+$memberRows = $pdo->query("SELECT u.id, m.id AS membership_id, u.first_name AS fname, u.last_name AS lname, u.email, u.is_active,
            COALESCE(m.starts_at, u.created_at) AS joined,
            COALESCE(m.ends_at, u.created_at) AS expiry,
+           p.id AS plan_id,
            COALESCE(p.label, 'No Plan') AS plan,
-           COALESCE(m.status, 'active') AS status
+           COALESCE(m.status, 'expired') AS status,
+           COALESCE(m.payment_status, 'pending') AS payment_status
     FROM users u
-    LEFT JOIN memberships m ON m.user_id = u.id
+    LEFT JOIN memberships m ON m.id = (
+        SELECT m2.id
+        FROM memberships m2
+        WHERE m2.user_id = u.id
+        ORDER BY
+            CASE
+                WHEN m2.status = 'active'
+                 AND m2.payment_status = 'paid'
+                 AND m2.starts_at <= CURDATE()
+                 AND m2.ends_at >= CURDATE()
+                THEN 1
+                WHEN m2.payment_status = 'pending'
+                THEN 2
+                WHEN m2.status = 'frozen'
+                THEN 3
+                ELSE 4
+            END,
+            m2.ends_at DESC,
+            m2.id DESC
+        LIMIT 1
+    )
     LEFT JOIN membership_plans p ON p.id = m.plan_id
     WHERE u.role = 'member'
     ORDER BY COALESCE(m.starts_at, u.created_at) DESC")->fetchAll(PDO::FETCH_ASSOC);
 
-$memberships = $pdo->query("SELECT m.id, u.first_name AS fname, u.last_name AS lname,
+$memberships = $pdo->query("SELECT m.id, u.id AS user_id, u.first_name AS fname, u.last_name AS lname,
            p.label AS plan, b.name AS branch,
-           m.starts_at, m.ends_at, m.amount_paid, m.payment_method, m.status
+           m.starts_at, m.ends_at, m.amount_paid, m.payment_method, m.payment_status, m.status
     FROM memberships m
     INNER JOIN users u ON u.id = m.user_id
     INNER JOIN membership_plans p ON p.id = m.plan_id
     INNER JOIN branches b ON b.id = m.branch_id
     ORDER BY m.starts_at DESC")->fetchAll(PDO::FETCH_ASSOC);
 
+$pendingPayments = $pdo->query("SELECT m.id, u.first_name AS fname, u.last_name AS lname, u.email,
+           p.label AS plan, b.name AS branch, m.starts_at, m.ends_at, m.amount_paid, m.payment_method, m.created_at
+    FROM memberships m
+    INNER JOIN users u ON u.id = m.user_id
+    INNER JOIN membership_plans p ON p.id = m.plan_id
+    INNER JOIN branches b ON b.id = m.branch_id
+    WHERE m.payment_status = 'pending' AND m.status = 'pending'
+    ORDER BY m.created_at ASC")->fetchAll(PDO::FETCH_ASSOC);
+
+$expiringMemberships = $pdo->query("SELECT m.id, u.first_name AS fname, u.last_name AS lname, u.email,
+           p.label AS plan, m.ends_at
+    FROM memberships m
+    INNER JOIN users u ON u.id = m.user_id
+    INNER JOIN membership_plans p ON p.id = m.plan_id
+    WHERE m.status = 'active' AND m.payment_status = 'paid'
+      AND m.ends_at BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+    ORDER BY m.ends_at ASC")->fetchAll(PDO::FETCH_ASSOC);
+
+$expiredMemberships = $pdo->query("SELECT m.id, u.first_name AS fname, u.last_name AS lname, u.email,
+           p.label AS plan, m.ends_at
+    FROM memberships m
+    INNER JOIN users u ON u.id = m.user_id
+    INNER JOIN membership_plans p ON p.id = m.plan_id
+    WHERE m.status = 'expired'
+    ORDER BY m.ends_at DESC
+    LIMIT 8")->fetchAll(PDO::FETCH_ASSOC);
+
 $branches = $pdo->query("SELECT id, name, city, address, is_active FROM branches ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
-$plans = $pdo->query("SELECT label FROM membership_plans WHERE is_active = 1 ORDER BY sort_order")->fetchAll(PDO::FETCH_ASSOC);
+$plans = $pdo->query("SELECT id, label FROM membership_plans WHERE is_active = 1 ORDER BY sort_order")->fetchAll(PDO::FETCH_ASSOC);
+$scheduleBranches = scheduleBranches($pdo);
+$classes = scheduleClasses($pdo);
+$activeClasses = scheduleClasses($pdo, true);
+$classSchedules = scheduleClassSchedules($pdo, 80);
+$operatingHours = scheduleOperatingHours($pdo);
+$announcements = scheduleAnnouncements($pdo);
 
 $feedbacks = $pdo->query("SELECT f.id, COALESCE(u.first_name, 'Anonymous') AS fname, COALESCE(u.last_name, '') AS lname,
            f.rating, f.body AS text, COALESCE(b.name, 'Unknown') AS branch, f.created_at AS date
@@ -49,8 +171,25 @@ $feedbacks = $pdo->query("SELECT f.id, COALESCE(u.first_name, 'Anonymous') AS fn
     WHERE f.is_visible = 1
     ORDER BY f.created_at DESC")->fetchAll(PDO::FETCH_ASSOC);
 
+try {
+    $contactMessages = $pdo->query(
+        "SELECT id, name, email, phone, subject, message, status, created_at
+         FROM contact_messages
+         ORDER BY created_at DESC
+         LIMIT 20"
+    )->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $e) {
+    $contactMessages = [];
+}
+
 $totalMemberships = (int) $pdo->query("SELECT COUNT(*) FROM memberships")->fetchColumn();
+$activeMemberships = (int) $pdo->query("SELECT COUNT(*) FROM memberships WHERE status = 'active' AND payment_status = 'paid' AND starts_at <= CURDATE() AND ends_at >= CURDATE()")->fetchColumn();
+$pendingPaymentCount = count($pendingPayments);
+$expiredMembershipCount = (int) $pdo->query("SELECT COUNT(*) FROM memberships WHERE status = 'expired'")->fetchColumn();
 $activePlans = count($plans);
+$memberReport = memberAnalytics($pdo, $reportRange);
+$revenueReport = revenueAnalytics($pdo, $reportRange);
+$attendanceReport = attendanceAnalytics($pdo, $reportRange);
 
 $monthlyLabels = [];
 $signupData = [];
@@ -65,7 +204,7 @@ for ($i = 11; $i >= 0; $i--) {
     $signupStmt->execute([$start, $end]);
     $signupData[] = (int) $signupStmt->fetchColumn();
 
-    $revenueStmt = $pdo->prepare("SELECT COALESCE(SUM(amount_paid), 0) FROM memberships WHERE starts_at BETWEEN ? AND ?");
+    $revenueStmt = $pdo->prepare("SELECT COALESCE(SUM(amount_paid), 0) FROM memberships WHERE payment_status = 'paid' AND starts_at BETWEEN ? AND ?");
     $revenueStmt->execute([$start, $end]);
     $revenueData[] = (float) $revenueStmt->fetchColumn();
 }
@@ -658,6 +797,45 @@ for ($i = 11; $i >= 0; $i--) {
         }
 
         /* ── FEEDBACK CARDS ── */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: .24rem .58rem;
+            border-radius: 999px;
+            font-size: .65rem;
+            font-weight: 800;
+            line-height: 1;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .status-badge.active,
+        .status-badge.paid,
+        .status-badge.scheduled {
+            background: rgba(76, 175, 135, .12);
+            color: #4caf87;
+        }
+
+        .status-badge.pending {
+            background: rgba(255, 193, 7, .14);
+            color: #d6a100;
+        }
+
+        .status-badge.expired,
+        .status-badge.completed,
+        .status-badge.frozen {
+            background: rgba(150, 150, 150, .14);
+            color: #999;
+        }
+
+        .status-badge.cancelled,
+        .status-badge.failed,
+        .status-badge.inactive {
+            background: rgba(220, 53, 69, .14);
+            color: #e05656;
+        }
+
         .feedback-card {
             background: var(--card-bg);
             border: 1px solid var(--card-border);
@@ -812,7 +990,22 @@ for ($i = 11; $i >= 0; $i--) {
             background: var(--card-bg);
             color: var(--text-primary);
             border-color: var(--card-border) !important;
-            font-size: .8rem
+            font-size: .8rem;
+            appearance: none;
+            padding-right: 2.4rem !important;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238f8f8f' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right .85rem center;
+            background-size: 14px 14px;
+        }
+
+        select.fs-input {
+            appearance: none;
+            padding-right: 2.4rem !important;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238f8f8f' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right .85rem center;
+            background-size: 14px 14px;
         }
 
         .fs-select option {
@@ -833,6 +1026,15 @@ for ($i = 11; $i >= 0; $i--) {
         .fs-input:focus {
             border-color: rgba(204, 26, 26, .5) !important;
             box-shadow: none !important
+        }
+
+        select.fs-input {
+            appearance: none;
+            padding-right: 2.4rem !important;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238f8f8f' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+            background-repeat: no-repeat !important;
+            background-position: right .85rem center !important;
+            background-size: 14px 14px !important;
         }
 
         .fs-input option {
@@ -1148,6 +1350,12 @@ for ($i = 11; $i >= 0; $i--) {
                 <i class="ti ti-building-store"></i> Branches
                 <span class="nav-pill" id="pill-branches"><?= number_format($totalBranches) ?></span>
             </a>
+            <a class="sidebar-link" onclick="showPage('schedules',this)">
+                <i class="ti ti-calendar-event"></i> Schedules
+            </a>
+            <a class="sidebar-link" onclick="showPage('announcements',this)">
+                <i class="ti ti-speakerphone"></i> Announcements
+            </a>
             <a class="sidebar-link" onclick="showPage('feedbacks',this)">
                 <i class="ti ti-message-star"></i> Feedbacks
                 <span class="nav-pill" id="pill-feedbacks"><?= number_format($totalFeedbacks) ?></span>
@@ -1291,6 +1499,173 @@ for ($i = 11; $i >= 0; $i--) {
                 </div>
 
                 <div class="section-header">
+                    <div class="section-h">Attendance Analytics <small>Live check-ins</small></div>
+                    <span class="btn btn-sm btn-outline-secondary rounded-pill disabled" style="font-size:.75rem">
+                        <?= number_format($todayCheckIns) ?> today
+                    </span>
+                </div>
+                <div class="row g-3 mb-4">
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ti ti-login-2"></i></div>
+                            <div class="stat-value"><?= number_format($todayCheckIns) ?></div>
+                            <div class="stat-label">Today's Check-ins</div>
+                            <div class="stat-delta up"><i class="ti ti-calendar-check"></i> <?= date('M j, Y') ?></div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ti ti-run"></i></div>
+                            <div class="stat-value"><?= number_format((int) ($mostActiveMembers[0]['visits'] ?? 0)) ?></div>
+                            <div class="stat-label">Top 30-Day Visits</div>
+                            <div class="stat-delta up"><i class="ti ti-flame"></i> Most active member</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ti ti-user-pause"></i></div>
+                            <div class="stat-value"><?= number_format(count($inactiveMembers)) ?></div>
+                            <div class="stat-label">Inactive Members</div>
+                            <div class="stat-delta down"><i class="ti ti-clock"></i> 30+ days no visit</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ti ti-building-store"></i></div>
+                            <div class="stat-value"><?= number_format($totalVisitsLast30Days) ?></div>
+                            <div class="stat-label">Visits Last 30 Days</div>
+                            <div class="stat-delta up"><i class="ti ti-map-pin"></i> All branches</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-xl-6">
+                        <div class="admin-table-wrap">
+                            <div class="section-header p-3 pb-0">
+                                <div class="section-h">Recent Attendance <small>Latest scans</small></div>
+                            </div>
+                            <table class="table admin-table">
+                                <thead>
+                                    <tr>
+                                        <th>Member</th>
+                                        <th>Branch</th>
+                                        <th>Checked In</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php if ($recentAttendance): ?>
+                                        <?php foreach ($recentAttendance as $log): ?>
+                                            <tr>
+                                                <td>
+                                                    <div style="font-weight:600"><?= htmlspecialchars($log['fname'] . ' ' . $log['lname']) ?></div>
+                                                    <div style="font-size:.7rem;color:var(--text-dimmed)"><?= htmlspecialchars($log['email']) ?></div>
+                                                </td>
+                                                <td class="col-hide-xs"><?= htmlspecialchars($log['branch']) ?></td>
+                                                <td><?= date('M j, g:i A', strtotime($log['check_in_at'])) ?></td>
+                                            </tr>
+                                        <?php endforeach ?>
+                                    <?php else: ?>
+                                        <tr><td colspan="3" class="text-center text-secondary py-4">No attendance logged yet</td></tr>
+                                    <?php endif ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="col-xl-6">
+                        <div class="admin-table-wrap">
+                            <div class="section-header p-3 pb-0">
+                                <div class="section-h">Branch Attendance <small>Today / 30 days</small></div>
+                            </div>
+                            <table class="table admin-table">
+                                <thead>
+                                    <tr>
+                                        <th>Branch</th>
+                                        <th>Today</th>
+                                        <th>30 Days</th>
+                                        <th>Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($attendanceByBranch as $branchLog): ?>
+                                        <tr>
+                                            <td>
+                                                <div style="font-weight:600"><?= htmlspecialchars($branchLog['name']) ?></div>
+                                                <div style="font-size:.7rem;color:var(--text-dimmed)"><?= htmlspecialchars($branchLog['city']) ?></div>
+                                            </td>
+                                            <td><?= number_format((int) $branchLog['today_visits']) ?></td>
+                                            <td><?= number_format((int) $branchLog['visits_30d']) ?></td>
+                                            <td><?= number_format((int) $branchLog['total_visits']) ?></td>
+                                        </tr>
+                                    <?php endforeach ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-xl-6">
+                        <div class="admin-table-wrap">
+                            <div class="section-header p-3 pb-0">
+                                <div class="section-h">Most Active Members <small>Last 30 days</small></div>
+                            </div>
+                            <table class="table admin-table">
+                                <thead>
+                                    <tr>
+                                        <th>Member</th>
+                                        <th>Visits</th>
+                                        <th>Last Visit</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php if ($mostActiveMembers): ?>
+                                        <?php foreach ($mostActiveMembers as $activeMember): ?>
+                                            <tr>
+                                                <td><?= htmlspecialchars($activeMember['fname'] . ' ' . $activeMember['lname']) ?></td>
+                                                <td><?= number_format((int) $activeMember['visits']) ?></td>
+                                                <td><?= date('M j', strtotime($activeMember['last_check_in'])) ?></td>
+                                            </tr>
+                                        <?php endforeach ?>
+                                    <?php else: ?>
+                                        <tr><td colspan="3" class="text-center text-secondary py-4">No visits in the last 30 days</td></tr>
+                                    <?php endif ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="col-xl-6">
+                        <div class="admin-table-wrap">
+                            <div class="section-header p-3 pb-0">
+                                <div class="section-h">Inactive Members <small>30+ days</small></div>
+                            </div>
+                            <table class="table admin-table">
+                                <thead>
+                                    <tr>
+                                        <th>Member</th>
+                                        <th>Email</th>
+                                        <th>Last Visit</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php if ($inactiveMembers): ?>
+                                        <?php foreach ($inactiveMembers as $inactiveMember): ?>
+                                            <tr>
+                                                <td><?= htmlspecialchars($inactiveMember['fname'] . ' ' . $inactiveMember['lname']) ?></td>
+                                                <td class="col-hide-xs"><?= htmlspecialchars($inactiveMember['email']) ?></td>
+                                                <td><?= $inactiveMember['last_check_in'] ? date('M j, Y', strtotime($inactiveMember['last_check_in'])) : 'Never' ?></td>
+                                            </tr>
+                                        <?php endforeach ?>
+                                    <?php else: ?>
+                                        <tr><td colspan="3" class="text-center text-secondary py-4">No inactive active-membership members</td></tr>
+                                    <?php endif ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-header">
                     <div class="section-h">Recent Registrations <small>Latest 5</small></div>
                     <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="showPage('members',null)" style="font-size:.75rem">
                         View All <i class="ti ti-chevron-right"></i>
@@ -1311,17 +1686,160 @@ for ($i = 11; $i >= 0; $i--) {
                     </table>
                 </div>
 
+                <div class="section-header mt-4">
+                    <div class="section-h">Membership Operations <small>Payments and lifecycle</small></div>
+                </div>
+                <div class="row g-3 mb-4">
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ti ti-id-badge-2"></i></div>
+                            <div class="stat-value"><?= number_format($activeMemberships) ?></div>
+                            <div class="stat-label">Active Memberships</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ti ti-cash-banknote"></i></div>
+                            <div class="stat-value"><?= number_format($pendingPaymentCount) ?></div>
+                            <div class="stat-label">Pending Payments</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ti ti-calendar-time"></i></div>
+                            <div class="stat-value"><?= number_format(count($expiringMemberships)) ?></div>
+                            <div class="stat-label">Expiring in 7 Days</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ti ti-id-badge-off"></i></div>
+                            <div class="stat-value"><?= number_format($expiredMembershipCount) ?></div>
+                            <div class="stat-label">Expired Memberships</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-xl-7">
+                        <div class="admin-table-wrap">
+                            <div class="section-header p-3 pb-0">
+                                <div class="section-h">Pending Payment Approvals</div>
+                            </div>
+                            <table class="table admin-table">
+                                <thead><tr><th>Member</th><th>Plan</th><th>Amount</th><th>Actions</th></tr></thead>
+                                <tbody>
+                                    <?php if ($pendingPayments): ?>
+                                        <?php foreach ($pendingPayments as $payment): ?>
+                                            <tr>
+                                                <td>
+                                                    <div style="font-weight:600"><?= htmlspecialchars($payment['fname'] . ' ' . $payment['lname']) ?></div>
+                                                    <div style="font-size:.7rem;color:var(--text-dimmed)"><?= htmlspecialchars($payment['email']) ?></div>
+                                                </td>
+                                                <td>
+                                                    <?= htmlspecialchars($payment['plan']) ?>
+                                                    <div style="font-size:.7rem;color:var(--text-dimmed)"><?= date('M j, Y', strtotime($payment['starts_at'])) ?> - <?= date('M j, Y', strtotime($payment['ends_at'])) ?></div>
+                                                </td>
+                                                <td>₱<?= number_format((float) $payment['amount_paid'], 2) ?></td>
+                                                <td>
+                                                    <div class="d-flex gap-1">
+                                                        <button class="tbl-btn" title="Approve" onclick="membershipAction('approve_payment', <?= (int) $payment['id'] ?>)"><i class="ti ti-check"></i></button>
+                                                        <button class="tbl-btn danger" title="Reject" onclick="membershipAction('reject_payment', <?= (int) $payment['id'] ?>)"><i class="ti ti-x"></i></button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach ?>
+                                    <?php else: ?>
+                                        <tr><td colspan="4" class="text-center text-secondary py-4">No pending payment approvals</td></tr>
+                                    <?php endif ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="col-xl-5">
+                        <div class="admin-table-wrap">
+                            <div class="section-header p-3 pb-0">
+                                <div class="section-h">Upcoming Expirations <small>Next 7 days</small></div>
+                            </div>
+                            <table class="table admin-table">
+                                <thead><tr><th>Member</th><th>Plan</th><th>Expires</th></tr></thead>
+                                <tbody>
+                                    <?php if ($expiringMemberships): ?>
+                                        <?php foreach ($expiringMemberships as $expiring): ?>
+                                            <tr>
+                                                <td><?= htmlspecialchars($expiring['fname'] . ' ' . $expiring['lname']) ?></td>
+                                                <td><?= htmlspecialchars($expiring['plan']) ?></td>
+                                                <td><?= date('M j, Y', strtotime($expiring['ends_at'])) ?></td>
+                                            </tr>
+                                        <?php endforeach ?>
+                                    <?php else: ?>
+                                        <tr><td colspan="3" class="text-center text-secondary py-4">No memberships expiring soon</td></tr>
+                                    <?php endif ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-xl-12">
+                        <div class="admin-table-wrap">
+                            <div class="section-header p-3 pb-0">
+                                <div class="section-h">Expired Memberships <small>Latest expired</small></div>
+                            </div>
+                            <table class="table admin-table">
+                                <thead><tr><th>Member</th><th>Plan</th><th>Expired</th><th>Action</th></tr></thead>
+                                <tbody>
+                                    <?php if ($expiredMemberships): ?>
+                                        <?php foreach ($expiredMemberships as $expired): ?>
+                                            <tr>
+                                                <td>
+                                                    <div style="font-weight:600"><?= htmlspecialchars($expired['fname'] . ' ' . $expired['lname']) ?></div>
+                                                    <div style="font-size:.7rem;color:var(--text-dimmed)"><?= htmlspecialchars($expired['email']) ?></div>
+                                                </td>
+                                                <td><?= htmlspecialchars($expired['plan']) ?></td>
+                                                <td><?= date('M j, Y', strtotime($expired['ends_at'])) ?></td>
+                                                <td>
+                                                    <button class="tbl-btn" title="Reactivate manually" onclick="membershipAction('set_membership_status', <?= (int) $expired['id'] ?>, 'active')">
+                                                        <i class="ti ti-player-play"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach ?>
+                                    <?php else: ?>
+                                        <tr><td colspan="4" class="text-center text-secondary py-4">No expired memberships</td></tr>
+                                    <?php endif ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
             </div><!-- /dashboard -->
 
             <!-- ══ MEMBERS ══ -->
             <div class="page-section" id="page-members">
                 <div class="section-header mb-3">
                     <div class="section-h">All Members <small id="member-count-label"></small></div>
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2 flex-wrap">
+                        <select class="form-select form-select-sm fs-select" id="memberStatusFilter" onchange="filterMembers()">
+                            <option value="">All Statuses</option>
+                            <option value="active">Active</option>
+                            <option value="expired">Expired</option>
+                            <option value="frozen">Frozen</option>
+                            <option value="pending">Pending Payments</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
                         <select class="form-select form-select-sm fs-select" id="planFilter" onchange="filterMembers()">
                             <option value="">All Plans</option>
                             <?php foreach ($plans as $plan) : ?>
                                 <option value="<?= htmlspecialchars($plan['label']) ?>"><?= htmlspecialchars($plan['label']) ?></option>
+                            <?php endforeach ?>
+                        </select>
+                        <select class="form-select form-select-sm fs-select" id="branchFilter" onchange="filterMembers()">
+                            <option value="">All Branches</option>
+                            <?php foreach ($branches as $branch) : ?>
+                                <option value="<?= htmlspecialchars($branch['name']) ?>"><?= htmlspecialchars($branch['name']) ?></option>
                             <?php endforeach ?>
                         </select>
                         <button class="btn btn-sm btn-fs rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#addMemberModal">
@@ -1357,7 +1875,316 @@ for ($i = 11; $i >= 0; $i--) {
             </div><!-- /branches -->
 
             <!-- ══ REPORTS ══ -->
+            <!-- SCHEDULES -->
+            <div class="page-section" id="page-schedules">
+                <div class="section-header mb-3">
+                    <div class="section-h">Schedules <small>Classes and operating hours</small></div>
+                </div>
+                <div class="row g-3 mb-4">
+                    <div class="col-xl-4">
+                        <div class="admin-table-wrap p-3 h-100">
+                            <div class="section-h mb-3">Create / Edit Class</div>
+                            <input type="hidden" id="classId">
+                            <div class="mb-2">
+                                <label class="form-label fs-label">Title</label>
+                                <input class="form-control fs-input" id="classTitle" maxlength="120">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label fs-label">Description</label>
+                                <textarea class="form-control fs-input" id="classDescription" rows="3" maxlength="500"></textarea>
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <label class="form-label fs-label">Trainer</label>
+                                    <input class="form-control fs-input" id="trainerName" maxlength="120">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fs-label">Branch</label>
+                                    <select class="form-select fs-select" id="classBranch">
+                                        <?php foreach ($scheduleBranches as $branch): ?>
+                                            <option value="<?= (int) $branch['id'] ?>"><?= htmlspecialchars($branch['name']) ?></option>
+                                        <?php endforeach ?>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fs-label">Duration</label>
+                                    <input class="form-control fs-input" id="durationMinutes" type="number" min="15" max="360" value="60">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fs-label">Capacity</label>
+                                    <input class="form-control fs-input" id="classCapacity" type="number" min="0" max="500">
+                                </div>
+                            </div>
+                            <div class="form-check mt-3">
+                                <input class="form-check-input" type="checkbox" id="classActive" checked>
+                                <label class="form-check-label" for="classActive">Active</label>
+                            </div>
+                            <button class="btn btn-fs rounded-pill mt-3" onclick="saveClass()">Save Class</button>
+                        </div>
+                    </div>
+                    <div class="col-xl-8">
+                        <div class="admin-table-wrap">
+                            <div class="section-header p-3 pb-0">
+                                <div class="section-h">Classes</div>
+                            </div>
+                            <table class="table admin-table">
+                                <thead><tr><th>Class</th><th>Trainer</th><th>Branch</th><th>Duration</th><th>Status</th><th>Actions</th></tr></thead>
+                                <tbody>
+                                    <?php foreach ($classes as $class): ?>
+                                        <tr>
+                                            <td><strong><?= htmlspecialchars($class['title']) ?></strong><div style="color:var(--text-muted);font-size:.75rem"><?= htmlspecialchars($class['description'] ?? '') ?></div></td>
+                                            <td><?= htmlspecialchars($class['trainer_name'] ?? 'TBA') ?></td>
+                                            <td><?= htmlspecialchars($class['branch_name']) ?></td>
+                                            <td><?= (int) $class['duration_minutes'] ?> min</td>
+                                            <td><span class="status-badge <?= (int) $class['is_active'] ? 'active' : 'inactive' ?>"><?= (int) $class['is_active'] ? 'Active' : 'Inactive' ?></span></td>
+                                            <td>
+                                                <div class="d-flex gap-1">
+                                                    <button class="tbl-btn" title="Edit" onclick='editClass(<?= json_encode($class, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>)'><i class="ti ti-pencil"></i></button>
+                                                    <button class="tbl-btn" title="Toggle visibility" onclick="adminAction({action:'set_class_active',class_id:<?= (int) $class['id'] ?>,is_active:<?= (int) $class['is_active'] ? 0 : 1 ?>})"><i class="ti <?= (int) $class['is_active'] ? 'ti-eye-off' : 'ti-eye' ?>"></i></button>
+                                                    <button class="tbl-btn danger" title="Delete" onclick="deleteClass(<?= (int) $class['id'] ?>)"><i class="ti ti-trash"></i></button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach ?>
+                                    <?php if (!$classes): ?><tr><td colspan="6" class="text-center text-secondary py-4">No classes created yet</td></tr><?php endif ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-xl-4">
+                        <div class="admin-table-wrap p-3 h-100">
+                            <div class="section-h mb-3">Add Class Schedule</div>
+                            <input type="hidden" id="scheduleId">
+                            <div class="mb-2">
+                                <label class="form-label fs-label">Class</label>
+                                <select class="form-select fs-select" id="scheduleClass">
+                                    <?php foreach ($activeClasses as $class): ?>
+                                        <option value="<?= (int) $class['id'] ?>" data-branch="<?= (int) $class['branch_id'] ?>"><?= htmlspecialchars($class['title']) ?> - <?= htmlspecialchars($class['branch_name']) ?></option>
+                                    <?php endforeach ?>
+                                </select>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label fs-label">Branch</label>
+                                <select class="form-select fs-select" id="scheduleBranch">
+                                    <?php foreach ($scheduleBranches as $branch): ?>
+                                        <option value="<?= (int) $branch['id'] ?>"><?= htmlspecialchars($branch['name']) ?></option>
+                                    <?php endforeach ?>
+                                </select>
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-12">
+                                    <label class="form-label fs-label">Date</label>
+                                    <input class="form-control fs-input" id="scheduledDate" type="date">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label fs-label">Start</label>
+                                    <input class="form-control fs-input" id="startTime" type="time">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label fs-label">End</label>
+                                    <input class="form-control fs-input" id="endTime" type="time">
+                                </div>
+                            </div>
+                            <select class="form-select fs-select mt-2" id="scheduleStatus">
+                                <option value="scheduled">Scheduled</option>
+                                <option value="cancelled">Cancelled</option>
+                                <option value="completed">Completed</option>
+                            </select>
+                            <button class="btn btn-fs rounded-pill mt-3" onclick="saveSchedule()">Save Schedule</button>
+                        </div>
+                    </div>
+                    <div class="col-xl-8">
+                        <div class="admin-table-wrap">
+                            <div class="section-header p-3 pb-0">
+                                <div class="section-h">Recent Schedules</div>
+                            </div>
+                            <table class="table admin-table">
+                                <thead><tr><th>Class</th><th>Date</th><th>Time</th><th>Branch</th><th>Bookings</th><th>Status</th><th>Actions</th></tr></thead>
+                                <tbody>
+                                    <?php foreach ($classSchedules as $schedule): ?>
+                                        <?php
+                                            $capacity = $schedule['capacity'] !== null ? (int) $schedule['capacity'] : null;
+                                            $bookedCount = (int) $schedule['booked_count'];
+                                            $remaining = scheduleRemainingCapacity($capacity, $bookedCount);
+                                        ?>
+                                        <tr>
+                                            <td><strong><?= htmlspecialchars($schedule['title']) ?></strong><div style="color:var(--text-muted);font-size:.75rem"><?= htmlspecialchars($schedule['trainer_name'] ?? 'TBA') ?></div></td>
+                                            <td><?= date('M j, Y', strtotime($schedule['scheduled_date'])) ?></td>
+                                            <td><?= htmlspecialchars(scheduleTime($schedule['start_time']) . ' - ' . scheduleTime($schedule['end_time'])) ?></td>
+                                            <td><?= htmlspecialchars($schedule['branch_name']) ?></td>
+                                            <td>
+                                                <strong><?= number_format($bookedCount) ?><?= $capacity ? ' / ' . number_format($capacity) : '' ?></strong>
+                                                <?php if ($remaining !== null): ?>
+                                                    <div style="color:var(--text-muted);font-size:.75rem"><?= number_format($remaining) ?> remaining</div>
+                                                <?php endif ?>
+                                            </td>
+                                            <td><span class="status-badge <?= htmlspecialchars($schedule['status']) ?>"><?= htmlspecialchars($schedule['status']) ?></span></td>
+                                            <td>
+                                                <div class="d-flex gap-1">
+                                                    <button class="tbl-btn" title="Edit" onclick='editSchedule(<?= json_encode($schedule, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>)'><i class="ti ti-pencil"></i></button>
+                                                    <button class="tbl-btn" title="Cancel" onclick="adminAction({action:'set_class_schedule_status',schedule_id:<?= (int) $schedule['id'] ?>,status:'cancelled'})"><i class="ti ti-calendar-x"></i></button>
+                                                    <button class="tbl-btn danger" title="Delete" onclick="deleteSchedule(<?= (int) $schedule['id'] ?>)"><i class="ti ti-trash"></i></button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach ?>
+                                    <?php if (!$classSchedules): ?><tr><td colspan="7" class="text-center text-secondary py-4">No schedules created yet</td></tr><?php endif ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="admin-table-wrap p-3">
+                    <div class="section-h mb-3">Branch Operating Hours</div>
+                    <div class="row g-2 align-items-center">
+                        <div class="col-md-3">
+                            <select class="form-select fs-select" id="hoursBranch">
+                                <?php foreach ($scheduleBranches as $branch): ?>
+                                    <option value="<?= (int) $branch['id'] ?>"><?= htmlspecialchars($branch['name']) ?></option>
+                                <?php endforeach ?>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-select fs-select" id="hoursDay">
+                                <?php for ($day = 1; $day <= 7; $day++): ?>
+                                    <option value="<?= $day ?>"><?= scheduleDayName($day) ?></option>
+                                <?php endfor ?>
+                            </select>
+                        </div>
+                        <div class="col-md-2"><input class="form-control fs-input" id="openTime" type="time" value="06:00"></div>
+                        <div class="col-md-2"><input class="form-control fs-input" id="closeTime" type="time" value="22:00"></div>
+                        <div class="col-md-1 d-flex align-items-center"><input class="form-check-input me-2" type="checkbox" id="isClosed"><label for="isClosed">Closed</label></div>
+                        <div class="col-md-2"><button class="btn btn-fs w-100 rounded-pill" onclick="saveHours()">Save Hours</button></div>
+                    </div>
+                    <div class="mt-3 d-flex flex-wrap gap-2">
+                        <?php foreach ($operatingHours as $hour): ?>
+                            <span class="status-badge <?= (int) $hour['is_closed'] ? 'cancelled' : 'active' ?>">
+                                <?= htmlspecialchars($hour['branch_name']) ?> <?= scheduleDayName((int) $hour['day_of_week']) ?>:
+                                <?= (int) $hour['is_closed'] ? 'Closed' : htmlspecialchars(scheduleTime($hour['open_time']) . '-' . scheduleTime($hour['close_time'])) ?>
+                            </span>
+                        <?php endforeach ?>
+                    </div>
+                </div>
+            </div><!-- /schedules -->
+
+            <!-- ANNOUNCEMENTS -->
+            <div class="page-section" id="page-announcements">
+                <div class="section-header mb-3">
+                    <div class="section-h">Announcements <small>Branch notices for members</small></div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-xl-4">
+                        <div class="admin-table-wrap p-3 h-100">
+                            <div class="section-h mb-3">Create / Edit Announcement</div>
+                            <input type="hidden" id="announcementId">
+                            <div class="mb-2">
+                                <label class="form-label fs-label">Branch</label>
+                                <select class="form-select fs-select" id="announcementBranch">
+                                    <?php foreach ($scheduleBranches as $branch): ?>
+                                        <option value="<?= (int) $branch['id'] ?>"><?= htmlspecialchars($branch['name']) ?></option>
+                                    <?php endforeach ?>
+                                </select>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label fs-label">Title</label>
+                                <input class="form-control fs-input" id="announcementTitle" maxlength="140">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label fs-label">Body</label>
+                                <textarea class="form-control fs-input" id="announcementBody" rows="5"></textarea>
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <label class="form-label fs-label">Starts</label>
+                                    <input class="form-control fs-input" id="startsAt" type="datetime-local" value="<?= date('Y-m-d\TH:i') ?>">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fs-label">Ends</label>
+                                    <input class="form-control fs-input" id="endsAt" type="datetime-local">
+                                </div>
+                            </div>
+                            <div class="form-check mt-3">
+                                <input class="form-check-input" type="checkbox" id="announcementActive" checked>
+                                <label class="form-check-label" for="announcementActive">Active</label>
+                            </div>
+                            <button class="btn btn-fs rounded-pill mt-3" onclick="saveAnnouncement()">Save Announcement</button>
+                        </div>
+                    </div>
+                    <div class="col-xl-8">
+                        <div class="admin-table-wrap">
+                            <div class="section-header p-3 pb-0">
+                                <div class="section-h">Branch Announcements</div>
+                            </div>
+                            <table class="table admin-table">
+                                <thead><tr><th>Notice</th><th>Branch</th><th>Visibility</th><th>Status</th><th>Actions</th></tr></thead>
+                                <tbody>
+                                    <?php foreach ($announcements as $notice): ?>
+                                        <tr>
+                                            <td>
+                                                <strong><?= htmlspecialchars($notice['title']) ?></strong>
+                                                <div style="color:var(--text-muted);font-size:.78rem;max-width:420px"><?= htmlspecialchars($notice['body']) ?></div>
+                                            </td>
+                                            <td><?= htmlspecialchars($notice['branch_name']) ?></td>
+                                            <td>
+                                                <?= date('M j, Y g:i A', strtotime($notice['starts_at'])) ?>
+                                                <div style="color:var(--text-muted);font-size:.75rem">to <?= $notice['ends_at'] ? date('M j, Y g:i A', strtotime($notice['ends_at'])) : 'further notice' ?></div>
+                                            </td>
+                                            <td><span class="status-badge <?= (int) $notice['is_active'] ? 'active' : 'inactive' ?>"><?= (int) $notice['is_active'] ? 'Active' : 'Inactive' ?></span></td>
+                                            <td>
+                                                <div class="d-flex gap-1">
+                                                    <button class="tbl-btn" title="Edit" onclick='editAnnouncement(<?= json_encode($notice, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>)'><i class="ti ti-pencil"></i></button>
+                                                    <button class="tbl-btn" title="Toggle visibility" onclick="adminAction({action:'set_announcement_active',announcement_id:<?= (int) $notice['id'] ?>,is_active:<?= (int) $notice['is_active'] ? 0 : 1 ?>})"><i class="ti <?= (int) $notice['is_active'] ? 'ti-eye-off' : 'ti-eye' ?>"></i></button>
+                                                    <button class="tbl-btn danger" title="Delete" onclick="deleteAnnouncement(<?= (int) $notice['id'] ?>)"><i class="ti ti-trash"></i></button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach ?>
+                                    <?php if (!$announcements): ?><tr><td colspan="5" class="text-center text-secondary py-4">No announcements created yet</td></tr><?php endif ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- /announcements -->
+
             <div class="page-section" id="page-reports">
+                <form class="admin-table-wrap p-3 mb-4" method="get">
+                    <input type="hidden" name="page" value="reports">
+                    <div class="section-header mb-3">
+                        <div class="section-h">Report Filters <small><?= htmlspecialchars($reportRange['start']) ?> to <?= htmlspecialchars($reportRange['end']) ?></small></div>
+                    </div>
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label fs-label">Range</label>
+                            <select class="form-select fs-select" name="range">
+                                <?php foreach (['today' => 'Today', 'last_7' => 'Last 7 Days', 'last_30' => 'Last 30 Days', 'current_month' => 'Current Month', 'custom' => 'Custom'] as $key => $label): ?>
+                                    <option value="<?= $key ?>" <?= $reportRange['preset'] === $key ? 'selected' : '' ?>><?= $label ?></option>
+                                <?php endforeach ?>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fs-label">Start</label>
+                            <input type="date" class="form-control fs-input" name="start" value="<?= htmlspecialchars($reportRange['start']) ?>">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fs-label">End</label>
+                            <input type="date" class="form-control fs-input" name="end" value="<?= htmlspecialchars($reportRange['end']) ?>">
+                        </div>
+                        <div class="col-md-3 d-flex gap-2">
+                            <button class="btn btn-fs rounded-pill px-3" type="submit"><i class="ti ti-filter"></i> Apply</button>
+                            <a class="btn btn-outline-secondary rounded-pill px-3" href="admin.php?page=reports"><i class="ti ti-refresh"></i></a>
+                        </div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 mt-3">
+                        <a class="btn btn-sm btn-outline-secondary rounded-pill" href="handlers/report_export.php?type=attendance&range=<?= urlencode($reportRange['preset']) ?>&start=<?= urlencode($reportRange['start']) ?>&end=<?= urlencode($reportRange['end']) ?>">Export Attendance CSV</a>
+                        <a class="btn btn-sm btn-outline-secondary rounded-pill" href="handlers/report_export.php?type=memberships&range=<?= urlencode($reportRange['preset']) ?>&start=<?= urlencode($reportRange['start']) ?>&end=<?= urlencode($reportRange['end']) ?>">Export Memberships CSV</a>
+                        <a class="btn btn-sm btn-outline-secondary rounded-pill" href="handlers/report_export.php?type=revenue&range=<?= urlencode($reportRange['preset']) ?>&start=<?= urlencode($reportRange['start']) ?>&end=<?= urlencode($reportRange['end']) ?>">Export Revenue CSV</a>
+                    </div>
+                </form>
                 <div class="row g-3 mb-4">
                     <div class="col-6 col-xl-3">
                         <div class="stat-card">
@@ -1388,6 +2215,66 @@ for ($i = 11; $i >= 0; $i--) {
                         </div>
                     </div>
                 </div>
+                <div class="row g-3 mb-4">
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ti ti-id-badge-2"></i></div>
+                            <div class="stat-value"><?= number_format($memberReport['active_members']) ?></div>
+                            <div class="stat-label">Active Members</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ti ti-user-plus"></i></div>
+                            <div class="stat-value"><?= number_format($memberReport['membership_growth']) ?></div>
+                            <div class="stat-label">Member Growth</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ti ti-calendar-stats"></i></div>
+                            <div class="stat-value"><?= number_format($attendanceReport['attendance_count']) ?></div>
+                            <div class="stat-label">Attendance</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ti ti-repeat"></i></div>
+                            <div class="stat-value"><?= number_format($memberReport['average_attendance_frequency'], 1) ?></div>
+                            <div class="stat-label">Avg Visits / Member</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row g-3 mb-4">
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ti ti-id-badge-off"></i></div>
+                            <div class="stat-value"><?= number_format($memberReport['expired_memberships']) ?></div>
+                            <div class="stat-label">Expired Memberships</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ti ti-users-group"></i></div>
+                            <div class="stat-value"><?= number_format($memberReport['active_inactive_ratio'], 2) ?></div>
+                            <div class="stat-label">Active / Inactive Ratio</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ti ti-cash"></i></div>
+                            <div class="stat-value">₱<?= number_format($revenueReport['pending_revenue'], 2) ?></div>
+                            <div class="stat-label">Pending Revenue</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ti ti-report-money"></i></div>
+                            <div class="stat-value">₱<?= number_format($revenueReport['projected_revenue'], 2) ?></div>
+                            <div class="stat-label">Projected Revenue</div>
+                        </div>
+                    </div>
+                </div>
                 <div class="row g-3">
                     <div class="col-lg-6">
                         <div class="admin-table-wrap p-3">
@@ -1404,6 +2291,103 @@ for ($i = 11; $i >= 0; $i--) {
                                 <div class="section-h">Revenue Trend</div>
                             </div>
                             <div id="revenue-bars"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row g-3 mt-1">
+                    <div class="col-lg-6">
+                        <div class="admin-table-wrap p-3">
+                            <div class="section-header mb-3">
+                                <div class="section-h">Revenue by Plan</div>
+                            </div>
+                            <table class="table admin-table">
+                                <thead><tr><th>Plan</th><th>Payments</th><th>Revenue</th></tr></thead>
+                                <tbody>
+                                    <?php foreach ($revenueReport['by_plan'] as $row): ?>
+                                        <tr><td><?= htmlspecialchars($row['label']) ?></td><td><?= number_format((int) $row['count']) ?></td><td>₱<?= number_format((float) $row['revenue'], 2) ?></td></tr>
+                                    <?php endforeach ?>
+                                    <?php if (!$revenueReport['by_plan']): ?><tr><td colspan="3" class="text-center text-secondary py-4">No paid revenue in this range</td></tr><?php endif ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="admin-table-wrap p-3">
+                            <div class="section-header mb-3">
+                                <div class="section-h">Revenue by Payment Method</div>
+                            </div>
+                            <table class="table admin-table">
+                                <thead><tr><th>Method</th><th>Payments</th><th>Revenue</th></tr></thead>
+                                <tbody>
+                                    <?php foreach ($revenueReport['by_payment_method'] as $row): ?>
+                                        <tr><td><?= htmlspecialchars(ucwords(str_replace('_', ' ', (string) $row['payment_method']))) ?></td><td><?= number_format((int) $row['count']) ?></td><td>₱<?= number_format((float) $row['revenue'], 2) ?></td></tr>
+                                    <?php endforeach ?>
+                                    <?php if (!$revenueReport['by_payment_method']): ?><tr><td colspan="3" class="text-center text-secondary py-4">No paid revenue in this range</td></tr><?php endif ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="admin-table-wrap p-3">
+                            <div class="section-header mb-3">
+                                <div class="section-h">Busiest Attendance Days</div>
+                            </div>
+                            <table class="table admin-table">
+                                <thead><tr><th>Date</th><th>Visits</th></tr></thead>
+                                <tbody>
+                                    <?php foreach ($attendanceReport['busiest_days'] as $row): ?>
+                                        <tr><td><?= date('M j, Y', strtotime($row['attendance_date'])) ?></td><td><?= number_format((int) $row['visits']) ?></td></tr>
+                                    <?php endforeach ?>
+                                    <?php if (!$attendanceReport['busiest_days']): ?><tr><td colspan="2" class="text-center text-secondary py-4">No attendance in this range</td></tr><?php endif ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="admin-table-wrap p-3">
+                            <div class="section-header mb-3">
+                                <div class="section-h">Branch Activity Comparison</div>
+                            </div>
+                            <table class="table admin-table">
+                                <thead><tr><th>Branch</th><th>City</th><th>Visits</th></tr></thead>
+                                <tbody>
+                                    <?php foreach ($attendanceReport['branch_comparison'] as $row): ?>
+                                        <tr><td><?= htmlspecialchars($row['name']) ?></td><td><?= htmlspecialchars($row['city']) ?></td><td><?= number_format((int) $row['visits']) ?></td></tr>
+                                    <?php endforeach ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="admin-table-wrap p-3">
+                            <div class="section-header mb-3">
+                                <div class="section-h">Most Active Members</div>
+                            </div>
+                            <table class="table admin-table">
+                                <thead><tr><th>Member</th><th>Email</th><th>Visits</th></tr></thead>
+                                <tbody>
+                                    <?php foreach ($attendanceReport['most_active_members'] as $row): ?>
+                                        <tr><td><?= htmlspecialchars($row['fname'] . ' ' . $row['lname']) ?></td><td class="col-hide-xs"><?= htmlspecialchars($row['email']) ?></td><td><?= number_format((int) $row['visits']) ?></td></tr>
+                                    <?php endforeach ?>
+                                    <?php if (!$attendanceReport['most_active_members']): ?><tr><td colspan="3" class="text-center text-secondary py-4">No attendance in this range</td></tr><?php endif ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="admin-table-wrap p-3">
+                            <div class="section-header mb-3">
+                                <div class="section-h">Attendance Trends <small>Weekly</small></div>
+                            </div>
+                            <table class="table admin-table">
+                                <thead><tr><th>Week Start</th><th>Visits</th></tr></thead>
+                                <tbody>
+                                    <?php foreach ($attendanceReport['weekly_trends'] as $row): ?>
+                                        <tr><td><?= date('M j, Y', strtotime($row['week_start'])) ?></td><td><?= number_format((int) $row['visits']) ?></td></tr>
+                                    <?php endforeach ?>
+                                    <?php if (!$attendanceReport['weekly_trends']): ?><tr><td colspan="2" class="text-center text-secondary py-4">No weekly trend data</td></tr><?php endif ?>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -1494,6 +2478,29 @@ for ($i = 11; $i >= 0; $i--) {
                         <div class="d-flex flex-column gap-2" id="feedback-list"></div>
                     </div>
                 </div>
+                <div class="admin-table-wrap">
+                    <div class="section-header p-3 pb-0">
+                        <div class="section-h">Contact Messages <small>Latest public inquiries</small></div>
+                    </div>
+                    <table class="table admin-table">
+                        <thead><tr><th>Sender</th><th>Subject</th><th>Message</th><th>Received</th></tr></thead>
+                        <tbody>
+                            <?php foreach ($contactMessages as $message): ?>
+                                <tr>
+                                    <td>
+                                        <div style="font-weight:700"><?= htmlspecialchars($message['name']) ?></div>
+                                        <div style="font-size:.72rem;color:var(--text-dimmed)"><?= htmlspecialchars($message['email']) ?></div>
+                                        <?php if ($message['phone']): ?><div style="font-size:.72rem;color:var(--text-dimmed)"><?= htmlspecialchars($message['phone']) ?></div><?php endif ?>
+                                    </td>
+                                    <td><?= htmlspecialchars($message['subject']) ?></td>
+                                    <td style="max-width:420px;color:var(--text-muted)"><?= nl2br(htmlspecialchars($message['message'])) ?></td>
+                                    <td><?= date('M j, Y g:i A', strtotime($message['created_at'])) ?></td>
+                                </tr>
+                            <?php endforeach ?>
+                            <?php if (!$contactMessages): ?><tr><td colspan="4" class="text-center text-secondary py-4">No contact messages yet</td></tr><?php endif ?>
+                        </tbody>
+                    </table>
+                </div>
             </div><!-- /feedbacks -->
 
         </div>
@@ -1560,7 +2567,7 @@ for ($i = 11; $i >= 0; $i--) {
                             <label class="form-label fs-label">Plan</label>
                             <select class="form-select fs-input" id="new-plan">
                                 <?php foreach ($plans as $plan) : ?>
-                                    <option><?= htmlspecialchars($plan['label']) ?></option>
+                                    <option value="<?= (int) $plan['id'] ?>"><?= htmlspecialchars($plan['label']) ?></option>
                                 <?php endforeach ?>
                             </select>
                         </div>
@@ -1596,9 +2603,11 @@ for ($i = 11; $i >= 0; $i--) {
         const memberships = <?= json_encode($memberships, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
         const branches = <?= json_encode($branches, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
         const feedbacks = <?= json_encode($feedbacks, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+        const plans = <?= json_encode($plans, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
         const monthlyLabels = <?= json_encode($monthlyLabels, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
         const signupData = <?= json_encode($signupData, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
         const revenueData = <?= json_encode($revenueData, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+        const ADMIN_CSRF = <?= json_encode($csrf) ?>;
         const planClass = {
             '1 Month': 'mo1',
             '3 Months': 'mo3',
@@ -1615,6 +2624,10 @@ for ($i = 11; $i >= 0; $i--) {
             if (ms) ms.value = '';
             var msm = document.getElementById('memberSearchMobile');
             if (msm) msm.value = '';
+            var sf = document.getElementById('memberStatusFilter');
+            if (sf) sf.selectedIndex = 0;
+            var bf = document.getElementById('branchFilter');
+            if (bf) bf.selectedIndex = 0;
 
             buildSparkline();
             buildRevenueBars();
@@ -1657,12 +2670,19 @@ for ($i = 11; $i >= 0; $i--) {
         function renderMembers() {
             const q    = (document.getElementById('memberSearch')?.value  || '').trim().toLowerCase();
             const plan = (document.getElementById('planFilter')?.value    || '').trim();
+            const status = (document.getElementById('memberStatusFilter')?.value || '').trim();
+            const branch = (document.getElementById('branchFilter')?.value || '').trim();
 
             const data = members.filter(function(m) {
                 var txt = ((m.fname||'') + ' ' + (m.lname||'') + ' ' + (m.email||'')).toLowerCase();
                 var planOk = !plan || (m.plan||'') === plan;
+                var branchOk = !branch || (m.branch||'') === branch;
+                var statusOk = !status
+                    || (status === 'pending' && (m.payment_status || '') === 'pending')
+                    || (status === 'inactive' && !(m.last_check_in || ''))
+                    || (m.status || '') === status;
                 var txtOk  = !q    || txt.includes(q);
-                return planOk && txtOk;
+                return planOk && branchOk && statusOk && txtOk;
             });
 
             var tbody = document.getElementById('members-tbody');
@@ -1716,7 +2736,7 @@ for ($i = 11; $i >= 0; $i--) {
                 <td>${starts}</td>
                 <td class="col-hide-xs">${ends}</td>
                 <td>₱${Number(m.amount_paid).toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
-                <td class="col-hide-xs">${capitalize(m.status)}</td>
+                <td class="col-hide-xs">${capitalize(m.payment_status)} / ${capitalize(m.status)}</td>
             </tr>`;
         }
 
@@ -1743,6 +2763,7 @@ for ($i = 11; $i >= 0; $i--) {
             var date     = formatDate(m.joined);
             var expiry   = formatDate(m.expiry);
             var id       = m.id || 0;
+            var membershipId = m.membership_id || 0;
             var idStr    = String(id).padStart(5, '0');
             var cls      = planClass[plan] || '';
 
@@ -1751,10 +2772,10 @@ for ($i = 11; $i >= 0; $i--) {
             var planBadge  = '<span class="plan-badge ' + cls + '">' + plan + '</span>';
 
             var planOptions = '';
-            Object.keys(planClass).forEach(function(p) {
-                planOptions += '<option value="' + p + '"' + (p === plan ? ' selected' : '') + '>' + p + '</option>';
+            plans.forEach(function(p) {
+                planOptions += '<option value="' + p.id + '"' + (Number(p.id) === Number(m.plan_id || 0) ? ' selected' : '') + '>' + p.label + '</option>';
             });
-            var planSelect = '<select class="form-select" style="font-size:.85rem;padding:.4rem" onchange="changeMemberPlan(' + id + ', this)">' + planOptions + '</select>';
+            var planSelect = '<select class="form-select fs-select" style="font-size:.85rem;padding:.4rem" onchange="changeMemberPlan(' + id + ', this)">' + planOptions + '</select>';
 
             if (compact) {
                 return '<tr>'
@@ -1777,7 +2798,10 @@ for ($i = 11; $i >= 0; $i--) {
                 + '<td class="col-hide-xs"><span style="font-size:.8rem;color:var(--text-muted)">' + expiry + '</span></td>'
                 + '<td>' + statusHtml + '</td>'
                 + '<td><div class="d-flex gap-1">'
-                +   '<button class="tbl-btn danger" title="Delete" onclick="deleteMember(' + id + ')"><i class="ti ti-trash"></i></button>'
+                +   '<a class="tbl-btn d-inline-flex align-items-center justify-content-center text-decoration-none" title="View Profile" href="admin/member_view.php?id=' + id + '"><i class="ti ti-eye"></i></a>'
+                +   (membershipId ? '<button class="tbl-btn" title="Activate" onclick="membershipAction(\'set_membership_status\',' + membershipId + ',\'active\')"><i class="ti ti-player-play"></i></button>' : '')
+                +   (membershipId ? '<button class="tbl-btn" title="Freeze" onclick="membershipAction(\'set_membership_status\',' + membershipId + ',\'frozen\')"><i class="ti ti-player-pause"></i></button>' : '')
+                +   (membershipId ? '<button class="tbl-btn danger" title="Deactivate" onclick="membershipAction(\'set_membership_status\',' + membershipId + ',\'cancelled\')"><i class="ti ti-ban"></i></button>' : '')
                 + '</div></td>'
                 + '</tr>';
         }
@@ -1790,7 +2814,7 @@ for ($i = 11; $i >= 0; $i--) {
                             <div style="font-weight:700;font-size:.88rem;color:var(--text-primary)">${f.fname} ${f.lname}</div>
                             <div class="feedback-stars">${starsStr(f.rating)}</div>
                         </div>
-                        <button class="tbl-btn danger" title="Delete feedback"><i class="ti ti-trash"></i></button>
+                        <button class="tbl-btn danger" title="Delete feedback" onclick="deleteFeedback(${f.id})"><i class="ti ti-trash"></i></button>
                     </div>
                     <div class="feedback-text">"${f.text}"</div>
                     <div class="feedback-meta"><i class="ti ti-map-pin" style="font-size:.8rem"></i> ${f.branch} &nbsp;·&nbsp; ${formatDate(f.date)}</div>
@@ -1798,9 +2822,124 @@ for ($i = 11; $i >= 0; $i--) {
         }
 
         /* ── NAVIGATION ── */
+        async function adminAction(payload) {
+            try {
+                const data = await adminPost(payload);
+                alert(data.message || (data.success ? 'Action completed.' : 'Action failed.'));
+                if (data.reload) location.reload();
+            } catch {
+                alert('Connection error. Please try again.');
+            }
+        }
+
+        function editClass(row) {
+            document.getElementById('classId').value = row.id || '';
+            document.getElementById('classTitle').value = row.title || '';
+            document.getElementById('classDescription').value = row.description || '';
+            document.getElementById('trainerName').value = row.trainer_name || '';
+            document.getElementById('classBranch').value = row.branch_id || '';
+            document.getElementById('durationMinutes').value = row.duration_minutes || 60;
+            document.getElementById('classCapacity').value = row.capacity || '';
+            document.getElementById('classActive').checked = Number(row.is_active) === 1;
+        }
+
+        function saveClass() {
+            adminAction({
+                action: 'save_class',
+                class_id: document.getElementById('classId').value,
+                title: document.getElementById('classTitle').value.trim(),
+                description: document.getElementById('classDescription').value.trim(),
+                trainer_name: document.getElementById('trainerName').value.trim(),
+                branch_id: document.getElementById('classBranch').value,
+                duration_minutes: document.getElementById('durationMinutes').value,
+                capacity: document.getElementById('classCapacity').value,
+                is_active: document.getElementById('classActive').checked ? 1 : 0
+            });
+        }
+
+        function deleteClass(classId) {
+            if (!confirm('Delete this class and all related schedules/bookings?')) return;
+            adminAction({ action: 'delete_class', class_id: classId });
+        }
+
+        function editSchedule(row) {
+            document.getElementById('scheduleId').value = row.id || '';
+            document.getElementById('scheduleClass').value = row.class_id || '';
+            document.getElementById('scheduleBranch').value = row.branch_id || '';
+            document.getElementById('scheduledDate').value = row.scheduled_date || '';
+            document.getElementById('startTime').value = (row.start_time || '').slice(0, 5);
+            document.getElementById('endTime').value = (row.end_time || '').slice(0, 5);
+            document.getElementById('scheduleStatus').value = row.status || 'scheduled';
+        }
+
+        function saveSchedule() {
+            adminAction({
+                action: 'save_class_schedule',
+                schedule_id: document.getElementById('scheduleId').value,
+                class_id: document.getElementById('scheduleClass').value,
+                branch_id: document.getElementById('scheduleBranch').value,
+                scheduled_date: document.getElementById('scheduledDate').value,
+                start_time: document.getElementById('startTime').value,
+                end_time: document.getElementById('endTime').value,
+                status: document.getElementById('scheduleStatus').value
+            });
+        }
+
+        function deleteSchedule(scheduleId) {
+            if (!confirm('Delete this schedule and all related bookings?')) return;
+            adminAction({ action: 'delete_class_schedule', schedule_id: scheduleId });
+        }
+
+        function saveHours() {
+            adminAction({
+                action: 'save_operating_hour',
+                branch_id: document.getElementById('hoursBranch').value,
+                day_of_week: document.getElementById('hoursDay').value,
+                open_time: document.getElementById('openTime').value,
+                close_time: document.getElementById('closeTime').value,
+                is_closed: document.getElementById('isClosed').checked ? 1 : 0
+            });
+        }
+
+        function toLocalInput(value) {
+            if (!value) return '';
+            return value.replace(' ', 'T').slice(0, 16);
+        }
+
+        function editAnnouncement(row) {
+            document.getElementById('announcementId').value = row.id || '';
+            document.getElementById('announcementBranch').value = row.branch_id || '';
+            document.getElementById('announcementTitle').value = row.title || '';
+            document.getElementById('announcementBody').value = row.body || '';
+            document.getElementById('startsAt').value = toLocalInput(row.starts_at);
+            document.getElementById('endsAt').value = toLocalInput(row.ends_at);
+            document.getElementById('announcementActive').checked = Number(row.is_active) === 1;
+        }
+
+        function saveAnnouncement() {
+            adminAction({
+                action: 'save_announcement',
+                announcement_id: document.getElementById('announcementId').value,
+                branch_id: document.getElementById('announcementBranch').value,
+                title: document.getElementById('announcementTitle').value.trim(),
+                body: document.getElementById('announcementBody').value.trim(),
+                starts_at: document.getElementById('startsAt').value,
+                ends_at: document.getElementById('endsAt').value,
+                is_active: document.getElementById('announcementActive').checked ? 1 : 0
+            });
+        }
+
+        function deleteAnnouncement(announcementId) {
+            if (!confirm('Delete this announcement?')) return;
+            adminAction({ action: 'delete_announcement', announcement_id: announcementId });
+        }
+
         function showPage(id, btn) {
+            const page = document.getElementById('page-' + id);
+            if (!page) return;
+
             document.querySelectorAll('.page-section').forEach(p => p.classList.remove('active'));
-            document.getElementById('page-' + id).classList.add('active');
+            page.classList.add('active');
 
             document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
             if (btn) {
@@ -1816,6 +2955,8 @@ for ($i = 11; $i >= 0; $i--) {
                 members: 'Members',
                 memberships: 'Memberships',
                 branches: 'Branches',
+                schedules: 'Schedules',
+                announcements: 'Announcements',
                 feedbacks: 'Feedbacks',
                 reports: 'Reports',
                 settings: 'Settings'
@@ -1825,12 +2966,22 @@ for ($i = 11; $i >= 0; $i--) {
                 members: 'Member Management',
                 memberships: 'Membership Management',
                 branches: 'Branch Overview',
+                schedules: 'Class Management',
+                announcements: 'Branch Notices',
                 feedbacks: 'Review Feedbacks',
                 reports: 'Revenue + Signups',
                 settings: 'System Settings'
             };
             document.getElementById('topbar-title').textContent = titles[id] || id;
             document.getElementById('topbar-crumb').textContent = crumbs[id] || id;
+
+            const url = new URL(window.location.href);
+            if (id === 'dashboard') {
+                url.searchParams.delete('page');
+            } else {
+                url.searchParams.set('page', id);
+            }
+            history.replaceState(null, '', url);
 
             if (id === 'members') {
                 var pf = document.getElementById('planFilter');
@@ -1855,7 +3006,7 @@ for ($i = 11; $i >= 0; $i--) {
         }
 
         /* ── ADD / EDIT / DELETE MEMBER ── */
-        function addMember() {
+        async function addMember() {
             const fname = document.getElementById('new-fname').value.trim();
             const lname = document.getElementById('new-lname').value.trim();
             const gender = document.getElementById('new-gender').value;
@@ -1892,36 +3043,55 @@ for ($i = 11; $i >= 0; $i--) {
                 return;
             }
 
-            const newId = Math.max(...members.map(m => m.id), 0) + 1;
-            members.push({
-                id: newId,
-                fname,
-                lname,
-                email,
-                plan,
-                joined: new Date().toISOString().split('T')[0],
-                expiry: new Date().toISOString().split('T')[0],
-                status: 'active'
-            });
-
-            document.getElementById('pill-members').textContent =
-                members.length >= 1000 ? Math.round(members.length / 1000 * 10) / 10 + 'K' : members.length;
-
-            bootstrap.Modal.getInstance(document.getElementById('addMemberModal')).hide();
-            ['new-fname', 'new-lname', 'new-gender', 'new-birthdate', 'new-email', 'new-password', 'new-confirm-password'].forEach(id => document.getElementById(id).value = '');
-            renderMembers();
-            renderRecentMembers();
-            showPage('members', null);
-            alert('Member added successfully!');
+            try {
+                const data = await adminPost({
+                    action: 'create_member',
+                    first_name: fname,
+                    last_name: lname,
+                    gender,
+                    birthdate,
+                    email,
+                    password,
+                    confirm_password: confirm,
+                    plan_id: plan,
+                    payment_method: payment
+                });
+                alert(data.message || (data.success ? 'Member added successfully.' : 'Unable to add member.'));
+                if (data.success && data.reload) location.reload();
+            } catch {
+                alert('Connection error. Please try again.');
+            }
         }
 
-        function changeMemberPlan(id, select) {
+        async function changeMemberPlan(id, select) {
             const m = members.find(m => m.id === id);
             if (!m) return;
-            const newPlan = select.value;
-            m.plan = newPlan;
-            renderMembers();
-            renderRecentMembers();
+            const oldValue = String(m.plan_id || '');
+            try {
+                const data = await adminPost({
+                    action: 'change_member_plan',
+                    member_id: id,
+                    membership_id: m.membership_id || 0,
+                    plan_id: select.value
+                });
+                alert(data.message || (data.success ? 'Plan updated.' : 'Unable to update plan.'));
+                if (data.success && data.reload) location.reload();
+                else select.value = oldValue;
+            } catch {
+                select.value = oldValue;
+                alert('Connection error. Please try again.');
+            }
+        }
+
+        async function deleteFeedback(id) {
+            if (!confirm('Delete this feedback?')) return;
+            try {
+                const data = await adminPost({ action: 'delete_feedback', feedback_id: id });
+                alert(data.message || (data.success ? 'Feedback deleted.' : 'Unable to delete feedback.'));
+                if (data.success && data.reload) location.reload();
+            } catch {
+                alert('Connection error. Please try again.');
+            }
         }
 
         function deleteMember(id) {
@@ -1929,6 +3099,28 @@ for ($i = 11; $i >= 0; $i--) {
             members = members.filter(m => m.id !== id);
             renderMembers();
             renderRecentMembers();
+        }
+
+        async function adminPost(payload) {
+            const res = await fetch('handlers/admin_handler.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...payload, csrf_token: ADMIN_CSRF })
+            });
+            const data = await res.json().catch(() => ({ success: false, message: 'Invalid server response.' }));
+            return data;
+        }
+
+        async function membershipAction(action, membershipId, status) {
+            try {
+                const payload = { action, membership_id: membershipId };
+                if (status) payload.status = status;
+                const data = await adminPost(payload);
+                alert(data.message || (data.success ? 'Membership updated.' : 'Action failed.'));
+                if (data.reload) location.reload();
+            } catch {
+                alert('Connection error. Please try again.');
+            }
         }
 
         function editMember(id) {
@@ -1996,6 +3188,10 @@ for ($i = 11; $i >= 0; $i--) {
 
         /* ── BOOT ── */
         init();
+        const initialPage = new URLSearchParams(window.location.search).get('page') || location.hash.replace('#', '');
+        if (['dashboard', 'reports', 'schedules', 'announcements', 'members', 'branches', 'feedbacks', 'settings'].includes(initialPage)) {
+            showPage(initialPage, null);
+        }
     </script>
 </body>
 

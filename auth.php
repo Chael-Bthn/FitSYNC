@@ -155,7 +155,7 @@ $csrfToken = $_SESSION['csrf_token'];
             color: var(--bs-body-color);
             font-family: 'Outfit', sans-serif;
             font-size: .9rem;
-            padding: .65rem 1rem;
+            padding: .65rem 2.4rem .65rem 1rem;
             border-radius: 12px;
             width: 100%;
             transition: border-color .2s, box-shadow .2s;

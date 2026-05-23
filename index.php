@@ -1,3 +1,18 @@
+<?php
+session_start();
+require_once __DIR__ . '/config/db.php';
+
+if (empty($_SESSION['public_csrf_token'])) {
+    $_SESSION['public_csrf_token'] = bin2hex(random_bytes(32));
+}
+$publicCsrf = $_SESSION['public_csrf_token'];
+
+try {
+    $publicBranches = db()->query('SELECT id, name, city FROM branches WHERE is_active = 1 ORDER BY name')->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $e) {
+    $publicBranches = [];
+}
+?>
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="dark">
 
@@ -37,6 +52,15 @@
 
         body {
             overflow-x: hidden
+        }
+
+        select.form-select {
+            appearance: none;
+            padding-right: 2.4rem;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238f8f8f' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right .85rem center;
+            background-size: 14px 14px;
         }
 
         /* ── BRAND ── */
@@ -1589,7 +1613,7 @@
                     <h6 class="fw-bold text-uppercase mb-3" style="font-size:.75rem;letter-spacing:.7px">Support</h6>
                     <ul class="list-unstyled d-flex flex-column gap-2">
                         <li><a href="#" class="footer-link">Help Center</a></li>
-                        <li><a href="#" class="footer-link">Contact Us</a></li>
+                        <li><a href="#" class="footer-link" data-bs-toggle="modal" data-bs-target="#contactModal">Contact Us</a></li>
                         <li><a href="#" class="footer-link">Locations</a></li>
                         <li><a href="#" class="footer-link">Schedule</a></li>
                     </ul>
@@ -1623,7 +1647,7 @@
         <div class="fab-menu d-none-anim" id="fabMenu">
             <div class="fab-item">
                 <span class="fab-label">Send Feedback</span>
-                <button class="fab-sm" style="background:#555" onclick="alert('Feedback modal')"><i class="ti ti-message-circle-2"></i></button>
+                <button class="fab-sm" style="background:#555" data-bs-toggle="modal" data-bs-target="#feedbackModal" aria-label="Send feedback"><i class="ti ti-message-circle-2"></i></button>
             </div>
             <div class="fab-item">
                 <span class="fab-label">Live Chat</span>
@@ -1631,7 +1655,7 @@
             </div>
             <div class="fab-item">
                 <span class="fab-label">Contact Us</span>
-                <button class="fab-sm" style="background:var(--fs-red)" onclick="alert('Contact form')"><i class="ti ti-phone"></i></button>
+                <button class="fab-sm" style="background:var(--fs-red)" data-bs-toggle="modal" data-bs-target="#contactModal" aria-label="Contact us"><i class="ti ti-phone"></i></button>
             </div>
         </div>
         <button class="fab-main" id="fabMain" onclick="toggleFab()" aria-label="Open contact options">
@@ -1639,8 +1663,97 @@
         </button>
     </div>
 
+    <div class="modal fade" id="feedbackModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form id="publicFeedbackForm" onsubmit="submitPublicForm(event, 'feedback')">
+                    <div class="modal-header">
+                        <h5 class="modal-title fw-bold">Anonymous Feedback</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Branch</label>
+                            <select class="form-select" name="branch_id" required>
+                                <option value="">Select branch</option>
+                                <?php foreach ($publicBranches as $branch): ?>
+                                    <option value="<?= (int) $branch['id'] ?>"><?= htmlspecialchars($branch['name'] . ' - ' . $branch['city']) ?></option>
+                                <?php endforeach ?>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Rating</label>
+                            <select class="form-select" name="rating" required>
+                                <option value="">Select rating</option>
+                                <option value="5">5 stars</option>
+                                <option value="4">4 stars</option>
+                                <option value="3">3 stars</option>
+                                <option value="2">2 stars</option>
+                                <option value="1">1 star</option>
+                            </select>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label fw-semibold">Message</label>
+                            <textarea class="form-control" name="body" rows="4" maxlength="2000" required placeholder="Tell us what went well or what we can improve."></textarea>
+                        </div>
+                        <div class="small text-secondary">Your feedback is submitted anonymously.</div>
+                        <div class="public-form-status small mt-3" aria-live="polite"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-fs rounded-pill px-4">Send Feedback</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="contactModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form id="contactForm" onsubmit="submitPublicForm(event, 'contact')">
+                    <div class="modal-header">
+                        <h5 class="modal-title fw-bold">Contact Us</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Name</label>
+                                <input class="form-control" name="name" maxlength="120" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Email</label>
+                                <input class="form-control" name="email" type="email" maxlength="191" required>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">Phone</label>
+                                <input class="form-control" name="phone" maxlength="40">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">Subject</label>
+                                <input class="form-control" name="subject" maxlength="160" required>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">Message</label>
+                                <textarea class="form-control" name="message" rows="4" maxlength="3000" required></textarea>
+                            </div>
+                        </div>
+                        <div class="public-form-status small mt-3" aria-live="polite"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-fs rounded-pill px-4">Send Message</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        const PUBLIC_CSRF = <?= json_encode($publicCsrf) ?>;
+
         /* ── MARQUEE ── */
         const slogans = ['Train Hard · Live Well', 'No Limits · No Excuses', 'Your Best Self Starts Here', 'Sweat · Strength · Sync', 'Built Different', 'Every Rep Counts', 'Community · Commitment · Results'];
         const t = document.getElementById('stripTrack');
@@ -1980,6 +2093,46 @@
         }
 
         /* ── SCROLL SPY ── */
+        async function submitPublicForm(event, type) {
+            event.preventDefault();
+            const form = event.currentTarget;
+            const status = form.querySelector('.public-form-status');
+            const button = form.querySelector('button[type="submit"]');
+            const payload = Object.fromEntries(new FormData(form).entries());
+            payload.action = type === 'feedback' ? 'submit_feedback' : 'submit_contact';
+            payload.csrf_token = PUBLIC_CSRF;
+
+            status.className = 'public-form-status small mt-3 text-secondary';
+            status.textContent = 'Sending...';
+            button.disabled = true;
+
+            try {
+                const res = await fetch('handlers/public_handler.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json().catch(() => ({ success: false, message: 'Invalid server response.' }));
+                status.className = 'public-form-status small mt-3 ' + (data.success ? 'text-success' : 'text-danger');
+                status.textContent = data.message || (data.success ? 'Submitted.' : 'Submission failed.');
+
+                if (data.success) {
+                    form.reset();
+                    setTimeout(() => {
+                        const modalEl = form.closest('.modal');
+                        const modal = bootstrap.Modal.getInstance(modalEl);
+                        if (modal) modal.hide();
+                        status.textContent = '';
+                    }, 1100);
+                }
+            } catch {
+                status.className = 'public-form-status small mt-3 text-danger';
+                status.textContent = 'Connection error. Please try again.';
+            } finally {
+                button.disabled = false;
+            }
+        }
+
         window.addEventListener('scroll', () => {
             let cur = 'home';
             ['home', 'gallery', 'locations', 'plans'].forEach(id => {
