@@ -938,7 +938,9 @@ for ($i = 11; $i >= 0; $i--) {
         /* Tablet ≤ 991px — sidebar becomes a drawer */
         @media (max-width: 991px) {
             .sidebar {
-                transform: translateX(-100%)
+                transform: translateX(-100%);
+                width: min(280px, 80vw);
+                max-width: 280px;
             }
 
             .sidebar.open {
@@ -962,11 +964,38 @@ for ($i = 11; $i >= 0; $i--) {
             }
 
             .main-content {
-                padding: 1.25rem
+                padding: 1.25rem;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
             }
 
             .topbar-search input {
-                width: 160px
+                width: 140px
+            }
+
+            .admin-table-wrap {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .admin-table {
+                min-width: 960px;
+                width: max-content;
+            }
+
+            .admin-table thead th,
+            .admin-table tbody td {
+                padding: .7rem .9rem;
+            }
+
+            .admin-table thead th {
+                white-space: normal;
+            }
+
+            .tbl-btn {
+                width: 28px;
+                height: 28px;
+                font-size: .85rem;
             }
         }
 
@@ -1158,7 +1187,7 @@ for ($i = 11; $i >= 0; $i--) {
         </div>
         <div class="topbar-search" id="topbarSearch">
             <i class="ti ti-search"></i>
-            <input type="text" placeholder="Search members…" id="memberSearch" oninput="filterMembers()" />
+            <input type="text" placeholder="Search members…" id="memberSearch" oninput="filterMembers()" autocomplete="off" />
         </div>
         <button class="topbar-toggle d-md-none" onclick="toggleMobileSearch()" aria-label="Search">
             <i class="ti ti-search"></i>
@@ -1169,7 +1198,7 @@ for ($i = 11; $i >= 0; $i--) {
     <!-- Mobile search bar -->
     <div class="mobile-search-bar" id="mobileSearchBar">
         <i class="ti ti-search"></i>
-        <input type="text" placeholder="Search members…" id="memberSearchMobile" oninput="syncMobileSearch(this)" />
+        <input type="text" placeholder="Search members…" id="memberSearchMobile" oninput="syncMobileSearch(this)" autocomplete="off" />
         <button onclick="toggleMobileSearch()"><i class="ti ti-x"></i></button>
     </div>
 
@@ -1584,6 +1613,8 @@ for ($i = 11; $i >= 0; $i--) {
             if (pf) pf.selectedIndex = 0;
             var ms = document.getElementById('memberSearch');
             if (ms) ms.value = '';
+            var msm = document.getElementById('memberSearchMobile');
+            if (msm) msm.value = '';
 
             buildSparkline();
             buildRevenueBars();
@@ -1804,6 +1835,10 @@ for ($i = 11; $i >= 0; $i--) {
             if (id === 'members') {
                 var pf = document.getElementById('planFilter');
                 if (pf) pf.selectedIndex = 0;
+                var ms = document.getElementById('memberSearch');
+                if (ms) ms.value = '';
+                var msm = document.getElementById('memberSearchMobile');
+                if (msm) msm.value = '';
                 renderMembers();
             }
             if (id === 'branches') renderBranches();
