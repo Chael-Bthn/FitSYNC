@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: May 19, 2026 at 07:00 AM
+-- Generation Time: May 26, 2026 at 04:47 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -20,6 +20,20 @@ SET time_zone = "+00:00";
 --
 -- Database: `fitsync`
 --
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `attendance_logs`
+--
+
+CREATE TABLE `attendance_logs` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `user_id` int(10) UNSIGNED NOT NULL,
+  `branch_id` smallint(5) UNSIGNED NOT NULL,
+  `check_in_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `notes` varchar(500) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -47,74 +61,6 @@ INSERT INTO `branches` (`id`, `name`, `city`, `address`, `maps_embed`, `is_activ
 (3, 'BGC Branch', 'Taguig', 'Bonifacio High Street, BGC', NULL, 1, '2026-05-19 02:43:50'),
 (4, 'Ortigas Branch', 'Pasig', 'Ortigas Ave, Pasig', NULL, 1, '2026-05-19 02:43:50'),
 (5, 'Eastwood City Branch', 'Quezon City', 'Eastwood Ave, Libis', NULL, 1, '2026-05-19 02:43:50');
-
--- --------------------------------------------------------
-
---
--- Table structure for table `classes`
---
-
-CREATE TABLE `classes` (
-  `id` int(10) UNSIGNED NOT NULL,
-  `title` varchar(120) NOT NULL,
-  `description` varchar(500) DEFAULT NULL,
-  `trainer_name` varchar(120) DEFAULT NULL,
-  `branch_id` smallint(5) UNSIGNED NOT NULL,
-  `duration_minutes` smallint(5) UNSIGNED NOT NULL DEFAULT 60,
-  `capacity` smallint(5) UNSIGNED DEFAULT NULL,
-  `is_active` tinyint(1) NOT NULL DEFAULT 1,
-  `created_at` datetime NOT NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Dumping data for table `classes`
---
-
-INSERT INTO `classes` (`id`, `title`, `description`, `trainer_name`, `branch_id`, `duration_minutes`, `capacity`, `is_active`, `created_at`) VALUES
-(1, 'Strength Basics', 'Foundational barbell and machine work for general strength.', 'Coach Marco', 1, 60, 18, 1, '2026-05-19 02:43:50'),
-(2, 'Mobility Flow', 'Low-impact mobility and flexibility session.', 'Coach Ana', 1, 45, 20, 1, '2026-05-19 02:43:50'),
-(3, 'HIIT Conditioning', 'Short interval conditioning class for all fitness levels.', 'Coach Lei', 2, 45, 16, 1, '2026-05-19 02:43:50');
-
--- --------------------------------------------------------
-
---
--- Table structure for table `class_schedules`
---
-
-CREATE TABLE `class_schedules` (
-  `id` int(10) UNSIGNED NOT NULL,
-  `class_id` int(10) UNSIGNED NOT NULL,
-  `branch_id` smallint(5) UNSIGNED NOT NULL,
-  `scheduled_date` date NOT NULL,
-  `start_time` time NOT NULL,
-  `end_time` time NOT NULL,
-  `status` enum('scheduled','cancelled','completed') NOT NULL DEFAULT 'scheduled',
-  `created_at` datetime NOT NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Dumping data for table `class_schedules`
---
-
-INSERT INTO `class_schedules` (`id`, `class_id`, `branch_id`, `scheduled_date`, `start_time`, `end_time`, `status`, `created_at`) VALUES
-(1, 1, 1, '2026-05-23', '18:00:00', '19:00:00', 'scheduled', '2026-05-19 02:43:50'),
-(2, 2, 1, '2026-05-25', '07:00:00', '07:45:00', 'scheduled', '2026-05-19 02:43:50'),
-(3, 3, 2, '2026-05-26', '18:30:00', '19:15:00', 'scheduled', '2026-05-19 02:43:50');
-
--- --------------------------------------------------------
-
---
--- Table structure for table `class_bookings`
---
-
-CREATE TABLE `class_bookings` (
-  `id` bigint(20) UNSIGNED NOT NULL,
-  `user_id` int(10) UNSIGNED NOT NULL,
-  `class_schedule_id` int(10) UNSIGNED NOT NULL,
-  `booking_status` enum('booked','cancelled','attended') NOT NULL DEFAULT 'booked',
-  `booked_at` datetime NOT NULL DEFAULT current_timestamp(),
-  `cancelled_at` datetime DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -179,32 +125,70 @@ INSERT INTO `branch_operating_hours` (`id`, `branch_id`, `day_of_week`, `open_ti
 -- --------------------------------------------------------
 
 --
--- Table structure for table `attendance_logs`
+-- Table structure for table `classes`
 --
 
-CREATE TABLE `attendance_logs` (
+CREATE TABLE `classes` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `title` varchar(120) NOT NULL,
+  `description` varchar(500) DEFAULT NULL,
+  `trainer_name` varchar(120) DEFAULT NULL,
+  `branch_id` smallint(5) UNSIGNED NOT NULL,
+  `duration_minutes` smallint(5) UNSIGNED NOT NULL DEFAULT 60,
+  `capacity` smallint(5) UNSIGNED DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `classes`
+--
+
+INSERT INTO `classes` (`id`, `title`, `description`, `trainer_name`, `branch_id`, `duration_minutes`, `capacity`, `is_active`, `created_at`) VALUES
+(1, 'Strength Basics', 'Foundational barbell and machine work for general strength.', 'Coach Marco', 1, 60, 18, 1, '2026-05-19 02:43:50'),
+(2, 'Mobility Flow', 'Low-impact mobility and flexibility session.', 'Coach Ana', 1, 45, 20, 1, '2026-05-19 02:43:50'),
+(3, 'HIIT Conditioning', 'Short interval conditioning class for all fitness levels.', 'Coach Lei', 2, 45, 16, 1, '2026-05-19 02:43:50');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `class_bookings`
+--
+
+CREATE TABLE `class_bookings` (
   `id` bigint(20) UNSIGNED NOT NULL,
   `user_id` int(10) UNSIGNED NOT NULL,
-  `branch_id` smallint(5) UNSIGNED NOT NULL,
-  `check_in_at` datetime NOT NULL DEFAULT current_timestamp(),
-  `notes` varchar(500) DEFAULT NULL
+  `class_schedule_id` int(10) UNSIGNED NOT NULL,
+  `booking_status` enum('booked','cancelled','attended') NOT NULL DEFAULT 'booked',
+  `booked_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `cancelled_at` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `feedback`
+-- Table structure for table `class_schedules`
 --
 
-CREATE TABLE `feedback` (
+CREATE TABLE `class_schedules` (
   `id` int(10) UNSIGNED NOT NULL,
-  `user_id` int(10) UNSIGNED DEFAULT NULL,
-  `branch_id` smallint(5) UNSIGNED DEFAULT NULL,
-  `rating` tinyint(3) UNSIGNED NOT NULL CHECK (`rating` between 1 and 5),
-  `body` text NOT NULL,
-  `is_visible` tinyint(1) NOT NULL DEFAULT 1,
+  `class_id` int(10) UNSIGNED NOT NULL,
+  `branch_id` smallint(5) UNSIGNED NOT NULL,
+  `scheduled_date` date NOT NULL,
+  `start_time` time NOT NULL,
+  `end_time` time NOT NULL,
+  `status` enum('scheduled','cancelled','completed') NOT NULL DEFAULT 'scheduled',
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `class_schedules`
+--
+
+INSERT INTO `class_schedules` (`id`, `class_id`, `branch_id`, `scheduled_date`, `start_time`, `end_time`, `status`, `created_at`) VALUES
+(1, 1, 1, '2026-05-23', '18:00:00', '19:00:00', 'scheduled', '2026-05-19 02:43:50'),
+(2, 2, 1, '2026-05-25', '07:00:00', '07:45:00', 'scheduled', '2026-05-19 02:43:50'),
+(3, 3, 2, '2026-05-26', '18:30:00', '19:15:00', 'scheduled', '2026-05-19 02:43:50');
 
 -- --------------------------------------------------------
 
@@ -222,6 +206,38 @@ CREATE TABLE `contact_messages` (
   `status` enum('new','read','archived') NOT NULL DEFAULT 'new',
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `contact_messages`
+--
+
+INSERT INTO `contact_messages` (`id`, `name`, `email`, `phone`, `subject`, `message`, `status`, `created_at`) VALUES
+(1, 'John Doe', 'member3@fitsync.com', '123456789', 'Inquiry', 'Do you offer free trials?', 'new', '2026-05-26 07:29:39'),
+(2, 'Maria Clara', 'member3@fitsync.com', NULL, 'Membership renewal request — Maria Clara', 'Member: Maria Clara (member3@fitsync.com)\nPlan: 12 Months\nStarts: 2027-05-27\nEnds: 2028-05-26\nAmount: ₱7,999.00\nBranch ID: 1\nPayment method: bank_transfer\nReference: RNW-7F93D744', 'new', '2026-05-26 09:10:22'),
+(3, 'Maria Clara', 'member3@fitsync.com', NULL, 'Membership renewal request — Maria Clara', 'Member: Maria Clara (member3@fitsync.com)\nPlan: 12 Months\nStarts: 2027-05-27\nEnds: 2028-05-26\nAmount: ₱7,999.00\nBranch ID: 1\nPayment method: bank_transfer\nReference: RNW-77A0DBA1', 'new', '2026-05-26 09:32:53');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `feedback`
+--
+
+CREATE TABLE `feedback` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `user_id` int(10) UNSIGNED DEFAULT NULL,
+  `branch_id` smallint(5) UNSIGNED DEFAULT NULL,
+  `rating` tinyint(3) UNSIGNED NOT NULL CHECK (`rating` between 1 and 5),
+  `body` text NOT NULL,
+  `is_visible` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `feedback`
+--
+
+INSERT INTO `feedback` (`id`, `user_id`, `branch_id`, `rating`, `body`, `is_visible`, `created_at`) VALUES
+(1, NULL, 5, 5, 'Equipment are solid and facilities are well-maintained!', 1, '2026-05-26 07:28:23');
 
 -- --------------------------------------------------------
 
@@ -255,21 +271,28 @@ INSERT INTO `login_logs` (`id`, `user_id`, `email`, `ip_address`, `user_agent`, 
 (9, 3, 'mbathan619@gmail.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-05-19 12:05:54'),
 (10, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-05-19 12:09:54'),
 (11, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-05-19 12:48:31'),
-(12, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-05-19 12:49:12');
-
--- --------------------------------------------------------
-
---
--- Table structure for table `member_notes`
---
-
-CREATE TABLE `member_notes` (
-  `id` bigint(20) UNSIGNED NOT NULL,
-  `member_id` int(10) UNSIGNED NOT NULL,
-  `admin_id` int(10) UNSIGNED NOT NULL,
-  `note_body` text NOT NULL,
-  `created_at` datetime NOT NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+(12, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-05-19 12:49:12'),
+(13, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-05-26 07:22:39'),
+(14, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-05-26 07:26:23'),
+(15, 4, 'member2@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-05-26 07:27:21'),
+(16, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-05-26 07:28:31'),
+(17, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-05-26 07:29:56'),
+(18, 4, 'member2@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-05-26 07:33:18'),
+(19, 3, 'mbathan619@gmail.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-05-26 07:35:22'),
+(20, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-05-26 07:36:19'),
+(21, 2, 'member@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-05-26 07:43:58'),
+(22, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-05-26 07:48:23'),
+(23, 4, 'member2@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-05-26 08:40:53'),
+(24, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-05-26 08:55:54'),
+(25, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-05-26 09:00:32'),
+(26, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-05-26 09:09:35'),
+(27, 5, 'member3@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-05-26 09:10:11'),
+(28, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-05-26 09:10:32'),
+(29, 5, 'member3@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-05-26 09:16:47'),
+(30, 5, 'member3@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-05-26 09:17:26'),
+(31, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-05-26 09:19:07'),
+(32, 5, 'member3@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-05-26 09:32:00'),
+(33, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-05-26 09:33:03');
 
 -- --------------------------------------------------------
 
@@ -298,8 +321,12 @@ CREATE TABLE `memberships` (
 --
 
 INSERT INTO `memberships` (`id`, `user_id`, `plan_id`, `branch_id`, `starts_at`, `ends_at`, `amount_paid`, `payment_method`, `payment_status`, `status`, `payment_ref`, `created_at`, `updated_at`) VALUES
-(1, 2, 3, 1, '2026-05-09', '2026-11-09', 4799.00, 'gcash', 'paid', 'expired', NULL, '2026-05-19 02:43:50', '2026-05-19 02:43:50'),
-(2, 3, 4, 1, '2026-05-19', '2027-05-19', 7999.00, 'gcash', 'paid', 'active', NULL, '2026-05-19 11:15:10', '2026-05-19 11:15:10');
+(5, 2, 1, 3, '2026-05-26', '2026-06-25', 999.00, 'cash', 'paid', 'active', NULL, '2026-05-26 09:00:13', '2026-05-26 09:00:13'),
+(6, 3, 2, 4, '2026-05-26', '2026-08-24', 2699.00, 'credit_card', 'paid', 'active', NULL, '2026-05-26 09:01:46', '2026-05-26 10:19:31'),
+(7, 4, 3, 4, '2026-05-26', '2026-11-22', 4799.00, 'cash', 'paid', 'active', NULL, '2026-05-26 09:02:41', '2026-05-26 09:02:41'),
+(8, 5, 4, 1, '2026-05-26', '2027-05-26', 7999.00, 'bank_transfer', 'paid', 'active', NULL, '2026-05-26 09:03:49', '2026-05-26 09:51:08'),
+(9, 5, 4, 1, '2027-05-27', '2028-05-26', 7999.00, 'bank_transfer', 'paid', 'active', 'RNW-220FE8E2', '2026-05-26 09:10:22', '2026-05-26 09:51:06'),
+(10, 5, 4, 1, '2027-05-27', '2028-05-26', 7999.00, 'bank_transfer', 'paid', 'active', 'RNW-85CBDD2D', '2026-05-26 09:32:53', '2026-05-26 09:51:04');
 
 -- --------------------------------------------------------
 
@@ -328,6 +355,20 @@ INSERT INTO `membership_plans` (`id`, `slug`, `label`, `duration_days`, `price`,
 (2, '3mo', '3 Months', 90, 2699.00, 3897.00, NULL, 1, 2),
 (3, '6mo', '6 Months', 180, 4799.00, 7794.00, NULL, 1, 3),
 (4, '12mo', '12 Months', 365, 7999.00, 15588.00, NULL, 1, 4);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `member_notes`
+--
+
+CREATE TABLE `member_notes` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `member_id` int(10) UNSIGNED NOT NULL,
+  `admin_id` int(10) UNSIGNED NOT NULL,
+  `note_body` text NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -374,9 +415,11 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `role`, `first_name`, `last_name`, `email`, `password_hash`, `birthdate`, `gender`, `email_verified_at`, `verification_token`, `remember_token`, `profile_photo`, `is_active`, `last_login_at`, `created_at`, `updated_at`) VALUES
-(1, 'admin', 'FitSync', 'Admin', 'admin@fitsync.com', '$2y$12$fjUipSsJhqxbfNt5gYTXvufikLX0YajhMIbyKAaCoUhQW67fHFUqq', NULL, NULL, '2026-05-19 10:04:41', NULL, NULL, NULL, 1, '2026-05-19 12:49:13', '2026-05-19 02:43:50', '2026-05-19 12:49:13'),
-(2, 'member', 'Juan', 'Dela Cruz', 'member@fitsync.com', '$2y$12$21xktCEyYMwqsCfwd0RJ3eKmkVxCwt0Es6xlypvgTSK0anfloTS5O', '1998-06-15', NULL, '2026-05-19 10:04:41', NULL, NULL, NULL, 1, '2026-05-19 11:03:05', '2026-05-19 02:43:50', '2026-05-19 11:03:05'),
-(3, 'member', 'Michael', 'Bathan', 'mbathan619@gmail.com', '$2y$12$gst8.sp3TdzOFIOSpUeDMOlxdTgp.WiXHdpNt8zRPrF.cFbfIM/ta', '2005-01-01', NULL, NULL, '956ed3911ca2b2d54901a3176e1570fca2b4ffe64402887e2fcef0cda62bc395', NULL, NULL, 1, '2026-05-19 12:05:54', '2026-05-19 11:15:10', '2026-05-19 12:05:54');
+(1, 'admin', 'FitSync', 'Admin', 'admin@fitsync.com', '$2y$12$fjUipSsJhqxbfNt5gYTXvufikLX0YajhMIbyKAaCoUhQW67fHFUqq', NULL, NULL, '2026-05-19 10:04:41', NULL, NULL, NULL, 1, '2026-05-26 09:33:03', '2026-05-19 02:43:50', '2026-05-26 09:33:03'),
+(2, 'member', 'Juan', 'Dela Cruz', 'member@fitsync.com', '$2y$12$nmaTKg0EuRoOhdlOzNRFvOsmbwBPdhGTDgS6onsWs1Lb2SUZCk7tC', '2010-05-01', 'male', NULL, '01c4a90c7e9243b174ce673b7fd9e37d75a381e1feb35c5f40ca84129dfb832e', NULL, NULL, 1, NULL, '2026-05-26 09:00:13', '2026-05-26 09:00:13'),
+(3, 'member', 'John', 'Doe', 'member1@fitsync.com', '$2y$12$7UYLNybn/mm.9zaETT4qsOrVHXHrypIbdah3gxURwrEKi7z8FMZr6', '2010-05-02', 'male', NULL, 'b54816ab62f86a6e3cf0be5a478318885b8deb25e1793c13c6996aa264c8925a', NULL, NULL, 1, NULL, '2026-05-26 09:01:46', '2026-05-26 09:01:46'),
+(4, 'member', 'Pedro', 'Penduco', 'member2@fitsync.com', '$2y$12$1OSqEWWCh70wGT9pciRDBupYagf.zoQpOnXSxgvbIU4kAMMcwY50K', '2010-05-03', 'male', NULL, 'fa39b920d88ce562f9b96b650c5c4138cb50f9beba35f8b66e3357c1846f6625', NULL, NULL, 1, NULL, '2026-05-26 09:02:41', '2026-05-26 09:02:41'),
+(5, 'member', 'Maria', 'Clara', 'member3@fitsync.com', '$2y$12$mhmrga1/M8/czTwxXh20sOVL1lmIjCdoKhQ3mrvjSop88.8/BQ3r6', '2010-05-04', 'female', NULL, 'e25390c9720ddf3a5e7a3358c34e049f2d6f2beac9216d457a9a791b3bd39c83', NULL, NULL, 1, '2026-05-26 09:32:00', '2026-05-26 09:03:49', '2026-05-26 09:47:37');
 
 --
 -- Indexes for dumped tables
@@ -399,21 +442,27 @@ ALTER TABLE `branches`
   ADD KEY `idx_branch_active` (`is_active`);
 
 --
+-- Indexes for table `branch_announcements`
+--
+ALTER TABLE `branch_announcements`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_branch_announcements_branch_dates` (`branch_id`,`starts_at`,`ends_at`),
+  ADD KEY `idx_branch_announcements_active` (`is_active`);
+
+--
+-- Indexes for table `branch_operating_hours`
+--
+ALTER TABLE `branch_operating_hours`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_branch_day` (`branch_id`,`day_of_week`);
+
+--
 -- Indexes for table `classes`
 --
 ALTER TABLE `classes`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_classes_branch` (`branch_id`),
   ADD KEY `idx_classes_active` (`is_active`);
-
---
--- Indexes for table `class_schedules`
---
-ALTER TABLE `class_schedules`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_class_schedules_class` (`class_id`),
-  ADD KEY `idx_class_schedules_branch_date` (`branch_id`, `scheduled_date`),
-  ADD KEY `idx_class_schedules_status` (`status`);
 
 --
 -- Indexes for table `class_bookings`
@@ -426,28 +475,13 @@ ALTER TABLE `class_bookings`
   ADD KEY `idx_class_bookings_booked_at` (`booked_at`);
 
 --
--- Indexes for table `branch_announcements`
+-- Indexes for table `class_schedules`
 --
-ALTER TABLE `branch_announcements`
+ALTER TABLE `class_schedules`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_branch_announcements_branch_dates` (`branch_id`, `starts_at`, `ends_at`),
-  ADD KEY `idx_branch_announcements_active` (`is_active`);
-
---
--- Indexes for table `branch_operating_hours`
---
-ALTER TABLE `branch_operating_hours`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `uq_branch_day` (`branch_id`, `day_of_week`);
-
--- 
--- Indexes for table `feedback`
---
-ALTER TABLE `feedback`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_fb_user` (`user_id`),
-  ADD KEY `idx_fb_branch` (`branch_id`),
-  ADD KEY `idx_fb_rating` (`rating`);
+  ADD KEY `idx_class_schedules_class` (`class_id`),
+  ADD KEY `idx_class_schedules_branch_date` (`branch_id`,`scheduled_date`),
+  ADD KEY `idx_class_schedules_status` (`status`);
 
 --
 -- Indexes for table `contact_messages`
@@ -456,6 +490,15 @@ ALTER TABLE `contact_messages`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_contact_status` (`status`),
   ADD KEY `idx_contact_created` (`created_at`);
+
+--
+-- Indexes for table `feedback`
+--
+ALTER TABLE `feedback`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_fb_user` (`user_id`),
+  ADD KEY `idx_fb_branch` (`branch_id`),
+  ADD KEY `idx_fb_rating` (`rating`);
 
 --
 -- Indexes for table `login_logs`
@@ -480,6 +523,13 @@ ALTER TABLE `memberships`
   ADD KEY `fk_mem_branch` (`branch_id`);
 
 --
+-- Indexes for table `membership_plans`
+--
+ALTER TABLE `membership_plans`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_plan_slug` (`slug`);
+
+--
 -- Indexes for table `member_notes`
 --
 ALTER TABLE `member_notes`
@@ -487,13 +537,6 @@ ALTER TABLE `member_notes`
   ADD KEY `idx_member_notes_member` (`member_id`),
   ADD KEY `idx_member_notes_admin` (`admin_id`),
   ADD KEY `idx_member_notes_created` (`created_at`);
-
---
--- Indexes for table `membership_plans`
---
-ALTER TABLE `membership_plans`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `uq_plan_slug` (`slug`);
 
 --
 -- Indexes for table `password_resets`
@@ -518,28 +561,16 @@ ALTER TABLE `users`
 --
 
 --
+-- AUTO_INCREMENT for table `attendance_logs`
+--
+ALTER TABLE `attendance_logs`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
 -- AUTO_INCREMENT for table `branches`
 --
 ALTER TABLE `branches`
   MODIFY `id` smallint(5) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
-
---
--- AUTO_INCREMENT for table `classes`
---
-ALTER TABLE `classes`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
-
---
--- AUTO_INCREMENT for table `class_schedules`
---
-ALTER TABLE `class_schedules`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
-
---
--- AUTO_INCREMENT for table `class_bookings`
---
-ALTER TABLE `class_bookings`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `branch_announcements`
@@ -554,46 +585,58 @@ ALTER TABLE `branch_operating_hours`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
 
 --
--- AUTO_INCREMENT for table `attendance_logs`
+-- AUTO_INCREMENT for table `classes`
 --
-ALTER TABLE `attendance_logs`
+ALTER TABLE `classes`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT for table `class_bookings`
+--
+ALTER TABLE `class_bookings`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
--- AUTO_INCREMENT for table `feedback`
+-- AUTO_INCREMENT for table `class_schedules`
 --
-ALTER TABLE `feedback`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
+ALTER TABLE `class_schedules`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `contact_messages`
 --
 ALTER TABLE `contact_messages`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT for table `feedback`
+--
+ALTER TABLE `feedback`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `login_logs`
 --
 ALTER TABLE `login_logs`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=34;
 
 --
 -- AUTO_INCREMENT for table `memberships`
 --
 ALTER TABLE `memberships`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
-
---
--- AUTO_INCREMENT for table `member_notes`
---
-ALTER TABLE `member_notes`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT for table `membership_plans`
 --
 ALTER TABLE `membership_plans`
   MODIFY `id` smallint(5) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+
+--
+-- AUTO_INCREMENT for table `member_notes`
+--
+ALTER TABLE `member_notes`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `password_resets`
@@ -605,7 +648,7 @@ ALTER TABLE `password_resets`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- Constraints for dumped tables
@@ -615,28 +658,8 @@ ALTER TABLE `users`
 -- Constraints for table `attendance_logs`
 --
 ALTER TABLE `attendance_logs`
-  ADD CONSTRAINT `fk_att_branch` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`) ON DELETE RESTRICT,
+  ADD CONSTRAINT `fk_att_branch` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`),
   ADD CONSTRAINT `fk_att_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
-
---
--- Constraints for table `classes`
---
-ALTER TABLE `classes`
-  ADD CONSTRAINT `fk_classes_branch` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`) ON DELETE RESTRICT;
-
---
--- Constraints for table `class_schedules`
---
-ALTER TABLE `class_schedules`
-  ADD CONSTRAINT `fk_class_schedules_branch` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`) ON DELETE RESTRICT,
-  ADD CONSTRAINT `fk_class_schedules_class` FOREIGN KEY (`class_id`) REFERENCES `classes` (`id`) ON DELETE CASCADE;
-
---
--- Constraints for table `class_bookings`
---
-ALTER TABLE `class_bookings`
-  ADD CONSTRAINT `fk_class_bookings_schedule` FOREIGN KEY (`class_schedule_id`) REFERENCES `class_schedules` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `fk_class_bookings_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `branch_announcements`
@@ -649,6 +672,26 @@ ALTER TABLE `branch_announcements`
 --
 ALTER TABLE `branch_operating_hours`
   ADD CONSTRAINT `fk_branch_operating_hours_branch` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `classes`
+--
+ALTER TABLE `classes`
+  ADD CONSTRAINT `fk_classes_branch` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`);
+
+--
+-- Constraints for table `class_bookings`
+--
+ALTER TABLE `class_bookings`
+  ADD CONSTRAINT `fk_class_bookings_schedule` FOREIGN KEY (`class_schedule_id`) REFERENCES `class_schedules` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_class_bookings_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `class_schedules`
+--
+ALTER TABLE `class_schedules`
+  ADD CONSTRAINT `fk_class_schedules_branch` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`),
+  ADD CONSTRAINT `fk_class_schedules_class` FOREIGN KEY (`class_id`) REFERENCES `classes` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `feedback`
