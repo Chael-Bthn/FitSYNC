@@ -240,6 +240,21 @@ function approvePayment(array $data, int $adminId): void
     );
     $stmt->execute(['APR-' . $adminId . '-' . date('YmdHis'), $membershipId]);
 
+    // If membership was approved, also activate the user account (for new registrations)
+    if ($stmt->rowCount() > 0) {
+        try {
+            $activate = $pdo->prepare(
+                'UPDATE users u
+                 INNER JOIN memberships m ON m.user_id = u.id
+                 SET u.is_active = 1, u.updated_at = NOW()
+                 WHERE m.id = ?'
+            );
+            $activate->execute([$membershipId]);
+        } catch (Throwable) {
+            // non-fatal
+        }
+    }
+
     respond($stmt->rowCount() > 0, $stmt->rowCount() > 0 ? 'Payment approved.' : 'No pending payment found.', [
         'reload' => true,
     ]);

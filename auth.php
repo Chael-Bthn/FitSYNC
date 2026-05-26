@@ -13,6 +13,10 @@ if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 $csrfToken = $_SESSION['csrf_token'];
+// Load public branches for branch selection during registration
+require_once __DIR__ . '/config/db.php';
+$pdo = db();
+$publicBranches = $pdo->query('SELECT id, name, city FROM branches WHERE is_active = 1 ORDER BY name')->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="dark">
@@ -405,6 +409,16 @@ $csrfToken = $_SESSION['csrf_token'];
                             </div>
                         </div>
 
+                        <!-- Branch selection -->
+                        <div class="mb-3">
+                            <div class="auth-label">Branch</div>
+                            <select class="auth-select" id="regBranch">
+                                <?php foreach ($publicBranches as $b): ?>
+                                <option value="<?= (int)$b['id'] ?>"><?= htmlspecialchars($b['name'] . ' - ' . $b['city']) ?></option>
+                                <?php endforeach ?>
+                            </select>
+                        </div>
+
                         <!-- Payment method -->
                         <div class="mb-3">
                             <div class="auth-label">Payment Method</div>
@@ -609,6 +623,7 @@ async function handleRegister() {
         confirm,
         gender,
         plan:           selectedPlan,
+        branch_id:      parseInt(document.getElementById('regBranch').value, 10),
         payment_method: document.getElementById('regPayment').value,
     };
 

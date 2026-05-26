@@ -344,6 +344,55 @@ function actionRenewMembership(array $data, int $userId): void
         'RNW-' . strtoupper(bin2hex(random_bytes(4))),
     ]);
 
+    // Notify admins: create a contact message so admins see the renewal in their inbox
+    try {
+        $userStmt = $pdo->prepare('SELECT first_name, last_name, email FROM users WHERE id = ? LIMIT 1');
+        $userStmt->execute([$userId]);
+        $user = $userStmt->fetch();
+        $subject = sprintf('Membership renewal request — %s %s', $user['first_name'] ?? '', $user['last_name'] ?? '');
+        $message = sprintf("Member: %s %s (%s)\nPlan: %s\nStarts: %s\nEnds: %s\nAmount: ₱%s\nBranch ID: %d\nPayment method: %s\nReference: %s",
+            $user['first_name'] ?? '',
+            $user['last_name'] ?? '',
+            $user['email'] ?? '',
+            $plan['label'] ?? ('Plan ' . $planId),
+            $start->format('Y-m-d'),
+            $end->format('Y-m-d'),
+            number_format((float)$plan['price'], 2),
+            $branchId,
+            $paymentMethod,
+            'RNW-' . strtoupper(bin2hex(random_bytes(4)))
+        );
+
+        $pdo->prepare(
+            'INSERT INTO contact_messages (name, email, phone, subject, message, status, created_at)
+             VALUES (?, ?, NULL, ?, ?, "new", NOW())'
+        )->execute([
+            trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')),
+            $user['email'] ?? '',
+            $subject,
+            $message,
+        ]);
+
+        // Attempt to send a quick email to all admins (best-effort)
+        try {
+            $adminStmt = $pdo->query('SELECT email FROM users WHERE role = "admin" AND is_active = 1');
+            $adminEmails = $adminStmt->fetchAll(PDO::FETCH_COLUMN);
+            if ($adminEmails) {
+                $to = implode(',', $adminEmails);
+                $mailSubject = $subject;
+                $mailBody = $message;
+                // Use PHP mail() if available/configured — ignore failures
+                if (function_exists('mail')) {
+                    @mail($to, $mailSubject, $mailBody);
+                }
+            }
+        } catch (Throwable) {
+            // ignore email errors
+        }
+    } catch (Throwable) {
+        // ignore notification errors — renewal must not fail because notification fails
+    }
+
     respond(true, 'Renewal submitted. An admin will approve your payment.', [
         'reload' => true,
     ]);

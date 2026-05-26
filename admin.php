@@ -23,7 +23,10 @@ $totalFeedbacks = (int) $pdo->query("SELECT COUNT(*) FROM feedback WHERE is_visi
 $monthlyRevenue = (float) $pdo->query(
     "SELECT COALESCE(SUM(amount_paid), 0) FROM memberships
      WHERE payment_status = 'paid'
-       AND MONTH(starts_at) = MONTH(CURDATE()) AND YEAR(starts_at) = YEAR(CURDATE())"
+       AND (
+           updated_at BETWEEN CONCAT(DATE_FORMAT(CURDATE(), '%Y-%m-01'), ' 00:00:00') AND CONCAT(CURDATE(), ' 23:59:59')
+           OR created_at BETWEEN CONCAT(DATE_FORMAT(CURDATE(), '%Y-%m-01'), ' 00:00:00') AND CONCAT(CURDATE(), ' 23:59:59')
+       )"
 )->fetchColumn();
 $averageRating = $pdo->query("SELECT AVG(rating) FROM feedback WHERE is_visible = 1")->fetchColumn();
 $averageRating = $averageRating ? round((float) $averageRating, 1) : 0.0;
@@ -91,7 +94,14 @@ $memberRows = $pdo->query("SELECT u.id, m.id AS membership_id, u.first_name AS f
            p.id AS plan_id,
            COALESCE(p.label, 'No Plan') AS plan,
            COALESCE(m.status, 'expired') AS status,
-           COALESCE(m.payment_status, 'pending') AS payment_status
+           COALESCE(m.payment_status, 'pending') AS payment_status,
+           EXISTS(
+               SELECT 1
+               FROM memberships m3
+               WHERE m3.user_id = u.id
+                 AND m3.payment_status = 'pending'
+                 AND m3.status = 'pending'
+           ) AS has_pending_payment
     FROM users u
     LEFT JOIN memberships m ON m.id = (
         SELECT m2.id
@@ -135,6 +145,7 @@ $pendingPayments = $pdo->query("SELECT m.id, u.first_name AS fname, u.last_name 
     INNER JOIN branches b ON b.id = m.branch_id
     WHERE m.payment_status = 'pending' AND m.status = 'pending'
     ORDER BY m.created_at ASC")->fetchAll(PDO::FETCH_ASSOC);
+$pendingPaymentCount = count($pendingPayments);
 
 $expiringMemberships = $pdo->query("SELECT m.id, u.first_name AS fname, u.last_name AS lname, u.email,
            p.label AS plan, m.ends_at
@@ -185,6 +196,8 @@ try {
 $totalMemberships = (int) $pdo->query("SELECT COUNT(*) FROM memberships")->fetchColumn();
 $activeMemberships = (int) $pdo->query("SELECT COUNT(*) FROM memberships WHERE status = 'active' AND payment_status = 'paid' AND starts_at <= CURDATE() AND ends_at >= CURDATE()")->fetchColumn();
 $pendingPaymentCount = count($pendingPayments);
+$pendingRegistrationCount = (int) $pdo->query("SELECT COUNT(*) FROM users WHERE role = 'member' AND is_active = 0")->fetchColumn();
+$memberNotifications = $pendingPaymentCount + $pendingRegistrationCount;
 $expiredMembershipCount = (int) $pdo->query("SELECT COUNT(*) FROM memberships WHERE status = 'expired'")->fetchColumn();
 $activePlans = count($plans);
 $memberReport = memberAnalytics($pdo, $reportRange);
@@ -204,8 +217,12 @@ for ($i = 11; $i >= 0; $i--) {
     $signupStmt->execute([$start, $end]);
     $signupData[] = (int) $signupStmt->fetchColumn();
 
-    $revenueStmt = $pdo->prepare("SELECT COALESCE(SUM(amount_paid), 0) FROM memberships WHERE payment_status = 'paid' AND starts_at BETWEEN ? AND ?");
-    $revenueStmt->execute([$start, $end]);
+    $revenueStmt = $pdo->prepare("SELECT COALESCE(SUM(amount_paid), 0) FROM memberships
+        WHERE payment_status = 'paid'
+          AND (
+              updated_at BETWEEN ? AND ? OR created_at BETWEEN ? AND ?
+          )");
+    $revenueStmt->execute([$start . ' 00:00:00', $end . ' 23:59:59', $start . ' 00:00:00', $end . ' 23:59:59']);
     $revenueData[] = (float) $revenueStmt->fetchColumn();
 }
 ?>
@@ -577,6 +594,23 @@ for ($i = 11; $i >= 0; $i--) {
             position: relative;
             overflow: hidden;
             transition: border-color .2s, transform .2s;
+        }
+
+        .stat-card.urgent {
+            border-color: var(--fs-red);
+            box-shadow: 0 8px 24px var(--fs-red-glow);
+        }
+
+        .stat-card .urgent-badge {
+            position: absolute;
+            top: 10px;
+            right: 12px;
+            background: var(--fs-red);
+            color: #fff;
+            padding: .25rem .6rem;
+            border-radius: 999px;
+            font-weight: 800;
+            font-size: .78rem;
         }
 
         .stat-card:hover {
@@ -1344,7 +1378,9 @@ for ($i = 11; $i >= 0; $i--) {
             <div class="nav-section-label">Management</div>
             <a class="sidebar-link" onclick="showPage('members',this)">
                 <i class="ti ti-users"></i> Members
-                <span class="nav-pill" id="pill-members"><?= number_format($totalMembers) ?></span>
+                <?php if (!empty($memberNotifications)): ?>
+                    <span class="nav-pill" id="pill-members"><?= number_format($memberNotifications) ?></span>
+                <?php endif ?>
             </a>
             <a class="sidebar-link" onclick="showPage('branches',this)">
                 <i class="ti ti-building-store"></i> Branches
@@ -1731,9 +1767,9 @@ for ($i = 11; $i >= 0; $i--) {
                                 <tbody>
                                     <?php if ($pendingPayments): ?>
                                         <?php foreach ($pendingPayments as $payment): ?>
-                                            <tr>
+                                            <tr class="pending-payment-row">
                                                 <td>
-                                                    <div style="font-weight:600"><?= htmlspecialchars($payment['fname'] . ' ' . $payment['lname']) ?></div>
+                                                    <div style="font-weight:600"><?= htmlspecialchars($payment['fname'] . ' ' . $payment['lname']) ?> <span class="pending-dot" title="Pending payment approval"></span></div>
                                                     <div style="font-size:.7rem;color:var(--text-dimmed)"><?= htmlspecialchars($payment['email']) ?></div>
                                                 </td>
                                                 <td>
@@ -1743,8 +1779,8 @@ for ($i = 11; $i >= 0; $i--) {
                                                 <td>₱<?= number_format((float) $payment['amount_paid'], 2) ?></td>
                                                 <td>
                                                     <div class="d-flex gap-1">
-                                                        <button class="tbl-btn" title="Approve" onclick="membershipAction('approve_payment', <?= (int) $payment['id'] ?>)"><i class="ti ti-check"></i></button>
-                                                        <button class="tbl-btn danger" title="Reject" onclick="membershipAction('reject_payment', <?= (int) $payment['id'] ?>)"><i class="ti ti-x"></i></button>
+                                                        <button class="tbl-btn" data-membership="<?= (int) $payment['id'] ?>" title="Approve" onclick="membershipAction('approve_payment', <?= (int) $payment['id'] ?>)"><i class="ti ti-check"></i></button>
+                                                        <button class="tbl-btn danger" data-membership="<?= (int) $payment['id'] ?>" title="Reject" onclick="membershipAction('reject_payment', <?= (int) $payment['id'] ?>)"><i class="ti ti-x"></i></button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -2729,8 +2765,14 @@ for ($i = 11; $i >= 0; $i--) {
         function membershipRow(m) {
             const starts = formatDate(m.starts_at);
             const ends = formatDate(m.ends_at);
-            return `<tr>
-                <td>${m.fname} ${m.lname}</td>
+            var urgentCls = '';
+            var pendingDot = '';
+            if ((m.payment_status || '') === 'pending' && (m.status || '') === 'pending') {
+                urgentCls = ' class="row-urgent"';
+                pendingDot = '<span class="pending-dot" title="Pending payment"></span> ';
+            }
+            return `<tr${urgentCls}>
+                <td>${pendingDot}${m.fname} ${m.lname}</td>
                 <td class="col-hide-xs">${m.plan}</td>
                 <td class="col-hide-xs">${m.branch}</td>
                 <td>${starts}</td>
@@ -2752,6 +2794,14 @@ for ($i = 11; $i >= 0; $i--) {
         function capitalize(value) {
             return value ? value.charAt(0).toUpperCase() + value.slice(1) : '—';
         }
+
+        // small UI helpers for urgency
+        var style = document.createElement('style');
+        style.innerHTML = `
+            .pending-dot { display:inline-block;width:10px;height:10px;background:var(--fs-red);border-radius:50%;margin-left:.5rem;box-shadow:0 0 6px rgba(122,15,15,.85);vertical-align:middle }
+            .row-urgent { background: linear-gradient(90deg, rgba(255,241,241,.8), rgba(255,249,249,.6)); border-left: 4px solid var(--fs-red); }
+        `;
+        document.head.appendChild(style);
 
         function memberRow(m, compact) {
             var fname    = m.fname   || '';
@@ -2787,9 +2837,17 @@ for ($i = 11; $i >= 0; $i--) {
                     + '</tr>';
             }
 
-            return '<tr>'
+            var rowAttr = 'data-id="' + id + '"';
+            var pendingMark = '';
+            var urgentRow = '';
+            if ((m.has_pending_payment || false) || (m.payment_status || '') === 'pending') {
+                pendingMark = '<span class="pending-dot" title="Pending payment approval"></span>';
+                urgentRow = ' class="row-urgent"';
+            }
+
+            return '<tr ' + rowAttr + urgentRow + '>'
                 + '<td><div class="d-flex align-items-center gap-2">' + avatar + '<div>'
-                +   '<div style="font-weight:600">' + fname + ' ' + lname + '</div>'
+                +   '<div style="font-weight:600">' + fname + ' ' + lname + ' ' + pendingMark + '</div>'
                 +   '<div style="font-size:.7rem;color:var(--text-dimmed)">#' + idStr + '</div>'
                 + '</div></div></td>'
                 + '<td class="col-hide-xs"><span style="font-size:.82rem;color:var(--text-muted)">' + email + '</span></td>'
@@ -2798,10 +2856,10 @@ for ($i = 11; $i >= 0; $i--) {
                 + '<td class="col-hide-xs"><span style="font-size:.8rem;color:var(--text-muted)">' + expiry + '</span></td>'
                 + '<td>' + statusHtml + '</td>'
                 + '<td><div class="d-flex gap-1">'
-                +   '<a class="tbl-btn d-inline-flex align-items-center justify-content-center text-decoration-none" title="View Profile" href="admin/member_view.php?id=' + id + '"><i class="ti ti-eye"></i></a>'
-                +   (membershipId ? '<button class="tbl-btn" title="Activate" onclick="membershipAction(\'set_membership_status\',' + membershipId + ',\'active\')"><i class="ti ti-player-play"></i></button>' : '')
-                +   (membershipId ? '<button class="tbl-btn" title="Freeze" onclick="membershipAction(\'set_membership_status\',' + membershipId + ',\'frozen\')"><i class="ti ti-player-pause"></i></button>' : '')
-                +   (membershipId ? '<button class="tbl-btn danger" title="Deactivate" onclick="membershipAction(\'set_membership_status\',' + membershipId + ',\'cancelled\')"><i class="ti ti-ban"></i></button>' : '')
+                +   '<a class="tbl-btn d-inline-flex align-items-center justify-content-center text-decoration-none" title="View Profile" href="admin/member_view.php?id=' + id + '" target="_blank" rel="noopener"><i class="ti ti-eye"></i></a>'
+                +   (membershipId ? '<button class="tbl-btn" data-membership="' + membershipId + '" title="Activate" onclick="membershipAction(\'set_membership_status\',' + membershipId + ',\'active\')"><i class="ti ti-player-play"></i></button>' : '')
+                +   (membershipId ? '<button class="tbl-btn" data-membership="' + membershipId + '" title="Freeze" onclick="membershipAction(\'set_membership_status\',' + membershipId + ',\'frozen\')"><i class="ti ti-player-pause"></i></button>' : '')
+                +   (membershipId ? '<button class="tbl-btn danger" data-membership="' + membershipId + '" title="Deactivate" onclick="membershipAction(\'set_membership_status\',' + membershipId + ',\'cancelled\')"><i class="ti ti-ban"></i></button>' : '')
                 + '</div></td>'
                 + '</tr>';
         }
@@ -3112,14 +3170,31 @@ for ($i = 11; $i >= 0; $i--) {
         }
 
         async function membershipAction(action, membershipId, status) {
+            if (!membershipId) return;
+            const key = 'membership_inflight_' + membershipId;
+            if (window[key]) return; // prevent duplicate in-flight requests for same membership
+            window[key] = true;
+            const buttons = Array.from(document.querySelectorAll('[data-membership="' + membershipId + '"]'));
+            buttons.forEach(b => b.disabled = true);
             try {
                 const payload = { action, membership_id: membershipId };
                 if (status) payload.status = status;
                 const data = await adminPost(payload);
                 alert(data.message || (data.success ? 'Membership updated.' : 'Action failed.'));
-                if (data.reload) location.reload();
-            } catch {
+                if (data.reload) {
+                    location.reload();
+                    return;
+                }
+                // fallback: re-render lists to reflect local state (prevents disappearing)
+                try { renderMembers(); } catch (e) { /* ignore */ }
+                try { renderMemberships(); } catch (e) { /* ignore */ }
+                try { renderRecentMembers(); } catch (e) { /* ignore */ }
+            } catch (e) {
+                console.error('membershipAction error', e);
                 alert('Connection error. Please try again.');
+            } finally {
+                buttons.forEach(b => b.disabled = false);
+                window[key] = false;
             }
         }
 
@@ -3192,6 +3267,16 @@ for ($i = 11; $i >= 0; $i--) {
         if (['dashboard', 'reports', 'schedules', 'announcements', 'members', 'branches', 'feedbacks', 'settings'].includes(initialPage)) {
             showPage(initialPage, null);
         }
+
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted || (performance.getEntriesByType && performance.getEntriesByType('navigation').some(e => e.type === 'back_forward'))) {
+                const page = new URLSearchParams(window.location.search).get('page') || location.hash.replace('#', '');
+                init();
+                if (['dashboard', 'reports', 'schedules', 'announcements', 'members', 'branches', 'feedbacks', 'settings'].includes(page)) {
+                    showPage(page, null);
+                }
+            }
+        });
     </script>
 </body>
 

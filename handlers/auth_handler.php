@@ -126,6 +126,7 @@ function actionRegister(array $data): void
     $birthdate     = trim($data['birthdate']    ?? '');
     $planSlug      = $data['plan']              ?? '6mo';
     $paymentMethod = $data['payment_method']    ?? 'cash';
+    $branchId      = (int) ($data['branch_id'] ?? 0);
 
     // ── Validation ────────────────────────────────────────
     if ($firstName === '' || $lastName === '') {
@@ -173,6 +174,13 @@ function actionRegister(array $data): void
 
     $pdo = db();
 
+    // Verify branch exists
+    $branchStmt = $pdo->prepare('SELECT id FROM branches WHERE id = ? AND is_active = 1 LIMIT 1');
+    $branchStmt->execute([$branchId]);
+    if (!$branchStmt->fetch()) {
+        respond(false, 'Please select a valid branch.');
+    }
+
     // ── Email uniqueness ──────────────────────────────────
     $check = $pdo->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
     $check->execute([$email]);
@@ -187,10 +195,11 @@ function actionRegister(array $data): void
     // ── Insert user (always member role) ──────────────────
     $insertUser = $pdo->prepare(
         'INSERT INTO users
-            (role, first_name, last_name, email, password_hash, birthdate, gender, verification_token)
-         VALUES ("member", ?, ?, ?, ?, ?, ?, ?)'
+            (role, first_name, last_name, email, password_hash, birthdate, gender, verification_token, is_active)
+         VALUES ("member", ?, ?, ?, ?, ?, ?, ?, ? )'
     );
-    $insertUser->execute([$firstName, $lastName, $email, $hash, $birthdateValue, $gender, $verifyToken]);
+    // New registrations are created inactive and require admin approval
+    $insertUser->execute([$firstName, $lastName, $email, $hash, $birthdateValue, $gender, $verifyToken, 0]);
     $userId = (int) $pdo->lastInsertId();
 
     // ── Membership ────────────────────────────────────────
@@ -204,28 +213,39 @@ function actionRegister(array $data): void
         $startsAt = date('Y-m-d');
         $endsAt   = date('Y-m-d', strtotime("+{$plan['duration_days']} days"));
 
+        // Create membership as pending so admin can review/approve payment
         $pdo->prepare(
             'INSERT INTO memberships
                 (user_id, plan_id, branch_id, starts_at, ends_at, amount_paid, payment_method, payment_status, status)
-             VALUES (?, ?, 1, ?, ?, ?, ?, "paid", "active")'
+             VALUES (?, ?, ?, ?, ?, ?, ?, "pending", "pending")'
         )->execute([
             $userId,
             $plan['id'],
+            $branchId,
             $startsAt,
             $endsAt,
             $plan['price'],
             $paymentMethod,
         ]);
+
+        // Notify admins via contact_messages so they see a registration approval notification
+        try {
+            $subj = 'New registration awaiting approval: ' . $firstName . ' ' . $lastName;
+            $msg  = "A new member has registered and requires approval.\n\n" .
+                    "Name: {$firstName} {$lastName}\n" .
+                    "Email: {$email}\n" .
+                    "Plan: {$plan['label']}\n" .
+                    "Branch ID: {$branchId}\n\n" .
+                    "Review and approve from the admin panel.";
+            $pdo->prepare('INSERT INTO contact_messages (name, email, subject, message, status, created_at) VALUES (?, ?, ?, ?, ?, NOW())')
+                ->execute([$firstName . ' ' . $lastName, $email, $subj, $msg, 'new']);
+        } catch (Throwable) {
+            // non-fatal
+        }
     }
 
-    // ── Auto-login ────────────────────────────────────────
-    session_regenerate_id(true);
-    $_SESSION['user_id']    = $userId;
-    $_SESSION['user_name']  = $firstName . ' ' . $lastName;
-    $_SESSION['user_email'] = $email;
-    $_SESSION['user_role']  = 'member';
-
-    respond(true, "Welcome, {$firstName}! Your account is ready. Redirecting…", ['redirect' => 'profile.php']);
+    // Do not auto-activate account or auto-login — await admin approval
+    respond(true, "Thanks for registering, {$firstName}. Your account and plan are pending admin approval. You will receive an email when approved.", ['redirect' => 'index.php']);
 }
 
 // ─────────────────────────────────────────────────────────

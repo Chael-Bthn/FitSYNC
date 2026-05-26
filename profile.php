@@ -574,6 +574,10 @@ $workoutPrograms = [
             .dash-hero { padding: 1.5rem }
             .page-tab { padding: .6rem .9rem; font-size: .78rem }
         }
+        /* Plan card highlights */
+        .plan-card { background: var(--card-bg); border-radius: 12px; padding: 1rem; transition: box-shadow .18s, border-color .18s }
+        .plan-card.active-plan { border-color: var(--fs-red); box-shadow: 0 8px 30px var(--fs-red-glow); }
+        .plan-badge { position: absolute; top: 10px; right: 12px; background: var(--fs-red); color: #fff; font-size: .65rem; padding: .25rem .6rem; border-radius: 999px; font-weight:700 }
     </style>
 </head>
 <body>
@@ -610,7 +614,7 @@ $workoutPrograms = [
             <i class="ti ti-barbell"></i> Programs
         </button>
         <button class="sb-nav-item" onclick="showTab('billing', this)">
-            <i class="ti ti-receipt"></i> Billing
+            <i class="ti ti-receipt"></i> Plans & Billing
         </button>
         <button class="sb-nav-item" onclick="showTab('schedule', this)">
             <i class="ti ti-calendar-event"></i> Schedule
@@ -760,7 +764,7 @@ $workoutPrograms = [
         </div>
     </div>
 
-    <!-- ══ BILLING ══ -->
+    <!-- ══ PLANS & BILLING ══ -->
     <div class="page-section" id="tab-billing">
         <?php if ($allMems): ?>
         <div class="row g-3 mb-4">
@@ -791,6 +795,79 @@ $workoutPrograms = [
                 </div>
             </div>
         </div>
+
+        <!-- Plans preview (show plan descriptions/features) -->
+        <div class="row g-3 mb-4">
+            <?php if (!empty($membershipPlans)): ?>
+            <div class="col-12">
+                <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);margin-bottom:1rem">Available Plans</div>
+                <div class="row g-3">
+                    <?php foreach ($membershipPlans as $plan):
+                        $slug = $plan['slug'] ?? '';
+                        $features = [];
+                        switch ($slug) {
+                            case '1mo':
+                                $features = [
+                                    ['label' => 'Full gym access', 'yes' => true],
+                                    ['label' => 'Locker & showers', 'yes' => true],
+                                    ['label' => '2 classes/week', 'yes' => true],
+                                    ['label' => 'Personal trainer', 'yes' => false],
+                                    ['label' => 'Multi-branch', 'yes' => false],
+                                ];
+                                break;
+                            case '3mo':
+                                $features = [
+                                    ['label' => 'Full gym access', 'yes' => true],
+                                    ['label' => 'Locker & showers', 'yes' => true],
+                                    ['label' => 'Unlimited classes', 'yes' => true],
+                                    ['label' => '1 PT session/mo', 'yes' => true],
+                                    ['label' => 'Multi-branch', 'yes' => false],
+                                ];
+                                break;
+                            case '6mo':
+                                $features = [
+                                    ['label' => 'Full gym access', 'yes' => true],
+                                    ['label' => 'Locker & showers', 'yes' => true],
+                                    ['label' => 'Unlimited classes', 'yes' => true],
+                                    ['label' => '2 PT sessions/mo', 'yes' => true],
+                                    ['label' => 'Multi-branch', 'yes' => true],
+                                ];
+                                break;
+                            case '12mo':
+                                $features = [
+                                    ['label' => 'Full gym access', 'yes' => true],
+                                    ['label' => 'Locker & showers', 'yes' => true],
+                                    ['label' => 'Unlimited classes', 'yes' => true],
+                                    ['label' => '4 PT sessions/mo', 'yes' => true],
+                                    ['label' => 'Multi-branch', 'yes' => true],
+                                ];
+                                break;
+                            default:
+                                $features = [];
+                        }
+                    ?>
+                    <div class="col-12 col-md-6 col-xl-3">
+                        <?php $isActive = isset($mem['plan_slug']) && $mem['plan_slug'] === ($plan['slug'] ?? ''); ?>
+                        <div class="plan-card border h-100 d-flex flex-column p-3<?= $isActive ? ' active-plan' : '' ?>" style="position:relative">
+                            <?php if ($isActive): ?><div class="plan-badge">Active</div><?php endif ?>
+                            <div style="font-weight:800"><?= htmlspecialchars($plan['label']) ?></div>
+                            <div style="font-size:1.1rem;font-weight:800;margin-top:.35rem">₱<?= number_format((float)$plan['price'],2) ?></div>
+                            <hr style="border-color:var(--card-border);margin:.6rem 0">
+                            <ul class="list-unstyled" style="margin-bottom:auto">
+                                <?php foreach ($features as $f): ?>
+                                <li style="margin:.35rem 0;color:<?= $f['yes'] ? 'var(--text-primary)' : 'var(--text-muted)' ?>">
+                                    <i class="ti <?= $f['yes'] ? 'ti-check' : 'ti-x' ?>" style="margin-right:.5rem"></i><?= htmlspecialchars($f['label']) ?>
+                                </li>
+                                <?php endforeach ?>
+                            </ul>
+                        </div>
+                    </div>
+                    <?php endforeach ?>
+                </div>
+            </div>
+            <?php endif ?>
+        </div>
+
         <div class="fs-card" style="border-style:dashed">
             <div class="d-flex align-items-center gap-3">
                 <div style="width:42px;height:42px;border-radius:12px;background:var(--fs-red-soft);display:flex;align-items:center;justify-content:center;flex-shrink:0">

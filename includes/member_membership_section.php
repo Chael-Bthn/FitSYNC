@@ -30,6 +30,9 @@ if (realpath($_SERVER['SCRIPT_FILENAME'] ?? '') === __FILE__) {
             <div class="mem-pills mt-3">
                 <span class="mem-pill"><i class="ti ti-check"></i> Full Gym Access</span>
                 <span class="mem-pill"><i class="ti ti-building-store"></i> <?= htmlspecialchars($mem['branch_name']) ?></span>
+                <?php if (in_array(($mem['plan_slug'] ?? ''), ['6mo','12mo'], true)): ?>
+                <span class="mem-pill"><i class="ti ti-world"></i> Multi-branch Access</span>
+                <?php endif ?>
                 <span class="mem-pill"><i class="ti ti-credit-card"></i> <?= htmlspecialchars(payLabel($mem['payment_method'])) ?></span>
                 <span class="mem-pill"><i class="ti ti-hourglass"></i> <?= $daysRemaining ?> days left</span>
             </div>

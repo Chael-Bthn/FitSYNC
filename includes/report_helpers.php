@@ -91,18 +91,21 @@ function memberAnalytics(PDO $pdo, array $range): array
 
 function revenueAnalytics(PDO $pdo, array $range): array
 {
-    $paidRange = [$range['start'], $range['end']];
+    // Use created_at/updated_at as the payment timestamp so admin approvals are counted
+    $paidRangeDt = [$range['start_dt'], $range['end_dt']];
     $monthlyRevenue = (float) reportFetchValue(
         $pdo,
         "SELECT COALESCE(SUM(amount_paid), 0) FROM memberships
-         WHERE payment_status = 'paid' AND starts_at BETWEEN ? AND ?",
-        $paidRange
+         WHERE payment_status = 'paid' AND (
+             updated_at BETWEEN ? AND ? OR created_at BETWEEN ? AND ?
+         )",
+        array_merge($paidRangeDt, $paidRangeDt)
     );
     $pendingRevenue = (float) reportFetchValue(
         $pdo,
         "SELECT COALESCE(SUM(amount_paid), 0) FROM memberships
-         WHERE payment_status = 'pending' AND starts_at BETWEEN ? AND ?",
-        $paidRange
+         WHERE payment_status = 'pending' AND created_at BETWEEN ? AND ?",
+        $paidRangeDt
     );
     $projected = $monthlyRevenue + $pendingRevenue;
     $renewalRevenue = (float) reportFetchValue(
@@ -110,12 +113,14 @@ function revenueAnalytics(PDO $pdo, array $range): array
         "SELECT COALESCE(SUM(m.amount_paid), 0)
          FROM memberships m
          WHERE m.payment_status = 'paid'
-           AND m.starts_at BETWEEN ? AND ?
+           AND (
+               m.updated_at BETWEEN ? AND ? OR m.created_at BETWEEN ? AND ?
+           )
            AND EXISTS (
              SELECT 1 FROM memberships prev
              WHERE prev.user_id = m.user_id AND prev.id < m.id
            )",
-        $paidRange
+        array_merge($paidRangeDt, $paidRangeDt)
     );
 
     return [
@@ -129,19 +134,23 @@ function revenueAnalytics(PDO $pdo, array $range): array
             "SELECT p.label, COALESCE(SUM(m.amount_paid), 0) AS revenue, COUNT(*) AS count
              FROM memberships m
              INNER JOIN membership_plans p ON p.id = m.plan_id
-             WHERE m.payment_status = 'paid' AND m.starts_at BETWEEN ? AND ?
+             WHERE m.payment_status = 'paid' AND (
+                 m.updated_at BETWEEN ? AND ? OR m.created_at BETWEEN ? AND ?
+             )
              GROUP BY p.id, p.label
              ORDER BY revenue DESC",
-            $paidRange
+            array_merge($paidRangeDt, $paidRangeDt)
         ),
         'by_payment_method' => reportFetchAll(
             $pdo,
             "SELECT payment_method, COALESCE(SUM(amount_paid), 0) AS revenue, COUNT(*) AS count
              FROM memberships
-             WHERE payment_status = 'paid' AND starts_at BETWEEN ? AND ?
+             WHERE payment_status = 'paid' AND (
+                 updated_at BETWEEN ? AND ? OR created_at BETWEEN ? AND ?
+             )
              GROUP BY payment_method
              ORDER BY revenue DESC",
-            $paidRange
+            array_merge($paidRangeDt, $paidRangeDt)
         ),
     ];
 }
