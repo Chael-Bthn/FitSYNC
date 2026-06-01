@@ -43,6 +43,7 @@ if ($isPending) {
     $progressPct = 0;
     $scheduleContext = [];
     $memberHub = [];
+    $membershipPlans = [];
 } else {
 $mem = getLatestMembership($pdo, $userId);
 $activeMembership = getActiveMembership($pdo, $userId);
