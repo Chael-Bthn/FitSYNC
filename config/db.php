@@ -34,6 +34,19 @@ function db(): PDO
 
         try {
             $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
+            
+            // Schema migration: Add is_approved column if it doesn't exist
+            if (!isset($_SERVER['_fitsync_schema_migrated'])) {
+                try {
+                    $checkCol = $pdo->query("SHOW COLUMNS FROM users LIKE 'is_approved'");
+                    if ($checkCol->rowCount() === 0) {
+                        $pdo->exec("ALTER TABLE users ADD COLUMN is_approved TINYINT(1) DEFAULT 1");
+                    }
+                    $_SERVER['_fitsync_schema_migrated'] = true;
+                } catch (Exception) {
+                    // Column likely already exists or other issue — continue anyway
+                }
+            }
         } catch (PDOException $e) {
             // Never expose DB errors in production — log and show a safe message
             error_log('[FitSync DB] Connection failed: ' . $e->getMessage());

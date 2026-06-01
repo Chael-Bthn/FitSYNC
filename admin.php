@@ -1015,6 +1015,44 @@ for ($i = 11; $i >= 0; $i--) {
             border-top: 1px solid var(--card-border)
         }
 
+        .member-details-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .member-detail-card {
+            padding: 1rem;
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            background: rgba(255, 255, 255, .03);
+            min-height: 104px;
+        }
+
+        .member-detail-label {
+            font-size: .79rem;
+            color: var(--text-muted);
+            margin-bottom: .35rem;
+            display: block;
+        }
+
+        .member-detail-value {
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .member-details-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .75rem;
+            margin-top: 1rem;
+        }
+
+        .member-details-actions .btn {
+            min-width: 145px;
+        }
+
         [data-bs-theme="dark"] .btn-close {
             filter: invert(1) grayscale(1)
         }
@@ -2633,6 +2671,24 @@ for ($i = 11; $i >= 0; $i--) {
         </div>
     </div>
 
+    <div class="modal fade" id="memberDetailsModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-md">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold" id="memberDetailsModalTitle">Member Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="memberDetailsModalBody" style="max-height: 70vh; overflow-y: auto;">
+                    <div class="text-muted">Loading member details...</div>
+                </div>
+                <div class="modal-footer">
+                    <div id="memberDetailsModalActions" class="member-details-actions"></div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         /* ── DATA ── */
@@ -2709,6 +2765,8 @@ for ($i = 11; $i >= 0; $i--) {
             const plan = (document.getElementById('planFilter')?.value    || '').trim();
             const status = (document.getElementById('memberStatusFilter')?.value || '').trim();
             const branch = (document.getElementById('branchFilter')?.value || '').trim();
+            // Defensive: ensure members is an array
+            if (!Array.isArray(members)) members = [];
 
             const data = members.filter(function(m) {
                 var txt = ((m.fname||'') + ' ' + (m.lname||'') + ' ' + (m.email||'')).toLowerCase();
@@ -2721,23 +2779,35 @@ for ($i = 11; $i >= 0; $i--) {
                 var txtOk  = !q    || txt.includes(q);
                 return planOk && branchOk && statusOk && txtOk;
             });
+            try {
+                var tbody = document.getElementById('members-tbody');
+                var countLabel = document.getElementById('member-count-label');
+                if (!tbody) return;
 
-            var tbody = document.getElementById('members-tbody');
-            if (!tbody) return;
+                if (!data.length) {
+                    // Keep previous content if any to avoid flicker; replace only when needed
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-secondary py-4">No members found</td></tr>';
+                    if (countLabel) countLabel.textContent = '0 of ' + members.length;
+                    return;
+                }
 
-            if (!data.length) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-secondary py-4">No members found</td></tr>';
-                document.getElementById('member-count-label').textContent = '0 of ' + members.length;
-                return;
+                var previousHtml = tbody.innerHTML;
+                var html = '';
+                for (var i = 0; i < data.length; i++) {
+                    try { html += memberRow(data[i], false); }
+                    catch(e) { console.error('memberRow error', data[i], e); }
+                }
+
+                if (!html) {
+                    console.warn('renderMembers: row generation failed, keeping existing list content.', data);
+                    return;
+                }
+
+                tbody.innerHTML = html;
+                if (countLabel) countLabel.textContent = data.length + ' of ' + members.length;
+            } catch (err) {
+                console.error('renderMembers error', err);
             }
-
-            var html = '';
-            for (var i = 0; i < data.length; i++) {
-                try { html += memberRow(data[i], false); }
-                catch(e) { console.error('memberRow error', data[i], e); }
-            }
-            tbody.innerHTML = html || '<tr><td colspan="7" class="text-center text-secondary py-4">No members found</td></tr>';
-            document.getElementById('member-count-label').textContent = data.length + ' of ' + members.length;
         }
 
         function renderMemberships() {
@@ -2857,12 +2927,99 @@ for ($i = 11; $i >= 0; $i--) {
                 + '<td class="col-hide-xs"><span style="font-size:.8rem;color:var(--text-muted)">' + expiry + '</span></td>'
                 + '<td>' + statusHtml + '</td>'
                 + '<td><div class="d-flex gap-1">'
-                +   '<a class="tbl-btn d-inline-flex align-items-center justify-content-center text-decoration-none" title="View Profile" href="admin/member_view.php?id=' + id + '" target="_blank" rel="noopener"><i class="ti ti-eye"></i></a>'
-                +   (membershipId ? '<button class="tbl-btn" data-membership="' + membershipId + '" title="Activate" onclick="membershipAction(\'set_membership_status\',' + membershipId + ',\'active\')"><i class="ti ti-player-play"></i></button>' : '')
-                +   (membershipId ? '<button class="tbl-btn" data-membership="' + membershipId + '" title="Freeze" onclick="membershipAction(\'set_membership_status\',' + membershipId + ',\'frozen\')"><i class="ti ti-player-pause"></i></button>' : '')
-                +   (membershipId ? '<button class="tbl-btn danger" data-membership="' + membershipId + '" title="Deactivate" onclick="membershipAction(\'set_membership_status\',' + membershipId + ',\'cancelled\')"><i class="ti ti-ban"></i></button>' : '')
+                +   '<button type="button" class="tbl-btn" title="View Profile" onclick="showMemberDetails(' + id + ')"><i class="ti ti-eye"></i></button>'
+                +   (membershipId ? '<button type="button" class="tbl-btn" data-membership="' + membershipId + '" title="Activate" onclick="membershipAction(\'set_membership_status\',' + membershipId + ',\'active\')"><i class="ti ti-player-play"></i></button>' : '')
+                +   (membershipId ? '<button type="button" class="tbl-btn" data-membership="' + membershipId + '" title="Freeze" onclick="membershipAction(\'set_membership_status\',' + membershipId + ',\'frozen\')"><i class="ti ti-player-pause"></i></button>' : '')
+                +   (membershipId ? '<button type="button" class="tbl-btn danger" data-membership="' + membershipId + '" title="Deactivate" onclick="membershipAction(\'set_membership_status\',' + membershipId + ',\'cancelled\')"><i class="ti ti-ban"></i></button>' : '')
                 + '</div></td>'
                 + '</tr>';
+        }
+
+        function escapeHtml(value) {
+            return String(value || '').replace(/[&<>"']/g, function (c) {
+                return {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#39;'
+                }[c];
+            });
+        }
+
+        function showMemberDetails(id) {
+            const member = members.find(m => Number(m.id) === Number(id));
+            const modalBody = document.getElementById('memberDetailsModalBody');
+            const modalTitle = document.getElementById('memberDetailsModalTitle');
+            const modalActions = document.getElementById('memberDetailsModalActions');
+            if (!member || !modalBody || !modalTitle || !modalActions) return;
+
+            const plan = escapeHtml(member.plan || 'No Plan');
+            const status = escapeHtml(member.status || 'Unknown');
+            const payment = escapeHtml(member.payment_status || 'Unknown');
+            const joined = escapeHtml(formatDate(member.joined));
+            const expiry = escapeHtml(formatDate(member.expiry));
+            const accountActive = Number(member.is_active) === 1;
+            const accountLabel = accountActive ? 'Active' : 'Pending approval';
+            const accountBadge = accountActive ? '<span class="status-dot active"></span>' : '<span class="status-dot inactive"></span>';
+            const pendingPayment = member.payment_status === 'pending' && member.status === 'pending';
+            const pendingMark = pendingPayment ? '<span class="pending-dot" title="Pending payment approval"></span>' : '';
+
+            modalTitle.textContent = `${member.fname || ''} ${member.lname || ''}`.trim() || 'Member Details';
+            modalBody.innerHTML = `
+                <div class="member-details-grid">
+                    <div class="member-detail-card">
+                        <span class="member-detail-label">Member ID</span>
+                        <div class="member-detail-value">#${String(member.id || 0).padStart(5, '0')}</div>
+                    </div>
+                    <div class="member-detail-card">
+                        <span class="member-detail-label">Account Status</span>
+                        <div class="member-detail-value">${accountBadge} ${accountLabel}</div>
+                    </div>
+                    <div class="member-detail-card">
+                        <span class="member-detail-label">Email</span>
+                        <div class="member-detail-value">${escapeHtml(member.email || '—')}</div>
+                    </div>
+                    <div class="member-detail-card">
+                        <span class="member-detail-label">Plan</span>
+                        <div class="member-detail-value">${plan}</div>
+                    </div>
+                </div>
+                <div class="member-details-grid">
+                    <div class="member-detail-card">
+                        <span class="member-detail-label">Membership Status</span>
+                        <div class="member-detail-value">${escapeHtml(capitalize(status))} ${pendingMark}</div>
+                    </div>
+                    <div class="member-detail-card">
+                        <span class="member-detail-label">Payment Status</span>
+                        <div class="member-detail-value">${capitalize(payment)}</div>
+                    </div>
+                    <div class="member-detail-card">
+                        <span class="member-detail-label">Joined</span>
+                        <div class="member-detail-value">${joined}</div>
+                    </div>
+                    <div class="member-detail-card">
+                        <span class="member-detail-label">Expires</span>
+                        <div class="member-detail-value">${expiry}</div>
+                    </div>
+                </div>
+            `;
+
+            const actions = [];
+            if (!accountActive) {
+                actions.push('<button type="button" class="btn btn-success btn-sm rounded-pill" onclick="accountAction(\'approve_account\',' + member.id + ')">Approve Account</button>');
+                actions.push('<button type="button" class="btn btn-outline-danger btn-sm rounded-pill" onclick="accountAction(\'reject_account\',' + member.id + ')">Reject Account</button>');
+            }
+            if (pendingPayment && member.membership_id) {
+                actions.push('<button type="button" class="btn btn-success btn-sm rounded-pill" onclick="membershipAction(\'approve_payment\',' + member.membership_id + ')">Approve Payment</button>');
+                actions.push('<button type="button" class="btn btn-danger btn-sm rounded-pill" onclick="membershipAction(\'reject_payment\',' + member.membership_id + ')">Reject Payment</button>');
+            }
+            actions.push('<button type="button" class="btn btn-outline-danger btn-sm rounded-pill" onclick="accountAction(\'delete_account\',' + member.id + ')">Delete Account</button>');
+            modalActions.innerHTML = actions.join('');
+
+            const modalEl = document.getElementById('memberDetailsModal');
+            const bsModal = new bootstrap.Modal(modalEl);
+            bsModal.show();
         }
 
         function renderFeedbacks() {
@@ -3173,6 +3330,9 @@ for ($i = 11; $i >= 0; $i--) {
         async function membershipAction(action, membershipId, status) {
             if (!membershipId) return;
             const key = 'membership_inflight_' + membershipId;
+            try {
+                console.log('membershipAction start', action, membershipId, status);
+            } catch (e) {}
             if (window[key]) return; // prevent duplicate in-flight requests for same membership
             window[key] = true;
             const buttons = Array.from(document.querySelectorAll('[data-membership="' + membershipId + '"]'));
@@ -3181,7 +3341,7 @@ for ($i = 11; $i >= 0; $i--) {
                 const payload = { action, membership_id: membershipId };
                 if (status) payload.status = status;
                 const data = await adminPost(payload);
-                alert(data.message || (data.success ? 'Membership updated.' : 'Action failed.'));
+                try { alert(data.message || (data.success ? 'Membership updated.' : 'Action failed.')); } catch(e) {}
                 if (data.reload) {
                     location.reload();
                     return;
@@ -3192,10 +3352,28 @@ for ($i = 11; $i >= 0; $i--) {
                 try { renderRecentMembers(); } catch (e) { /* ignore */ }
             } catch (e) {
                 console.error('membershipAction error', e);
-                alert('Connection error. Please try again.');
+                try { alert('Connection error. Please try again.'); } catch (err) {}
             } finally {
                 buttons.forEach(b => b.disabled = false);
                 window[key] = false;
+            }
+        }
+
+        async function accountAction(action, memberId) {
+            if (!memberId) return;
+            if (action === 'delete_account' && !confirm('Delete this account and cancel all memberships?')) return;
+
+            try {
+                const data = await adminPost({ action, member_id: memberId });
+                alert(data.message || (data.success ? 'Account updated.' : 'Action failed.'));
+                if (data.reload) {
+                    location.reload();
+                    return;
+                }
+                renderMembers();
+                renderRecentMembers();
+            } catch (e) {
+                alert('Connection error. Please try again.');
             }
         }
 

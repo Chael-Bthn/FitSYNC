@@ -13,12 +13,37 @@ require_once __DIR__ . '/includes/schedule_helpers.php';
 
 $pdo    = db();
 $userId = (int) $_SESSION['user_id'];
-expireOldMemberships($pdo);
+
+// Check if account is pending approval
+$isPending = isset($_SESSION['pending_approval']) && $_SESSION['pending_approval'];
+
+if (!$isPending) {
+    expireOldMemberships($pdo);
+}
 
 $stmt = $pdo->prepare('SELECT * FROM users WHERE id = ? LIMIT 1');
 $stmt->execute([$userId]);
 $userRow = $stmt->fetch();
 
+// Only load membership data if not pending approval
+if ($isPending) {
+    $mem = null;
+    $activeMembership = null;
+    $hasActiveMembership = false;
+    $allMems = [];
+    $myFeedbacks = [];
+    $branches = [];
+    $attendanceDates = [];
+    $attendanceTotal = 0;
+    $currentStreak = 0;
+    $checkedInToday = false;
+    $lastAttendanceDate = null;
+    $monthlyVisits = 0;
+    $daysRemaining = 0;
+    $progressPct = 0;
+    $scheduleContext = [];
+    $memberHub = [];
+} else {
 $mem = getLatestMembership($pdo, $userId);
 $activeMembership = getActiveMembership($pdo, $userId);
 $hasActiveMembership = (bool) $activeMembership;
@@ -75,6 +100,8 @@ if ($mem) {
     $cap           = $now < $end ? $now : $end;
     $elapsed       = $start <= $cap ? (int) $start->diff($cap)->days : 0;
     $progressPct   = min(100, (int) round(($elapsed / $totalDays) * 100));
+}
+
 }
 
 $scheduleContext = memberScheduleContext($pdo, $mem, $userId);
@@ -282,7 +309,39 @@ $workoutPrograms = [
         .sb-logout:hover { background: rgba(204,26,26,.12); color: #ff6b6b }
 
         /* ── MAIN ── */
-        .main-content { margin-left: var(--sidebar-w); min-height: 100vh; padding: 2rem 2rem 3rem; transition: margin .3s }
+        .main-content { position: relative; margin-left: var(--sidebar-w); min-height: 100vh; padding: 2rem 2rem 3rem; transition: margin .3s }
+        .pending-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 150;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            background: rgba(10, 10, 10, .55);
+            backdrop-filter: blur(10px);
+            pointer-events: auto;
+        }
+        .pending-overlay-card {
+            max-width: 520px;
+            width: 100%;
+            background: rgba(17, 17, 17, .98);
+            border: 1px solid rgba(255, 193, 7, .2);
+            box-shadow: 0 25px 80px rgba(0, 0, 0, .35);
+            border-radius: 24px;
+            padding: 2rem;
+            color: var(--text-primary);
+        }
+        .pending-overlay-card h2 {
+            margin: 0 0 1rem;
+            font-size: 1.35rem;
+            font-weight: 900;
+        }
+        .pending-overlay-card p {
+            margin: .75rem 0 0;
+            color: var(--text-muted);
+            line-height: 1.7;
+        }
 
         /* ── HERO DASHBOARD HEADER ── */
         .dash-hero {
@@ -650,9 +709,19 @@ $workoutPrograms = [
         <span style="font-size:.9rem;font-weight:700;color:var(--text-muted)">FitSync</span>
     </div>
 
+    <?php if ($isPending): ?>
+    <div class="pending-overlay">
+        <div class="pending-overlay-card">
+            <h2>Account Pending Approval</h2>
+            <p>Your account is currently under review by our administrators. The full member dashboard is visible, but interactions are disabled until approval.</p>
+            <p>Use the sidebar to toggle dark mode or log out while you wait.</p>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <!-- ── HERO HEADER ── -->
     <div class="dash-hero" id="dashHero">
-        <div style="position:relative;z-index:1">
+        <div style="position:relative;z-index:1;">
             <div class="dash-hero-badge"><span></span> Member Portal</div>
             <div class="dash-hero-greeting"><?= $greeting ?>, <?= htmlspecialchars($userRow['first_name'] ?? 'Member') ?> 👋</div>
             <div class="dash-hero-sub"><?= date('l, F j, Y') ?> · Welcome back to FitSync</div>

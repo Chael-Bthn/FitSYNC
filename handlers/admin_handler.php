@@ -39,6 +39,9 @@ match ($action) {
     'delete_feedback' => deleteFeedback($data),
     'approve_payment' => approvePayment($data, $adminId),
     'reject_payment' => rejectPayment($data, $adminId),
+    'approve_account' => approveAccount($data),
+    'reject_account' => rejectAccount($data),
+    'delete_account' => deleteAccount($data),
     'set_membership_status' => setMembershipStatus($data),
     'extend_membership' => extendMembership($data),
     'change_member_branch' => changeMemberBranch($data),
@@ -281,6 +284,80 @@ function rejectPayment(array $data, int $adminId): void
     respond($stmt->rowCount() > 0, $stmt->rowCount() > 0 ? 'Payment rejected.' : 'No pending payment found.', [
         'reload' => true,
     ]);
+}
+
+function approveAccount(array $data): void
+{
+    $memberId = (int) ($data['member_id'] ?? 0);
+    if ($memberId <= 0) {
+        respond(false, 'Invalid member.');
+    }
+
+    $pdo = db();
+    $stmt = $pdo->prepare('UPDATE users SET is_active = 1, updated_at = NOW() WHERE id = ? AND role = "member"');
+    $stmt->execute([$memberId]);
+
+    respond($stmt->rowCount() > 0, $stmt->rowCount() > 0 ? 'Account approved.' : 'Member account was already active or not found.', [
+        'reload' => true,
+    ]);
+}
+
+function rejectAccount(array $data): void
+{
+    $memberId = (int) ($data['member_id'] ?? 0);
+    if ($memberId <= 0) {
+        respond(false, 'Invalid member.');
+    }
+
+    $pdo = db();
+    $stmt = $pdo->prepare('UPDATE users SET is_active = 0, updated_at = NOW() WHERE id = ? AND role = "member"');
+    $stmt->execute([$memberId]);
+    $pending = $pdo->prepare(
+        'UPDATE memberships
+         SET status = "cancelled",
+             payment_status = "failed",
+             updated_at = NOW()
+         WHERE user_id = ? AND payment_status = "pending" AND status = "pending"'
+    );
+    $pending->execute([$memberId]);
+
+    respond($stmt->rowCount() > 0 || $pending->rowCount() > 0, 'Account rejected and pending memberships cancelled.', [
+        'reload' => true,
+    ]);
+}
+
+function deleteAccount(array $data): void
+{
+    $memberId = (int) ($data['member_id'] ?? 0);
+    if ($memberId <= 0) {
+        respond(false, 'Invalid member.');
+    }
+
+    $pdo = db();
+    try {
+        $pdo->beginTransaction();
+
+        $stmt = $pdo->prepare('DELETE FROM memberships WHERE user_id = ?');
+        $stmt->execute([$memberId]);
+
+        $noteStmt = $pdo->prepare('DELETE FROM member_notes WHERE member_id = ?');
+        $noteStmt->execute([$memberId]);
+
+        $userStmt = $pdo->prepare('DELETE FROM users WHERE id = ? AND role = "member"');
+        $userStmt->execute([$memberId]);
+
+        $deleted = $userStmt->rowCount() > 0;
+        $pdo->commit();
+
+        respond($deleted, $deleted ? 'Account deleted successfully.' : 'Member account not found.', [
+            'reload' => true,
+        ]);
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        respond(false, 'Unable to delete the account. Please try again.');
+    }
 }
 
 function setMembershipStatus(array $data): void

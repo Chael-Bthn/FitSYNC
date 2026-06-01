@@ -74,7 +74,7 @@ function actionLogin(array $data): void
 
     $pdo  = db();
     $stmt = $pdo->prepare(
-        'SELECT id, first_name, last_name, email, password_hash, is_active, role
+        'SELECT id, first_name, last_name, email, password_hash, is_active, is_approved, role
          FROM users WHERE email = ? LIMIT 1'
     );
     $stmt->execute([$email]);
@@ -95,10 +95,11 @@ function actionLogin(array $data): void
 
     // ✅ Valid — start session
     session_regenerate_id(true);
-    $_SESSION['user_id']    = $user['id'];
-    $_SESSION['user_name']  = $user['first_name'] . ' ' . $user['last_name'];
-    $_SESSION['user_email'] = $user['email'];
-    $_SESSION['user_role']  = $user['role'];
+    $_SESSION['user_id']          = $user['id'];
+    $_SESSION['user_name']        = $user['first_name'] . ' ' . $user['last_name'];
+    $_SESSION['user_email']       = $user['email'];
+    $_SESSION['user_role']        = $user['role'];
+    $_SESSION['pending_approval'] = !$user['is_approved'];
 
     $pdo->prepare('UPDATE users SET last_login_at = NOW() WHERE id = ?')
         ->execute([$user['id']]);
@@ -106,6 +107,10 @@ function actionLogin(array $data): void
     $pdo->prepare(
         'UPDATE login_logs SET success = 1 WHERE user_id = ? ORDER BY id DESC LIMIT 1'
     )->execute([$user['id']]);
+
+    if (!$user['is_approved']) {
+        respond(true, 'Login successful! Your account is pending approval.', ['redirect' => 'profile.php']);
+    }
 
     $redirect = $user['role'] === 'admin' ? 'admin.php' : 'profile.php';
     respond(true, 'Login successful! Redirecting…', ['redirect' => $redirect]);
@@ -201,6 +206,8 @@ function actionRegister(array $data): void
     // New registrations are created inactive and require admin approval
     $insertUser->execute([$firstName, $lastName, $email, $hash, $birthdateValue, $gender, $verifyToken, 0]);
     $userId = (int) $pdo->lastInsertId();
+    // New registrations are set to active=1 so they can login, but is_approved=0 (pending)
+    $pdo->prepare('UPDATE users SET is_active = 1, is_approved = 0 WHERE id = ?')->execute([$userId]);
 
     // ── Membership ────────────────────────────────────────
     $planStmt = $pdo->prepare(
@@ -244,8 +251,18 @@ function actionRegister(array $data): void
         }
     }
 
-    // Do not auto-activate account or auto-login — await admin approval
-    respond(true, "Thanks for registering, {$firstName}. Your account and plan are pending admin approval. You will receive an email when approved.", ['redirect' => 'index.php']);
+    // Auto-login new members while approval is pending
+    session_regenerate_id(true);
+    $_SESSION['user_id']          = $userId;
+    $_SESSION['user_name']        = $firstName . ' ' . $lastName;
+    $_SESSION['user_email']       = $email;
+    $_SESSION['user_role']        = 'member';
+    $_SESSION['pending_approval'] = true;
+
+    respond(true,
+        "Thanks for registering, {$firstName}. Your account is pending admin approval. You can access your profile while you wait.",
+        ['redirect' => 'profile.php']
+    );
 }
 
 // ─────────────────────────────────────────────────────────
