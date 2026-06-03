@@ -9,9 +9,6 @@
             <button class="btn btn-fs rounded-pill px-3" onclick="logTodayGym()" <?= $hasActiveMembership ? '' : 'disabled' ?>>
                 <i class="ti ti-login-2 me-1"></i><span class="log-btn-text"><?= $memberHub['attendance']['checked_in_today'] ? 'Visit Logged' : 'Check In Today' ?></span>
             </button>
-            <button class="btn btn-outline-secondary rounded-pill px-3" onclick="showTab('billing', null)">
-                <i class="ti ti-refresh me-1"></i>Renew
-            </button>
             <button class="btn btn-outline-secondary rounded-pill px-3" onclick="showTab('schedule', null)">
                 <i class="ti ti-calendar-event me-1"></i>Schedule
             </button>

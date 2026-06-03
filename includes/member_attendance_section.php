@@ -62,22 +62,5 @@
                 </div>
             </div>
         </div>
-        <div class="fs-card">
-            <div class="section-kicker text-muted">Quick Actions</div>
-            <div class="quick-action-grid">
-                <button class="btn btn-outline-secondary rounded-pill text-start d-flex align-items-center gap-2" onclick="showTab('billing', null)">
-                    <i class="ti ti-receipt" style="color:var(--fs-red)"></i> Payment History
-                </button>
-                <button class="btn btn-outline-secondary rounded-pill text-start d-flex align-items-center gap-2" onclick="showTab('schedule', null)">
-                    <i class="ti ti-calendar-event" style="color:var(--fs-red)"></i> View Schedule
-                </button>
-                <button class="btn btn-outline-secondary rounded-pill text-start d-flex align-items-center gap-2" onclick="logTodayGym()" <?= $hasActiveMembership ? '' : 'disabled' ?>>
-                    <i class="ti ti-check" style="color:var(--fs-red)"></i> <span id="logBtnText" class="log-btn-text"><?= $checkedInToday ? "Today's Visit Logged" : "Log Today's Visit" ?></span>
-                </button>
-                <button class="btn btn-outline-secondary rounded-pill text-start d-flex align-items-center gap-2" onclick="showTab('schedule', null)">
-                    <i class="ti ti-building-store" style="color:var(--fs-red)"></i> Branch Information
-                </button>
-            </div>
-        </div>
     </div>
 </div>
