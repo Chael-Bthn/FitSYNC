@@ -1777,6 +1777,361 @@ $workoutPrograms = [
             border-radius: 999px;
             font-weight: 700
         }
+
+        /* ─── QR CHECK-IN SYSTEM ─── */
+        .hero-qr-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: .55rem;
+            flex-shrink: 0
+        }
+
+        .hero-qr-box {
+            width: 110px;
+            height: 110px;
+            background: #fff;
+            border-radius: 16px;
+            padding: 8px;
+            cursor: pointer;
+            border: 2px solid rgba(204, 26, 26, .4);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, .4);
+            transition: transform .22s, box-shadow .22s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative
+        }
+
+        .hero-qr-box:hover {
+            transform: translateY(-3px) scale(1.04);
+            box-shadow: 0 14px 42px rgba(0, 0, 0, .45), 0 0 0 4px rgba(204, 26, 26, .2)
+        }
+
+        .hero-qr-box canvas,
+        .hero-qr-box img {
+            width: 100% !important;
+            height: 100% !important;
+            display: block
+        }
+
+        @keyframes qrPulse {
+            0% {
+                box-shadow: 0 8px 30px rgba(0, 0, 0, .4), 0 0 0 0 rgba(204, 26, 26, .55)
+            }
+
+            70% {
+                box-shadow: 0 8px 30px rgba(0, 0, 0, .4), 0 0 0 18px rgba(204, 26, 26, 0)
+            }
+
+            100% {
+                box-shadow: 0 8px 30px rgba(0, 0, 0, .4), 0 0 0 0 rgba(204, 26, 26, 0)
+            }
+        }
+
+        .hero-qr-box.qr-pulse {
+            animation: qrPulse 1.5s ease-out 1
+        }
+
+        .hero-qr-label {
+            display: flex;
+            align-items: center;
+            gap: .3rem;
+            font-size: .63rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .55px;
+            color: rgba(255, 255, 255, .5)
+        }
+
+        [data-bs-theme="light"] .hero-qr-label {
+            color: rgba(0, 0, 0, .4)
+        }
+
+        .hero-scan-btn {
+            display: flex;
+            align-items: center;
+            gap: .4rem;
+            background: rgba(255, 255, 255, .09);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, .18);
+            color: rgba(255, 255, 255, .85);
+            font-family: 'Outfit', sans-serif;
+            font-size: .72rem;
+            font-weight: 700;
+            padding: .4rem .95rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all .2s;
+            white-space: nowrap
+        }
+
+        [data-bs-theme="light"] .hero-scan-btn {
+            background: rgba(0, 0, 0, .06);
+            border-color: rgba(0, 0, 0, .14);
+            color: rgba(0, 0, 0, .65)
+        }
+
+        .hero-scan-btn:hover {
+            background: var(--fs-red);
+            border-color: var(--fs-red);
+            color: #fff;
+            box-shadow: 0 4px 18px rgba(204, 26, 26, .4)
+        }
+
+        .qr-modal-wrap {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+            border-radius: 16px;
+            padding: 12px;
+            border: 2px solid rgba(204, 26, 26, .12);
+            box-shadow: 0 8px 28px rgba(0, 0, 0, .12)
+        }
+
+        .qr-modal-wrap canvas,
+        .qr-modal-wrap img {
+            display: block
+        }
+
+        .qr-expires-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: .35rem;
+            background: rgba(255, 193, 7, .1);
+            border: 1px solid rgba(255, 193, 7, .25);
+            color: #c8900a;
+            font-size: .68rem;
+            font-weight: 700;
+            padding: .28rem .75rem;
+            border-radius: 50px;
+            margin-top: .65rem
+        }
+
+        /* Scanner modal */
+        .scanner-modal .modal-content {
+            background: #0c0c0c;
+            border: 1px solid rgba(255, 255, 255, .09);
+            border-radius: 24px;
+            overflow: hidden
+        }
+
+        .scanner-modal .modal-header {
+            background: #0c0c0c;
+            border-bottom: 1px solid rgba(255, 255, 255, .07);
+            padding: 1.15rem 1.5rem .9rem
+        }
+
+        .scanner-modal .modal-title {
+            color: #fff;
+            font-weight: 800;
+            font-size: 1rem
+        }
+
+        .scanner-viewport {
+            position: relative;
+            background: #000;
+            min-height: 300px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center
+        }
+
+        #scannerVideo {
+            width: 100%;
+            max-height: 360px;
+            object-fit: cover;
+            display: block
+        }
+
+        #scannerCanvas {
+            display: none
+        }
+
+        /* Vignette: box-shadow punches a transparent "window" into the dark overlay */
+        .scan-vignette {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 216px;
+            height: 216px;
+            border-radius: 4px;
+            box-shadow: 0 0 0 600px rgba(0, 0, 0, .52);
+            z-index: 1;
+            pointer-events: none
+        }
+
+        .scan-box-frame {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 216px;
+            height: 216px;
+            z-index: 2;
+            pointer-events: none
+        }
+
+        .scan-corner {
+            position: absolute;
+            width: 28px;
+            height: 28px
+        }
+
+        .scan-corner.tl {
+            top: 0;
+            left: 0;
+            border-top: 3px solid #cc1a1a;
+            border-left: 3px solid #cc1a1a;
+            border-radius: 5px 0 0 0
+        }
+
+        .scan-corner.tr {
+            top: 0;
+            right: 0;
+            border-top: 3px solid #cc1a1a;
+            border-right: 3px solid #cc1a1a;
+            border-radius: 0 5px 0 0
+        }
+
+        .scan-corner.bl {
+            bottom: 0;
+            left: 0;
+            border-bottom: 3px solid #cc1a1a;
+            border-left: 3px solid #cc1a1a;
+            border-radius: 0 0 0 5px
+        }
+
+        .scan-corner.br {
+            bottom: 0;
+            right: 0;
+            border-bottom: 3px solid #cc1a1a;
+            border-right: 3px solid #cc1a1a;
+            border-radius: 0 0 5px 0
+        }
+
+        .scan-laser {
+            position: absolute;
+            left: 5px;
+            right: 5px;
+            height: 2px;
+            border-radius: 2px;
+            background: linear-gradient(90deg, transparent, rgba(204, 26, 26, .95), transparent);
+            animation: laserSweep 2.2s ease-in-out infinite
+        }
+
+        @keyframes laserSweep {
+            0% {
+                top: 5px
+            }
+
+            100% {
+                top: calc(100% - 7px)
+            }
+        }
+
+        .scan-status-bar {
+            display: flex;
+            align-items: center;
+            gap: .85rem;
+            padding: .95rem 1.4rem;
+            background: #141414;
+            border-top: 1px solid rgba(255, 255, 255, .06);
+            min-height: 64px;
+            transition: all .25s
+        }
+
+        .scan-status-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            background: rgba(255, 255, 255, .06);
+            color: rgba(255, 255, 255, .5);
+            transition: all .3s
+        }
+
+        .scan-status-text {
+            font-size: .82rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, .6);
+            transition: color .3s;
+            line-height: 1.4
+        }
+
+        .scan-status-bar.is-scanning .scan-status-icon {
+            background: rgba(204, 26, 26, .15);
+            color: #cc1a1a
+        }
+
+        .scan-status-bar.is-success .scan-status-icon {
+            background: rgba(76, 175, 135, .15);
+            color: #4caf87
+        }
+
+        .scan-status-bar.is-success .scan-status-text {
+            color: #4caf87
+        }
+
+        .scan-status-bar.is-error .scan-status-icon {
+            background: rgba(220, 53, 69, .15);
+            color: #e05656
+        }
+
+        .scan-status-bar.is-error .scan-status-text {
+            color: #e05656
+        }
+
+        .scan-status-bar.is-loading .scan-status-icon {
+            background: rgba(214, 161, 0, .15);
+            color: #d6a100
+        }
+
+        .scan-status-bar.is-loading .scan-status-text {
+            color: #d6a100
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg)
+            }
+
+            to {
+                transform: rotate(360deg)
+            }
+        }
+
+        .scan-modal-foot {
+            background: #0c0c0c;
+            border-top: 1px solid rgba(255, 255, 255, .06);
+            padding: .85rem 1.5rem;
+            text-align: center
+        }
+
+        @media(max-width:575.98px) {
+            .hero-qr-section {
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: flex-start;
+                width: 100%;
+                gap: .75rem;
+                padding-top: .5rem
+            }
+
+            .hero-qr-box {
+                width: 80px;
+                height: 80px;
+                padding: 5px
+            }
+        }
     </style>
 </head>
 
@@ -1787,7 +2142,7 @@ $workoutPrograms = [
     <!-- ════════ SIDEBAR ════════ -->
     <aside class="sidebar" id="sidebar">
         <div class="sb-header">
-            <a class="sb-brand" href="profile.php">
+            <a class="sb-brand" href="index.php">
                 <img class="theme-logo" src="assets/FitSYNC%20Emblem%20Light.svg" alt="FitSync" width="30" height="30" id="sidebarLogo" data-logo-dark="assets/FitSYNC%20Emblem%20Light.svg" data-logo-light="assets/FitSYNC%20Emblem.svg" />
                 <span class="brand-text"><span class="fit">FIT</span><span class="sync">SYNC</span></span>
             </a>
@@ -1861,30 +2216,46 @@ $workoutPrograms = [
 
         <!-- ── HERO HEADER ── -->
         <div class="dash-hero" id="dashHero">
-            <div style="position:relative;z-index:1;">
-                <div class="dash-hero-badge"><span></span> Member Portal</div>
-                <div class="dash-hero-greeting"><?= $greeting ?>, <?= htmlspecialchars($userRow['first_name'] ?? 'Member') ?> 👋</div>
-                <div class="dash-hero-sub"><?= date('l, F j, Y') ?> · Welcome back to FitSync</div>
-                <div class="dash-hero-stats">
-                    <?php if ($hasActiveMembership): ?>
+            <div style="position:relative;z-index:1;display:flex;align-items:flex-start;justify-content:space-between;gap:2rem;flex-wrap:wrap">
+                <!-- Left: greeting + stats -->
+                <div>
+                    <div class="dash-hero-badge"><span></span> Member Portal</div>
+                    <div class="dash-hero-greeting"><?= $greeting ?>, <?= htmlspecialchars($userRow['first_name'] ?? 'Member') ?> 👋</div>
+                    <div class="dash-hero-sub"><?= date('l, F j, Y') ?> · Welcome back to FitSync</div>
+                    <div class="dash-hero-stats">
+                        <?php if ($hasActiveMembership): ?>
+                            <div class="dash-mini-stat">
+                                <div class="dash-mini-stat-val"><?= number_format($daysRemaining) ?></div>
+                                <div class="dash-mini-stat-lbl">Days Left</div>
+                            </div>
+                            <div class="dash-mini-stat">
+                                <div class="dash-mini-stat-val"><?= $progressPct ?>%</div>
+                                <div class="dash-mini-stat-lbl">Plan Used</div>
+                            </div>
+                            <div class="dash-mini-stat">
+                                <div class="dash-mini-stat-val" id="attendanceTotalHero"><?= number_format($attendanceTotal) ?></div>
+                                <div class="dash-mini-stat-lbl">Total Visits</div>
+                            </div>
+                        <?php endif ?>
                         <div class="dash-mini-stat">
-                            <div class="dash-mini-stat-val"><?= number_format($daysRemaining) ?></div>
-                            <div class="dash-mini-stat-lbl">Days Left</div>
+                            <div class="dash-mini-stat-val" id="streakDisplay"><?= number_format($currentStreak) ?></div>
+                            <div class="dash-mini-stat-lbl">Day Streak 🔥</div>
                         </div>
-                        <div class="dash-mini-stat">
-                            <div class="dash-mini-stat-val"><?= $progressPct ?>%</div>
-                            <div class="dash-mini-stat-lbl">Plan Used</div>
-                        </div>
-                        <div class="dash-mini-stat">
-                            <div class="dash-mini-stat-val" id="attendanceTotalHero"><?= number_format($attendanceTotal) ?></div>
-                            <div class="dash-mini-stat-lbl">Total Visits</div>
-                        </div>
-                    <?php endif ?>
-                    <div class="dash-mini-stat">
-                        <div class="dash-mini-stat-val" id="streakDisplay"><?= number_format($currentStreak) ?></div>
-                        <div class="dash-mini-stat-lbl">Day Streak 🔥</div>
                     </div>
                 </div>
+
+                <!-- Right: QR check-in widget -->
+                <?php if (!$isPending): ?>
+                    <div class="hero-qr-section" id="heroQrSection">
+                        <div class="hero-qr-box" id="heroQrBox" onclick="openQrModal()" title="Tap to enlarge">
+                            <div id="heroQrCode"></div>
+                        </div>
+                        <div class="hero-qr-label"><i class="ti ti-qrcode" aria-hidden="true"></i> Check-in QR</div>
+                        <button class="hero-scan-btn" onclick="openScannerModal()">
+                            <i class="ti ti-scan" aria-hidden="true"></i> Scan to Check In
+                        </button>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -1894,28 +2265,9 @@ $workoutPrograms = [
 
             <?php include __DIR__ . '/includes/member_today_panel.php'; ?>
 
-            <?php include __DIR__ . '/includes/member_attendance_section.php'; ?>
-
             <?php include __DIR__ . '/includes/member_membership_section.php'; ?>
 
-            <div class="fs-card">
-                <div class="section-kicker text-muted">Quick Actions</div>
-                <div class="quick-action-grid">
-                    <button class="btn btn-outline-secondary rounded-pill text-start d-flex align-items-center gap-2" onclick="showTab('billing', null)">
-                        <i class="ti ti-receipt" style="color:var(--fs-red)"></i> Payment History
-                    </button>
-                    <button class="btn btn-outline-secondary rounded-pill text-start d-flex align-items-center gap-2" onclick="showTab('schedule', null)">
-                        <i class="ti ti-calendar-event" style="color:var(--fs-red)"></i> View Schedule
-                    </button>
-                    <button class="btn btn-outline-secondary rounded-pill text-start d-flex align-items-center gap-2" onclick="logTodayGym()" <?= $hasActiveMembership ? '' : 'disabled' ?>>
-                        <i class="ti ti-check" style="color:var(--fs-red)"></i> <span id="logBtnText" class="log-btn-text"><?= $checkedInToday ? "Today's Visit Logged" : "Log Today's Visit" ?></span>
-                    </button>
-                    <button class="btn btn-outline-secondary rounded-pill text-start d-flex align-items-center gap-2" onclick="showTab('schedule', null)">
-                        <i class="ti ti-building-store" style="color:var(--fs-red)"></i> Branch Information
-                    </button>
-                </div>
-            </div>
-
+            <?php include __DIR__ . '/includes/member_attendance_section.php'; ?>
         </div>
         <div class="page-section" id="tab-profile">
             <div class="row g-3">
@@ -2385,6 +2737,40 @@ $workoutPrograms = [
             </div>
         </div>
 
+        <!-- ══ QR VIEW MODAL ══ -->
+        <div class="modal fade" id="qrModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content" style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:22px">
+                    <div class="modal-header" style="border-color:var(--card-border);padding:1.25rem 1.5rem .75rem">
+                        <h5 class="modal-title" style="font-weight:800;color:var(--text-primary)">
+                            <i class="ti ti-qrcode me-2" style="color:var(--fs-red)" aria-hidden="true"></i>My Check-in QR
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body text-center" style="padding:1.5rem 1.5rem 1rem">
+                        <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:1.5rem;line-height:1.6">
+                            Show this to front-desk staff, or scan it at a self-service kiosk to log your visit.
+                        </p>
+                        <div style="display:flex;justify-content:center;margin-bottom:1.25rem">
+                            <div class="qr-modal-wrap">
+                                <div id="qrModalCode"></div>
+                            </div>
+                        </div>
+                        <div style="font-weight:800;font-size:1rem;color:var(--text-primary)"><?= $fullName ?></div>
+                        <div style="font-size:.75rem;color:var(--text-muted);margin-top:.2rem">
+                            Member #<?= str_pad($userId, 5, '0', STR_PAD_LEFT) ?>
+                            <?= $hasActiveMembership ? ' · ' . htmlspecialchars($mem['plan_label']) : '' ?>
+                        </div>
+                        <div class="qr-expires-badge">
+                            <i class="ti ti-clock" style="font-size:.75rem" aria-hidden="true"></i> QR refreshes daily
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="border-color:var(--card-border);justify-content:center;gap:.65rem;padding:.75rem 1.5rem 1.25rem">
+                        <button class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -2956,10 +3342,69 @@ $workoutPrograms = [
             document.getElementById('programsListView').style.display = 'block';
             document.getElementById('programDetailView').style.display = 'none';
         }
+        /* ══════════════════════════════════════════════
+   QR CHECK-IN SYSTEM
+══════════════════════════════════════════════ */
+
+        /* ── Token: user-specific, rotates daily ── */
+        function makeCheckinToken() {
+            const d = new Date();
+            const key = d.getFullYear() +
+                String(d.getMonth() + 1).padStart(2, '0') +
+                String(d.getDate()).padStart(2, '0');
+            return btoa('fitsync:' + USER_ID + ':' + key).replace(/[+=\/]/g, '').substring(0, 28);
+        }
+
+        function getQrPayload() {
+            return JSON.stringify({
+                app: 'FitSync',
+                action: 'checkin',
+                uid: USER_ID,
+                t: makeCheckinToken()
+            });
+        }
+
+        /* ── Hero QR ── */
+        function initHeroQr() {
+            const el = document.getElementById('heroQrCode');
+            if (!el || typeof QRCode === 'undefined') return;
+            el.innerHTML = '';
+            new QRCode(el, {
+                text: getQrPayload(),
+                width: 94,
+                height: 94,
+                colorDark: '#000000',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.M
+            });
+        }
+
+        /* ── QR view modal ── */
+        function openQrModal() {
+            const el = document.getElementById('qrModalCode');
+            if (!el) return;
+            el.innerHTML = '';
+            new QRCode(el, {
+                text: getQrPayload(),
+                width: 176,
+                height: 176,
+                colorDark: '#111111',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.M
+            });
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('qrModal')).show();
+        }
+
+        function openScannerFromQrModal() {
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('qrModal')).hide();
+            setTimeout(openScannerModal, 340);
+        }
 
         /* ── BOOT ── */
         renderCalendar();
     </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 </body>
 
 </html>
