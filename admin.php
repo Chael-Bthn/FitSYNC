@@ -2615,6 +2615,656 @@
         /* ── BOOT ────────────────────────────────── */
         init();
     </script>
+
+    <!-- ══ QR SCANNER FAB + FULLSCREEN OVERLAY ══ -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+
+    <!-- FAB Button -->
+    <button id="qr-fab" onclick="openQR()" title="QR Scanner">
+        <i class="ti ti-qrcode"></i>
+    </button>
+
+    <!-- Fullscreen Scanner Overlay -->
+    <div id="qr-overlay">
+        <div id="qr-overlay-inner">
+
+            <!-- Header -->
+            <div id="qr-overlay-header">
+                <div>
+                    <div id="qr-overlay-title"><i class="ti ti-scan" style="color:var(--red);margin-right:.4rem"></i>QR Scanner</div>
+                    <div id="qr-overlay-sub" class="qr-sub-label">Camera inactive — press Start to begin</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:.75rem">
+                    <span class="qr-dot qr-dot-offline" id="qr-status-dot"></span>
+                    <span class="qr-status-txt" id="qr-status-txt">Offline</span>
+                    <button class="qr-close-btn" onclick="closeQR()" title="Close"><i class="ti ti-x"></i></button>
+                </div>
+            </div>
+
+            <!-- Two-column body -->
+            <div id="qr-body">
+
+                <!-- LEFT: scanner -->
+                <div id="qr-left">
+                    <div class="qr-cam-wrap" id="qr-cam-wrap">
+                        <video id="qr-video" autoplay playsinline muted></video>
+                        <canvas id="qr-canvas" style="display:none"></canvas>
+
+                        <div class="qr-idle" id="qr-idle">
+                            <i class="ti ti-camera-off"></i>
+                            <p>Camera is off. Press <strong>Start Camera</strong> below.</p>
+                        </div>
+
+                        <div class="qr-scan-overlay" id="qr-scan-overlay" style="display:none">
+                            <div class="qr-frame">
+                                <div class="qr-cb"></div><div class="qr-cbr"></div>
+                                <div class="qr-laser"></div>
+                            </div>
+                        </div>
+
+                        <div class="qr-flash" id="qr-flash"></div>
+                    </div>
+
+                    <!-- Controls -->
+                    <div class="qr-controls">
+                        <button class="qr-btn qr-btn-primary" id="qr-btn-start" onclick="qrStartCamera()"><i class="ti ti-player-play"></i> Start Camera</button>
+                        <button class="qr-btn" id="qr-btn-stop"  onclick="qrStopCamera()"  disabled><i class="ti ti-player-stop"></i> Stop</button>
+                        <button class="qr-btn" id="qr-btn-flip"  onclick="qrFlipCamera()"  disabled><i class="ti ti-camera-rotate"></i> Flip</button>
+                    </div>
+
+                    <!-- Manual entry -->
+                    <div class="qr-manual-wrap">
+                        <div class="qr-section-lbl"><i class="ti ti-keyboard"></i> Manual ID Entry</div>
+                        <div class="qr-manual-row">
+                            <input type="text" id="qr-manual-input" placeholder="Enter Member ID (e.g. MBR-00001)" onkeydown="if(event.key==='Enter')qrManualLookup()" />
+                            <button class="qr-btn qr-btn-primary" onclick="qrManualLookup()"><i class="ti ti-search"></i> Lookup</button>
+                        </div>
+                    </div>
+
+                    <!-- Scan log -->
+                    <div class="qr-log-wrap">
+                        <div class="qr-log-head">
+                            <span class="qr-log-title">Recent Scans</span>
+                            <button class="qr-btn" style="padding:.2rem .55rem;font-size:.68rem" onclick="qrClearLog()"><i class="ti ti-trash"></i> Clear</button>
+                        </div>
+                        <div class="qr-tbl-wrap">
+                            <table class="qr-table">
+                                <thead><tr><th>Member ID</th><th>Name</th><th>Status</th><th>Time</th></tr></thead>
+                                <tbody id="qr-log-body">
+                                    <tr><td colspan="4" class="qr-empty-log"><i class="ti ti-history" style="display:block;font-size:1.3rem;margin-bottom:.35rem"></i>No scans yet</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RIGHT: member info -->
+                <div id="qr-right">
+
+                    <!-- Member card -->
+                    <div class="qr-card">
+                        <div class="qr-card-head">
+                            <div>
+                                <div class="qr-card-title"><i class="ti ti-id-badge-2" style="color:var(--red);margin-right:.35rem"></i>Member Info</div>
+                                <div class="qr-card-sub">Scanned member details</div>
+                            </div>
+                        </div>
+                        <div class="qr-card-body">
+                            <div class="qr-mem-empty" id="qr-mem-empty">
+                                <div class="qr-icon-ring"><i class="ti ti-user-search"></i></div>
+                                <h3>Awaiting Scan</h3>
+                                <p>Scan a QR code or enter a Member ID to view details.</p>
+                            </div>
+                            <div id="qr-mem-data" style="display:none">
+                                <div class="qr-mem-header">
+                                    <div class="qr-mem-av" id="qr-mem-initials">--</div>
+                                    <div>
+                                        <div class="qr-mem-name" id="qr-mem-name">—</div>
+                                        <div class="qr-mem-id" id="qr-mem-id">ID: —</div>
+                                    </div>
+                                    <span class="badge" id="qr-mem-badge" style="margin-left:auto">—</span>
+                                </div>
+                                <div class="qr-expiry-warn" id="qr-expiry-warn" style="display:none">
+                                    <i class="ti ti-alert-triangle"></i>
+                                    <span id="qr-expiry-txt"></span>
+                                </div>
+                                <div class="qr-detail-list">
+                                    <div class="qr-detail-row"><span class="qr-detail-lbl"><i class="ti ti-id-badge"></i> Membership</span><span class="qr-detail-val" id="qr-mem-plan">—</span></div>
+                                    <div class="qr-detail-row"><span class="qr-detail-lbl"><i class="ti ti-activity"></i> Status</span><span class="qr-detail-val" id="qr-mem-status">—</span></div>
+                                    <div class="qr-detail-row"><span class="qr-detail-lbl"><i class="ti ti-calendar-event"></i> Expiry Date</span><span class="qr-detail-val" id="qr-mem-expiry">—</span></div>
+                                    <div class="qr-detail-row"><span class="qr-detail-lbl"><i class="ti ti-clock"></i> Last Visit</span><span class="qr-detail-val" id="qr-mem-last">—</span></div>
+                                    <div class="qr-detail-row"><span class="qr-detail-lbl"><i class="ti ti-building"></i> Branch</span><span class="qr-detail-val" id="qr-mem-branch">—</span></div>
+                                </div>
+                                <div class="qr-checkin-row">
+                                    <button class="qr-btn-checkin" id="qr-btn-checkin" onclick="qrDoCheckIn()"><i class="ti ti-check"></i> Confirm Check-In</button>
+                                    <button class="qr-btn-clear" onclick="qrClearMember()" title="Clear"><i class="ti ti-x"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stats card -->
+                    <div class="qr-card" style="margin-top:1rem">
+                        <div class="qr-card-head">
+                            <div class="qr-card-title"><i class="ti ti-chart-bar" style="color:var(--red);margin-right:.35rem"></i>Today's Check-Ins</div>
+                            <div class="qr-card-sub" id="qr-today-date">—</div>
+                        </div>
+                        <div class="qr-card-body">
+                            <div class="qr-stats-grid">
+                                <div class="qr-stat"><div class="qr-stat-lbl">Total</div><div class="qr-stat-val" id="qr-stat-total">0</div></div>
+                                <div class="qr-stat"><div class="qr-stat-lbl">Active</div><div class="qr-stat-val" style="color:#4caf87" id="qr-stat-active">0</div></div>
+                                <div class="qr-stat"><div class="qr-stat-lbl">Expired</div><div class="qr-stat-val" style="color:#e05656" id="qr-stat-expired">0</div></div>
+                                <div class="qr-stat"><div class="qr-stat-lbl">Denied</div><div class="qr-stat-val" style="color:#d6a100" id="qr-stat-denied">0</div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div><!-- /qr-right -->
+            </div><!-- /qr-body -->
+        </div><!-- /qr-overlay-inner -->
+    </div><!-- /qr-overlay -->
+
+    <style>
+        /* ── FAB ─────────────────────────────────── */
+        #qr-fab {
+            position: fixed;
+            bottom: 1.6rem;
+            right: 1.6rem;
+            z-index: 500;
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            background: var(--red);
+            border: none;
+            color: #fff;
+            font-size: 1.35rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 6px 20px var(--red-glow);
+            cursor: pointer;
+            transition: background .15s, transform .15s, box-shadow .15s;
+        }
+        #qr-fab:hover {
+            background: #a01212;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 28px var(--red-glow);
+        }
+
+        /* ── FULLSCREEN OVERLAY ──────────────────── */
+        #qr-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 600;
+            background: var(--bg);
+            overflow-y: auto;
+        }
+        #qr-overlay.qr-open { display: block; }
+
+        #qr-overlay-inner {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            padding: 1.25rem 1.5rem 2rem;
+        }
+
+        /* header */
+        #qr-overlay-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.25rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+        #qr-overlay-title {
+            font-size: 1rem;
+            font-weight: 700;
+        }
+        .qr-sub-label { font-size: .72rem; color: var(--text-3); margin-top: .1rem; }
+        .qr-status-txt { font-size: .72rem; color: var(--text-3); }
+        .qr-close-btn {
+            background: none;
+            border: 1px solid var(--border2);
+            color: var(--text-2);
+            border-radius: 9px;
+            width: 34px; height: 34px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem; cursor: pointer; transition: all .15s;
+        }
+        .qr-close-btn:hover { background: var(--red-soft); color: var(--text); border-color: rgba(204,26,26,.3); }
+
+        /* two-col body */
+        #qr-body {
+            display: grid;
+            grid-template-columns: 1fr 360px;
+            gap: 1.25rem;
+            align-items: start;
+            flex: 1;
+        }
+
+        /* ── STATUS DOT ──────────────────────────── */
+        .qr-dot {
+            width: 7px; height: 7px; border-radius: 50%; display: inline-block;
+        }
+        .qr-dot-online  { background: #4caf87; box-shadow: 0 0 5px rgba(76,175,135,.5); }
+        .qr-dot-offline { background: #555; }
+
+        /* ── CAMERA ──────────────────────────────── */
+        .qr-cam-wrap {
+            position: relative; width: 100%; aspect-ratio: 4/3;
+            background: #000; border-radius: 10px; overflow: hidden;
+        }
+        #qr-video { width:100%; height:100%; object-fit:cover; display:block; }
+
+        .qr-idle {
+            position: absolute; inset: 0;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: .75rem;
+            background: var(--surface2);
+        }
+        .qr-idle i { font-size: 2.8rem; color: var(--text-3); }
+        .qr-idle p { font-size: .8rem; color: var(--text-2); }
+
+        .qr-scan-overlay {
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            pointer-events: none;
+        }
+        .qr-frame { width: 190px; height: 190px; position: relative; }
+        .qr-frame::before, .qr-frame::after, .qr-cb, .qr-cbr {
+            content:''; position: absolute; width: 28px; height: 28px;
+            border-color: var(--red); border-style: solid;
+        }
+        .qr-frame::before { top:0; left:0;   border-width:3px 0 0 3px; border-radius:4px 0 0 0; }
+        .qr-frame::after  { top:0; right:0;  border-width:3px 3px 0 0; border-radius:0 4px 0 0; }
+        .qr-cb            { bottom:0; left:0;  border-width:0 0 3px 3px; border-radius:0 0 0 4px; }
+        .qr-cbr           { bottom:0; right:0; border-width:0 3px 3px 0; border-radius:0 0 4px 0; }
+        .qr-laser {
+            position: absolute; left: 4px; right: 4px; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--red), transparent);
+            border-radius: 99px; box-shadow: 0 0 8px var(--red);
+            animation: qrLaser 2s ease-in-out infinite;
+        }
+        @keyframes qrLaser {
+            0%   { top: 8px; opacity: 1; }
+            45%  { top: calc(100% - 10px); opacity: 1; }
+            50%  { top: calc(100% - 10px); opacity: 0; }
+            55%  { top: 8px; opacity: 0; }
+            60%  { top: 8px; opacity: 1; }
+            100% { top: 8px; opacity: 1; }
+        }
+        .qr-flash {
+            position: absolute; inset: 0; display: none;
+            background: rgba(76,175,135,.18);
+            border: 2px solid #4caf87; border-radius: 10px;
+            animation: qrFlashIn .35s ease forwards;
+        }
+        @keyframes qrFlashIn { 0%{opacity:0} 30%{opacity:1} 100%{opacity:1} }
+
+        /* ── BUTTONS ─────────────────────────────── */
+        .qr-controls { display: flex; gap: .6rem; margin-top: .9rem; flex-wrap: wrap; }
+        .qr-btn {
+            display: inline-flex; align-items: center; gap: .4rem;
+            padding: .4rem .9rem; border-radius: 99px;
+            font-size: .78rem; font-weight: 600; font-family: inherit;
+            border: 1px solid var(--border2); background: transparent;
+            color: var(--text-2); cursor: pointer; transition: all .15s;
+        }
+        .qr-btn:hover { background: var(--red-soft); border-color: rgba(204,26,26,.3); color: var(--text); }
+        .qr-btn-primary { background: var(--red); border-color: var(--red); color: #fff; }
+        .qr-btn-primary:hover { background: #a01212; border-color: #a01212; }
+        .qr-btn:disabled { opacity: .4; pointer-events: none; }
+
+        /* ── MANUAL ENTRY ────────────────────────── */
+        .qr-manual-wrap {
+            margin-top: 1.1rem; padding-top: 1.1rem;
+            border-top: 1px solid var(--border);
+        }
+        .qr-section-lbl {
+            font-size: .68rem; font-weight: 700; color: var(--text-3);
+            text-transform: uppercase; letter-spacing: .6px; margin-bottom: .5rem;
+        }
+        .qr-manual-row { display: flex; gap: .6rem; }
+        .qr-manual-row input {
+            flex: 1; background: var(--input-bg); border: 1px solid var(--border);
+            color: var(--text); border-radius: 9px; padding: .42rem .85rem;
+            font-size: .82rem; font-family: inherit; outline: none; transition: border-color .2s;
+        }
+        .qr-manual-row input:focus { border-color: rgba(204,26,26,.45); }
+        .qr-manual-row input::placeholder { color: var(--text-3); }
+
+        /* ── LOG TABLE ───────────────────────────── */
+        .qr-log-wrap { margin-top: 1.3rem; }
+        .qr-log-head {
+            display: flex; align-items: center; justify-content: space-between; margin-bottom: .5rem;
+        }
+        .qr-log-title { font-size: .82rem; font-weight: 700; }
+        .qr-tbl-wrap { border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+        .qr-table { width: 100%; border-collapse: collapse; }
+        .qr-table thead th {
+            background: rgba(255,255,255,.03); border-bottom: 1px solid var(--border);
+            color: var(--text-3); font-size: .6rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: .7px;
+            padding: .65rem 1rem; text-align: left; white-space: nowrap;
+        }
+        .qr-table tbody td { padding: .7rem 1rem; border-bottom: 1px solid var(--border); font-size: .82rem; vertical-align: middle; }
+        .qr-table tbody tr:last-child td { border-bottom: none; }
+        .qr-table tbody tr:hover td { background: var(--row-hover); }
+        .qr-empty-log { text-align: center; color: var(--text-3); font-size: .78rem; padding: 2rem 1rem; }
+
+        /* ── MEMBER CARD ─────────────────────────── */
+        .qr-card {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+        }
+        .qr-card-head {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: .9rem 1.1rem; border-bottom: 1px solid var(--border);
+        }
+        .qr-card-title { font-size: .9rem; font-weight: 700; }
+        .qr-card-sub   { font-size: .7rem; color: var(--text-3); margin-top: .1rem; }
+        .qr-card-body  { padding: 1.25rem; }
+
+        .qr-mem-empty {
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; gap: .7rem; padding: 2.5rem 1.5rem; text-align: center;
+        }
+        .qr-icon-ring {
+            width: 58px; height: 58px; border-radius: 50%;
+            background: var(--red-soft);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; color: var(--red);
+        }
+        .qr-mem-empty h3 { font-size: .9rem; font-weight: 700; }
+        .qr-mem-empty p  { font-size: .76rem; color: var(--text-2); }
+
+        .qr-mem-header { display: flex; align-items: center; gap: .85rem; margin-bottom: 1.1rem; }
+        .qr-mem-av {
+            width: 50px; height: 50px; border-radius: 13px;
+            background: linear-gradient(135deg, var(--red), #7a0f0f);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.15rem; font-weight: 800; color: #fff; flex-shrink: 0;
+        }
+        .qr-mem-name { font-size: .98rem; font-weight: 700; line-height: 1.25; }
+        .qr-mem-id   { font-size: .7rem; color: var(--text-3); margin-top: .1rem; }
+
+        .qr-expiry-warn {
+            display: flex; align-items: center; gap: .55rem;
+            background: rgba(204,26,26,.08); border: 1px solid rgba(204,26,26,.2);
+            border-radius: 9px; padding: .6rem .8rem;
+            font-size: .76rem; color: rgba(255,120,120,.85); margin-bottom: .85rem;
+        }
+        .qr-expiry-warn i { font-size: .9rem; color: var(--red); flex-shrink: 0; }
+
+        .qr-detail-list { display: flex; flex-direction: column; gap: .55rem; }
+        .qr-detail-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: .52rem .7rem; background: var(--surface2);
+            border-radius: 9px; border: 1px solid var(--border);
+        }
+        .qr-detail-lbl {
+            font-size: .68rem; font-weight: 700; color: var(--text-3);
+            text-transform: uppercase; letter-spacing: .5px;
+            display: flex; align-items: center; gap: .35rem;
+        }
+        .qr-detail-lbl i { font-size: .82rem; }
+        .qr-detail-val { font-size: .83rem; font-weight: 600; }
+
+        .qr-checkin-row { display: flex; gap: .6rem; margin-top: 1.1rem; }
+        .qr-btn-checkin {
+            flex: 1; padding: .6rem 1rem; border-radius: 10px;
+            font-size: .84rem; font-weight: 700; border: none;
+            background: var(--red); color: #fff; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: .5rem;
+            transition: background .15s; font-family: inherit;
+        }
+        .qr-btn-checkin:hover { background: #a01212; }
+        .qr-btn-checkin:disabled { opacity: .4; pointer-events: none; }
+        .qr-btn-clear {
+            padding: .6rem .9rem; border-radius: 10px; font-size: .82rem;
+            font-weight: 600; font-family: inherit;
+            border: 1px solid var(--border2); background: transparent;
+            color: var(--text-2); cursor: pointer; transition: all .15s;
+        }
+        .qr-btn-clear:hover { background: var(--input-bg); color: var(--text); }
+
+        /* ── STATS ───────────────────────────────── */
+        .qr-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .65rem; }
+        .qr-stat {
+            background: var(--surface2); border: 1px solid var(--border);
+            border-radius: 10px; padding: .85rem 1rem;
+        }
+        .qr-stat-lbl { font-size: .62rem; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .5px; margin-bottom: .3rem; }
+        .qr-stat-val { font-size: 1.9rem; font-weight: 800; line-height: 1; }
+
+        /* ── RESPONSIVE ──────────────────────────── */
+        @media (max-width: 860px) {
+            #qr-body { grid-template-columns: 1fr; }
+        }
+    </style>
+
+    <script>
+    /* ── MOCK DB (replace with real PHP fetch) ── */
+    const qrMockMembers = {
+        'MBR-00001': { id:'MBR-00001', fname:'Maria',  lname:'Santos',   plan:'Annual',   status:'active',  expiry:'2026-01-10', lastVisit:'Jun 4, 2026',  branch:'Makati'  },
+        'MBR-00002': { id:'MBR-00002', fname:'Carlos', lname:'Tan',      plan:'6 Months', status:'active',  expiry:'2026-08-20', lastVisit:'Jun 3, 2026',  branch:'BGC'     },
+        'MBR-00003': { id:'MBR-00003', fname:'Jose',   lname:'Reyes',    plan:'Monthly',  status:'expired', expiry:'2026-05-01', lastVisit:'Apr 30, 2026', branch:'Alabang' },
+        'MBR-00004': { id:'MBR-00004', fname:'Nina',   lname:'Bautista', plan:'3 Months', status:'frozen',  expiry:'2026-09-15', lastVisit:'May 12, 2026', branch:'Makati'  },
+        'MBR-00005': { id:'MBR-00005', fname:'Liza',   lname:'Gomez',    plan:'Annual',   status:'active',  expiry:'2026-06-20', lastVisit:'Jun 4, 2026',  branch:'QC'      },
+    };
+
+    let qrStats = { total:0, active:0, expired:0, denied:0 };
+    let qrLog = [];
+    let qrCurrentMember = null;
+    let qrStream = null;
+    let qrScanning = false;
+    let qrFacingMode = 'environment';
+    let qrRafId = null;
+
+    /* ── OPEN / CLOSE ────────────────────────── */
+    function openQR() {
+        document.getElementById('qr-overlay').classList.add('qr-open');
+        document.body.style.overflow = 'hidden';
+        // sync theme: overlay inherits CSS vars from html[data-theme] automatically
+        document.getElementById('qr-today-date').textContent =
+            new Date().toLocaleDateString('en-PH', { weekday:'short', month:'long', day:'numeric' });
+    }
+    function closeQR() {
+        qrStopCamera();
+        document.getElementById('qr-overlay').classList.remove('qr-open');
+        document.body.style.overflow = '';
+    }
+
+    /* ── CAMERA ──────────────────────────────── */
+    async function qrStartCamera() {
+        try {
+            qrStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: qrFacingMode, width:{ideal:1280}, height:{ideal:960} }
+            });
+            const v = document.getElementById('qr-video');
+            v.srcObject = qrStream;
+            await v.play();
+            document.getElementById('qr-idle').style.display = 'none';
+            document.getElementById('qr-scan-overlay').style.display = 'flex';
+            document.getElementById('qr-btn-start').disabled = true;
+            document.getElementById('qr-btn-stop').disabled  = false;
+            document.getElementById('qr-btn-flip').disabled  = false;
+            document.getElementById('qr-status-dot').className = 'qr-dot qr-dot-online';
+            document.getElementById('qr-status-txt').textContent = 'Live';
+            document.getElementById('qr-overlay-sub').textContent = 'Scanning for QR codes…';
+            qrScanning = true;
+            requestAnimationFrame(qrScanFrame);
+        } catch(e) {
+            toast('error', 'Camera error', e.message || 'Could not access camera.');
+        }
+    }
+
+    function qrStopCamera() {
+        qrScanning = false;
+        if (qrRafId) cancelAnimationFrame(qrRafId);
+        if (qrStream) { qrStream.getTracks().forEach(t => t.stop()); qrStream = null; }
+        const v = document.getElementById('qr-video');
+        if (v) v.srcObject = null;
+        const idle = document.getElementById('qr-idle');
+        const overlay = document.getElementById('qr-scan-overlay');
+        if (idle)    idle.style.display = 'flex';
+        if (overlay) overlay.style.display = 'none';
+        const btnStart = document.getElementById('qr-btn-start');
+        const btnStop  = document.getElementById('qr-btn-stop');
+        const btnFlip  = document.getElementById('qr-btn-flip');
+        if (btnStart) btnStart.disabled = false;
+        if (btnStop)  btnStop.disabled  = true;
+        if (btnFlip)  btnFlip.disabled  = true;
+        const dot = document.getElementById('qr-status-dot');
+        const txt = document.getElementById('qr-status-txt');
+        const sub = document.getElementById('qr-overlay-sub');
+        if (dot) dot.className = 'qr-dot qr-dot-offline';
+        if (txt) txt.textContent = 'Offline';
+        if (sub) sub.textContent = 'Camera inactive — press Start to begin';
+    }
+
+    async function qrFlipCamera() {
+        qrFacingMode = qrFacingMode === 'environment' ? 'user' : 'environment';
+        qrStopCamera(); await qrStartCamera();
+    }
+
+    function qrScanFrame() {
+        if (!qrScanning) return;
+        const v = document.getElementById('qr-video');
+        const c = document.getElementById('qr-canvas');
+        if (v.readyState === v.HAVE_ENOUGH_DATA) {
+            c.width = v.videoWidth; c.height = v.videoHeight;
+            const ctx = c.getContext('2d');
+            ctx.drawImage(v, 0, 0, c.width, c.height);
+            const img = ctx.getImageData(0, 0, c.width, c.height);
+            const code = jsQR(img.data, img.width, img.height, { inversionAttempts:'dontInvert' });
+            if (code) {
+                qrHandleScan(code.data);
+                qrScanning = false;
+                setTimeout(() => { qrScanning = true; requestAnimationFrame(qrScanFrame); }, 2500);
+                return;
+            }
+        }
+        qrRafId = requestAnimationFrame(qrScanFrame);
+    }
+
+    /* ── LOOKUP ──────────────────────────────── */
+    function qrHandleScan(raw) { qrLookup(raw.trim().toUpperCase()); }
+
+    function qrManualLookup() {
+        const val = document.getElementById('qr-manual-input').value.trim().toUpperCase();
+        if (!val) { toast('error', 'Empty input', 'Please enter a Member ID.'); return; }
+        document.getElementById('qr-manual-input').value = '';
+        qrLookup(val);
+    }
+
+    function qrLookup(id) {
+        const flash = document.getElementById('qr-flash');
+        flash.style.display = 'block';
+        setTimeout(() => flash.style.display = 'none', 700);
+
+        const m = qrMockMembers[id] || null;
+        if (!m) {
+            toast('error', 'Not found', `No member with ID "${id}".`);
+            qrAddLog(id, '—', 'not found');
+            qrStats.denied++; qrStats.total++;
+            qrUpdateStats(); return;
+        }
+        qrCurrentMember = m;
+        qrRenderMember(m);
+        const type  = { active:'success', expired:'error', frozen:'info' }[m.status] || 'info';
+        const label = { active:'Member found', expired:'Membership expired', frozen:'Membership frozen' }[m.status];
+        toast(type, label, `${m.fname} ${m.lname} — ${m.plan}`);
+    }
+
+    function qrRenderMember(m) {
+        document.getElementById('qr-mem-empty').style.display = 'none';
+        document.getElementById('qr-mem-data').style.display  = 'block';
+        document.getElementById('qr-mem-initials').textContent = (m.fname[0]+m.lname[0]).toUpperCase();
+        document.getElementById('qr-mem-name').textContent = `${m.fname} ${m.lname}`;
+        document.getElementById('qr-mem-id').textContent   = `ID: ${m.id}`;
+        document.getElementById('qr-mem-plan').textContent   = m.plan;
+        document.getElementById('qr-mem-last').textContent   = m.lastVisit;
+        document.getElementById('qr-mem-branch').textContent = m.branch;
+        document.getElementById('qr-mem-expiry').textContent = qrFmtDate(m.expiry);
+        document.getElementById('qr-mem-status').textContent = qrCap(m.status);
+        const badge = document.getElementById('qr-mem-badge');
+        badge.textContent = qrCap(m.status); badge.className = `badge ${m.status}`;
+
+        const daysLeft = Math.ceil((new Date(m.expiry) - new Date()) / 86400000);
+        const warn = document.getElementById('qr-expiry-warn');
+        if (m.status === 'active' && daysLeft <= 30 && daysLeft >= 0) {
+            warn.style.display = 'flex';
+            document.getElementById('qr-expiry-txt').textContent = `Membership expires in ${daysLeft} day${daysLeft===1?'':'s'}.`;
+        } else if (m.status === 'expired') {
+            warn.style.display = 'flex';
+            document.getElementById('qr-expiry-txt').textContent = `Membership expired on ${qrFmtDate(m.expiry)}.`;
+        } else { warn.style.display = 'none'; }
+
+        document.getElementById('qr-btn-checkin').disabled = m.status !== 'active';
+    }
+
+    function qrClearMember() {
+        qrCurrentMember = null;
+        document.getElementById('qr-mem-empty').style.display = 'flex';
+        document.getElementById('qr-mem-data').style.display  = 'none';
+    }
+
+    function qrDoCheckIn() {
+        if (!qrCurrentMember) return;
+        const m = qrCurrentMember;
+        qrAddLog(m.id, `${m.fname} ${m.lname}`, m.status);
+        qrStats.total++;
+        if (m.status === 'active') qrStats.active++;
+        else if (m.status === 'expired') qrStats.expired++;
+        else qrStats.denied++;
+        qrUpdateStats();
+        toast('success', 'Checked in!', `${m.fname} ${m.lname} successfully checked in.`);
+        qrClearMember();
+    }
+
+    /* ── LOG ─────────────────────────────────── */
+    function qrAddLog(id, name, status) {
+        const time = new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+        qrLog.unshift({ id, name, status, time });
+        qrRenderLog();
+    }
+    function qrRenderLog() {
+        const body = document.getElementById('qr-log-body');
+        if (!qrLog.length) {
+            body.innerHTML = '<tr><td colspan="4" class="qr-empty-log"><i class="ti ti-history" style="display:block;font-size:1.3rem;margin-bottom:.35rem"></i>No scans yet</td></tr>';
+            return;
+        }
+        const map = { active:'active', expired:'expired', frozen:'frozen', 'not found':'cancelled' };
+        body.innerHTML = qrLog.slice(0,10).map(r => `
+            <tr>
+                <td style="font-family:monospace;font-size:.77rem">${r.id}</td>
+                <td style="font-weight:600">${r.name}</td>
+                <td><span class="badge ${map[r.status]||''}">${r.status}</span></td>
+                <td style="color:var(--text-3)">${r.time}</td>
+            </tr>`).join('');
+    }
+    function qrClearLog() { qrLog = []; qrRenderLog(); }
+
+    /* ── STATS ───────────────────────────────── */
+    function qrUpdateStats() {
+        document.getElementById('qr-stat-total').textContent   = qrStats.total;
+        document.getElementById('qr-stat-active').textContent  = qrStats.active;
+        document.getElementById('qr-stat-expired').textContent = qrStats.expired;
+        document.getElementById('qr-stat-denied').textContent  = qrStats.denied;
+    }
+
+    /* ── UTILS ───────────────────────────────── */
+    function qrFmtDate(d) {
+        if (!d) return '—';
+        return new Date(d+'T00:00:00').toLocaleDateString('en-PH', { month:'short', day:'numeric', year:'numeric' });
+    }
+    function qrCap(s) { return s ? s.charAt(0).toUpperCase()+s.slice(1) : s; }
+
+    /* close on Escape key */
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeQR(); });
+    </script>
 </body>
 
 </html>
