@@ -3,39 +3,14 @@ declare(strict_types=1);
 
 function reportDateRange(array $source): array
 {
-    $preset = (string) ($source['range'] ?? 'current_month');
     $today = new DateTimeImmutable('today');
-
-    switch ($preset) {
-        case 'today':
-            $start = $today;
-            $end = $today;
-            break;
-        case 'last_7':
-            $start = $today->modify('-6 days');
-            $end = $today;
-            break;
-        case 'last_30':
-            $start = $today->modify('-29 days');
-            $end = $today;
-            break;
-        case 'custom':
-            $start = DateTimeImmutable::createFromFormat('Y-m-d', (string) ($source['start'] ?? '')) ?: $today->modify('first day of this month');
-            $end = DateTimeImmutable::createFromFormat('Y-m-d', (string) ($source['end'] ?? '')) ?: $today;
-            if ($start > $end) {
-                [$start, $end] = [$end, $start];
-            }
-            break;
-        case 'current_month':
-        default:
-            $preset = 'current_month';
-            $start = $today->modify('first day of this month');
-            $end = $today;
-            break;
+    $start = DateTimeImmutable::createFromFormat('Y-m-d', (string) ($source['start'] ?? '')) ?: $today->modify('first day of this month');
+    $end = DateTimeImmutable::createFromFormat('Y-m-d', (string) ($source['end'] ?? '')) ?: $today;
+    if ($start > $end) {
+        [$start, $end] = [$end, $start];
     }
 
     return [
-        'preset' => $preset,
         'start' => $start->format('Y-m-d'),
         'end' => $end->format('Y-m-d'),
         'start_dt' => $start->format('Y-m-d 00:00:00'),
@@ -43,229 +18,316 @@ function reportDateRange(array $source): array
     ];
 }
 
-function reportFetchAll(PDO $pdo, string $sql, array $params = []): array
+function reportFilters(array $source): array
+{
+    return [
+        'range' => reportDateRange($source),
+        'branch_id' => max(0, (int) ($source['branch_id'] ?? 0)),
+        'plan_id' => max(0, (int) ($source['plan_id'] ?? 0)),
+        'status' => trim((string) ($source['status'] ?? '')),
+        'class_id' => max(0, (int) ($source['class_id'] ?? 0)),
+    ];
+}
+
+function reportRows(PDO $pdo, string $sql, array $params = []): array
 {
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-function reportFetchValue(PDO $pdo, string $sql, array $params = []): mixed
+function reportValue(PDO $pdo, string $sql, array $params = []): mixed
 {
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     return $stmt->fetchColumn();
 }
 
-function memberAnalytics(PDO $pdo, array $range): array
+function reportMoney(float|int|string|null $value): string
 {
-    $active = (int) reportFetchValue($pdo, "SELECT COUNT(*) FROM memberships WHERE status = 'active' AND payment_status = 'paid' AND starts_at <= CURDATE() AND ends_at >= CURDATE()");
-    $expired = (int) reportFetchValue($pdo, "SELECT COUNT(*) FROM memberships WHERE status = 'expired'");
-    $growth = (int) reportFetchValue($pdo, 'SELECT COUNT(*) FROM users WHERE role = "member" AND created_at BETWEEN ? AND ?', [$range['start_dt'], $range['end_dt']]);
-    $inactive = (int) reportFetchValue(
-        $pdo,
-        "SELECT COUNT(*) FROM users u
-         WHERE u.role = 'member' AND u.is_active = 1
-           AND NOT EXISTS (
-             SELECT 1 FROM attendance_logs al
-             WHERE al.user_id = u.id AND al.check_in_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-           )"
-    );
-    $avgAttendance = (float) reportFetchValue(
-        $pdo,
-        'SELECT COALESCE(COUNT(al.id) / NULLIF(COUNT(DISTINCT al.user_id), 0), 0)
-         FROM attendance_logs al
-         WHERE al.check_in_at BETWEEN ? AND ?',
-        [$range['start_dt'], $range['end_dt']]
-    );
+    return '₱' . number_format((float) $value, 2);
+}
 
+function reportPercent(float|int|string|null $value): string
+{
+    return number_format((float) $value, 1) . '%';
+}
+
+function reportPaymentDateSql(string $alias = 'm'): string
+{
+    return "COALESCE(NULLIF({$alias}.updated_at, {$alias}.created_at), {$alias}.created_at)";
+}
+
+function reportMembershipWhere(array $filters, string $alias = 'm'): array
+{
+    $where = [];
+    $params = [];
+    if ($filters['branch_id'] > 0) {
+        $where[] = "{$alias}.branch_id = ?";
+        $params[] = $filters['branch_id'];
+    }
+    if ($filters['plan_id'] > 0) {
+        $where[] = "{$alias}.plan_id = ?";
+        $params[] = $filters['plan_id'];
+    }
+    if ($filters['status'] !== '') {
+        $where[] = "{$alias}.status = ?";
+        $params[] = $filters['status'];
+    }
+
+    return [$where, $params];
+}
+
+function reportAttendanceWhere(array $filters, string $alias = 'al'): array
+{
+    $where = ["{$alias}.check_in_at BETWEEN ? AND ?"];
+    $params = [$filters['range']['start_dt'], $filters['range']['end_dt']];
+    if ($filters['branch_id'] > 0) {
+        $where[] = "{$alias}.branch_id = ?";
+        $params[] = $filters['branch_id'];
+    }
+
+    return [$where, $params];
+}
+
+function reportClassWhere(array $filters, string $scheduleAlias = 'cs', string $classAlias = 'c'): array
+{
+    $where = ["{$scheduleAlias}.scheduled_date BETWEEN ? AND ?"];
+    $params = [$filters['range']['start'], $filters['range']['end']];
+    if ($filters['branch_id'] > 0) {
+        $where[] = "{$scheduleAlias}.branch_id = ?";
+        $params[] = $filters['branch_id'];
+    }
+    if ($filters['class_id'] > 0) {
+        $where[] = "{$classAlias}.id = ?";
+        $params[] = $filters['class_id'];
+    }
+
+    return [$where, $params];
+}
+
+function reportsBuild(PDO $pdo, array $filters): array
+{
     return [
-        'active_members' => $active,
-        'expired_memberships' => $expired,
-        'membership_growth' => $growth,
-        'inactive_members' => $inactive,
-        'active_inactive_ratio' => $inactive > 0 ? round($active / $inactive, 2) : $active,
-        'average_attendance_frequency' => round($avgAttendance, 1),
+        'overview' => reportOverview($pdo),
+        'memberships' => reportMemberships($pdo, $filters),
+        'revenue' => reportRevenue($pdo, $filters),
+        'attendance' => reportAttendance($pdo, $filters),
+        'classes' => reportClasses($pdo, $filters),
     ];
 }
 
-function revenueAnalytics(PDO $pdo, array $range): array
+function reportOverview(PDO $pdo): array
 {
-    // Use created_at/updated_at as the payment timestamp so admin approvals are counted
-    $paidRangeDt = [$range['start_dt'], $range['end_dt']];
-    $monthlyRevenue = (float) reportFetchValue(
-        $pdo,
-        "SELECT COALESCE(SUM(amount_paid), 0) FROM memberships
-         WHERE payment_status = 'paid' AND (
-             updated_at BETWEEN ? AND ? OR created_at BETWEEN ? AND ?
-         )",
-        array_merge($paidRangeDt, $paidRangeDt)
-    );
-    $pendingRevenue = (float) reportFetchValue(
-        $pdo,
-        "SELECT COALESCE(SUM(amount_paid), 0) FROM memberships
-         WHERE payment_status = 'pending' AND created_at BETWEEN ? AND ?",
-        $paidRangeDt
-    );
-    $projected = $monthlyRevenue + $pendingRevenue;
-    $renewalRevenue = (float) reportFetchValue(
-        $pdo,
-        "SELECT COALESCE(SUM(m.amount_paid), 0)
-         FROM memberships m
-         WHERE m.payment_status = 'paid'
-           AND (
-               m.updated_at BETWEEN ? AND ? OR m.created_at BETWEEN ? AND ?
-           )
-           AND EXISTS (
-             SELECT 1 FROM memberships prev
-             WHERE prev.user_id = m.user_id AND prev.id < m.id
-           )",
-        array_merge($paidRangeDt, $paidRangeDt)
-    );
+    $monthStart = (new DateTimeImmutable('first day of this month'))->format('Y-m-d 00:00:00');
+    $yearStart = (new DateTimeImmutable('first day of January'))->format('Y-m-d 00:00:00');
+    $todayEnd = (new DateTimeImmutable('today'))->format('Y-m-d 23:59:59');
+    $paymentDate = reportPaymentDateSql('m');
 
     return [
-        'monthly_revenue' => $monthlyRevenue,
-        'pending_revenue' => $pendingRevenue,
-        'paid_revenue' => $monthlyRevenue,
-        'projected_revenue' => $projected,
-        'renewal_revenue' => $renewalRevenue,
-        'by_plan' => reportFetchAll(
+        'metrics' => [
+            'total_members' => (int) reportValue($pdo, 'SELECT COUNT(*) FROM users WHERE role = "member"'),
+            'active_members' => (int) reportValue($pdo, 'SELECT COUNT(DISTINCT user_id) FROM memberships WHERE status = "active" AND payment_status = "paid" AND starts_at <= CURDATE() AND ends_at >= CURDATE()'),
+            'expired_members' => (int) reportValue($pdo, 'SELECT COUNT(DISTINCT user_id) FROM memberships WHERE status = "expired" OR ends_at < CURDATE()'),
+            'pending_renewals' => (int) reportValue($pdo, 'SELECT COUNT(*) FROM memberships WHERE status = "pending" OR payment_status = "pending"'),
+            'revenue_month' => (float) reportValue($pdo, "SELECT COALESCE(SUM(amount_paid), 0) FROM memberships m WHERE payment_status = 'paid' AND {$paymentDate} BETWEEN ? AND ?", [$monthStart, $todayEnd]),
+            'revenue_year' => (float) reportValue($pdo, "SELECT COALESCE(SUM(amount_paid), 0) FROM memberships m WHERE payment_status = 'paid' AND {$paymentDate} BETWEEN ? AND ?", [$yearStart, $todayEnd]),
+            'attendance_month' => (int) reportValue($pdo, 'SELECT COUNT(*) FROM attendance_logs WHERE check_in_at BETWEEN ? AND ?', [$monthStart, $todayEnd]),
+            'upcoming_classes' => (int) reportValue($pdo, 'SELECT COUNT(*) FROM class_schedules WHERE status = "scheduled" AND TIMESTAMP(scheduled_date, start_time) >= NOW()'),
+        ],
+        'membership_status' => reportRows(
             $pdo,
-            "SELECT p.label, COALESCE(SUM(m.amount_paid), 0) AS revenue, COUNT(*) AS count
-             FROM memberships m
-             INNER JOIN membership_plans p ON p.id = m.plan_id
-             WHERE m.payment_status = 'paid' AND (
-                 m.updated_at BETWEEN ? AND ? OR m.created_at BETWEEN ? AND ?
-             )
-             GROUP BY p.id, p.label
-             ORDER BY revenue DESC",
-            array_merge($paidRangeDt, $paidRangeDt)
-        ),
-        'by_payment_method' => reportFetchAll(
-            $pdo,
-            "SELECT payment_method, COALESCE(SUM(amount_paid), 0) AS revenue, COUNT(*) AS count
+            'SELECT status, COUNT(*) AS total
              FROM memberships
-             WHERE payment_status = 'paid' AND (
-                 updated_at BETWEEN ? AND ? OR created_at BETWEEN ? AND ?
-             )
-             GROUP BY payment_method
-             ORDER BY revenue DESC",
-            array_merge($paidRangeDt, $paidRangeDt)
+             GROUP BY status
+             ORDER BY total DESC, status ASC'
+        ),
+        'revenue_trend' => reportRows(
+            $pdo,
+            "SELECT DATE_FORMAT({$paymentDate}, '%Y-%m') AS month_key, COALESCE(SUM(m.amount_paid), 0) AS revenue
+             FROM memberships m
+             WHERE m.payment_status = 'paid' AND {$paymentDate} >= DATE_SUB(CURDATE(), INTERVAL 11 MONTH)
+             GROUP BY DATE_FORMAT({$paymentDate}, '%Y-%m')
+             ORDER BY month_key ASC"
+        ),
+        'attendance_summary' => reportRows(
+            $pdo,
+            'SELECT DATE(check_in_at) AS attendance_date, COUNT(*) AS visits, COUNT(DISTINCT user_id) AS visitors
+             FROM attendance_logs
+             WHERE check_in_at >= DATE_SUB(CURDATE(), INTERVAL 13 DAY)
+             GROUP BY DATE(check_in_at)
+             ORDER BY attendance_date ASC'
         ),
     ];
 }
 
-function attendanceAnalytics(PDO $pdo, array $range): array
+function reportMemberships(PDO $pdo, array $filters): array
 {
-    $params = [$range['start_dt'], $range['end_dt']];
-    $currentCount = (int) reportFetchValue($pdo, 'SELECT COUNT(*) FROM attendance_logs WHERE check_in_at BETWEEN ? AND ?', $params);
-    $start = new DateTimeImmutable($range['start']);
-    $end = new DateTimeImmutable($range['end']);
-    $days = max(1, $start->diff($end)->days + 1);
-    $previousStart = $start->modify("-{$days} days")->format('Y-m-d 00:00:00');
-    $previousEnd = $start->modify('-1 day')->format('Y-m-d 23:59:59');
-    $previousCount = (int) reportFetchValue($pdo, 'SELECT COUNT(*) FROM attendance_logs WHERE check_in_at BETWEEN ? AND ?', [$previousStart, $previousEnd]);
-    $growth = $previousCount > 0 ? round((($currentCount - $previousCount) / $previousCount) * 100, 1) : ($currentCount > 0 ? 100.0 : 0.0);
+    [$filterWhere, $filterParams] = reportMembershipWhere($filters, 'm');
+    $createdWhere = array_merge(['u.created_at BETWEEN ? AND ?'], $filterWhere);
+    $createdParams = array_merge([$filters['range']['start_dt'], $filters['range']['end_dt']], $filterParams);
+    $whereSql = $filterWhere ? ' AND ' . implode(' AND ', $filterWhere) : '';
 
     return [
-        'attendance_count' => $currentCount,
-        'attendance_growth' => $growth,
-        'busiest_days' => reportFetchAll(
+        'metrics' => [
+            'active' => (int) reportValue($pdo, 'SELECT COUNT(*) FROM memberships m WHERE m.status = "active" AND m.payment_status = "paid"' . $whereSql, $filterParams),
+            'expired' => (int) reportValue($pdo, 'SELECT COUNT(*) FROM memberships m WHERE (m.status = "expired" OR m.ends_at < CURDATE())' . $whereSql, $filterParams),
+            'frozen' => (int) reportValue($pdo, 'SELECT COUNT(*) FROM memberships m WHERE m.status = "frozen"' . $whereSql, $filterParams),
+            'cancelled' => (int) reportValue($pdo, 'SELECT COUNT(*) FROM memberships m WHERE m.status = "cancelled"' . $whereSql, $filterParams),
+            'new_this_period' => (int) reportValue($pdo, 'SELECT COUNT(DISTINCT u.id) FROM users u LEFT JOIN memberships m ON m.user_id = u.id WHERE u.role = "member" AND ' . implode(' AND ', $createdWhere), $createdParams),
+            'expiring_soon' => (int) reportValue($pdo, 'SELECT COUNT(*) FROM memberships m WHERE m.status = "active" AND m.payment_status = "paid" AND m.ends_at BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 14 DAY)' . $whereSql, $filterParams),
+        ],
+        'recent_members' => reportRows(
             $pdo,
-            'SELECT DATE(check_in_at) AS attendance_date, COUNT(*) AS visits
-             FROM attendance_logs
-             WHERE check_in_at BETWEEN ? AND ?
-             GROUP BY DATE(check_in_at)
-             ORDER BY visits DESC, attendance_date DESC
-             LIMIT 7',
-            $params
+            'SELECT u.first_name, u.last_name, u.email, u.created_at, p.label AS plan, b.name AS branch, m.status
+             FROM users u
+             LEFT JOIN memberships m ON m.id = (
+                SELECT m2.id FROM memberships m2 WHERE m2.user_id = u.id ORDER BY m2.created_at DESC, m2.id DESC LIMIT 1
+             )
+             LEFT JOIN membership_plans p ON p.id = m.plan_id
+             LEFT JOIN branches b ON b.id = m.branch_id
+             WHERE u.role = "member" AND u.created_at BETWEEN ? AND ?
+             ORDER BY u.created_at DESC
+             LIMIT 10',
+            [$filters['range']['start_dt'], $filters['range']['end_dt']]
         ),
-        'weekly_trends' => reportFetchAll(
+        'expiring_soon' => reportRows(
             $pdo,
-            'SELECT YEARWEEK(check_in_at, 1) AS week_key, MIN(DATE(check_in_at)) AS week_start, COUNT(*) AS visits
-             FROM attendance_logs
-             WHERE check_in_at BETWEEN ? AND ?
-             GROUP BY YEARWEEK(check_in_at, 1)
-             ORDER BY week_start ASC',
-            $params
-        ),
-        'monthly_trends' => reportFetchAll(
-            $pdo,
-            'SELECT DATE_FORMAT(check_in_at, "%Y-%m") AS month_key, COUNT(*) AS visits
-             FROM attendance_logs
-             WHERE check_in_at BETWEEN ? AND ?
-             GROUP BY DATE_FORMAT(check_in_at, "%Y-%m")
-             ORDER BY month_key ASC',
-            $params
-        ),
-        'most_active_members' => reportFetchAll(
-            $pdo,
-            'SELECT u.first_name AS fname, u.last_name AS lname, u.email, COUNT(al.id) AS visits
-             FROM attendance_logs al
-             INNER JOIN users u ON u.id = al.user_id
-             WHERE al.check_in_at BETWEEN ? AND ?
-             GROUP BY u.id, u.first_name, u.last_name, u.email
-             ORDER BY visits DESC
-             LIMIT 8',
-            $params
-        ),
-        'branch_comparison' => reportFetchAll(
-            $pdo,
-            'SELECT b.name, b.city, COUNT(al.id) AS visits
-             FROM branches b
-             LEFT JOIN attendance_logs al ON al.branch_id = b.id AND al.check_in_at BETWEEN ? AND ?
-             WHERE b.is_active = 1
-             GROUP BY b.id, b.name, b.city
-             ORDER BY visits DESC, b.name ASC',
-            $params
-        ),
-        'heatmap' => reportFetchAll(
-            $pdo,
-            'SELECT DATE(check_in_at) AS attendance_date, HOUR(check_in_at) AS hour_key, COUNT(*) AS visits
-             FROM attendance_logs
-             WHERE check_in_at BETWEEN ? AND ?
-             GROUP BY DATE(check_in_at), HOUR(check_in_at)
-             ORDER BY attendance_date ASC, hour_key ASC',
-            $params
-        ),
-    ];
-}
-
-function reportExportRows(PDO $pdo, string $type, array $range): array
-{
-    return match ($type) {
-        'attendance' => reportFetchAll(
-            $pdo,
-            'SELECT al.check_in_at, u.first_name, u.last_name, u.email, b.name AS branch, al.notes
-             FROM attendance_logs al
-             INNER JOIN users u ON u.id = al.user_id
-             INNER JOIN branches b ON b.id = al.branch_id
-             WHERE al.check_in_at BETWEEN ? AND ?
-             ORDER BY al.check_in_at DESC',
-            [$range['start_dt'], $range['end_dt']]
-        ),
-        'memberships' => reportFetchAll(
-            $pdo,
-            'SELECT u.first_name, u.last_name, u.email, p.label AS plan, b.name AS branch,
-                    m.starts_at, m.ends_at, m.amount_paid, m.payment_method, m.payment_status, m.status
+            'SELECT u.first_name, u.last_name, u.email, p.label AS plan, b.name AS branch, m.ends_at
              FROM memberships m
              INNER JOIN users u ON u.id = m.user_id
              INNER JOIN membership_plans p ON p.id = m.plan_id
              INNER JOIN branches b ON b.id = m.branch_id
-             WHERE m.starts_at BETWEEN ? AND ?
-             ORDER BY m.starts_at DESC',
-            [$range['start'], $range['end']]
+             WHERE m.status = "active" AND m.payment_status = "paid"
+               AND m.ends_at BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 14 DAY)' . $whereSql . '
+             ORDER BY m.ends_at ASC
+             LIMIT 10',
+            $filterParams
         ),
-        'revenue' => reportFetchAll(
+        'recent_renewals' => reportRows(
             $pdo,
-            'SELECT p.label AS plan, m.payment_method, m.payment_status, SUM(m.amount_paid) AS amount, COUNT(*) AS payments
+            'SELECT u.first_name, u.last_name, u.email, p.label AS plan, b.name AS branch, m.amount_paid, m.payment_status, m.status, m.created_at
              FROM memberships m
+             INNER JOIN users u ON u.id = m.user_id
              INNER JOIN membership_plans p ON p.id = m.plan_id
-             WHERE m.starts_at BETWEEN ? AND ?
-             GROUP BY p.label, m.payment_method, m.payment_status
-             ORDER BY amount DESC',
-            [$range['start'], $range['end']]
+             INNER JOIN branches b ON b.id = m.branch_id
+             WHERE m.created_at BETWEEN ? AND ?' . $whereSql . '
+             ORDER BY m.created_at DESC
+             LIMIT 10',
+            array_merge([$filters['range']['start_dt'], $filters['range']['end_dt']], $filterParams)
         ),
+    ];
+}
+
+function reportRevenue(PDO $pdo, array $filters): array
+{
+    [$filterWhere, $filterParams] = reportMembershipWhere($filters, 'm');
+    $paymentDate = reportPaymentDateSql('m');
+    $rangeWhere = ["m.payment_status = 'paid'", "{$paymentDate} BETWEEN ? AND ?"];
+    $rangeParams = [$filters['range']['start_dt'], $filters['range']['end_dt']];
+    $where = array_merge($rangeWhere, $filterWhere);
+    $params = array_merge($rangeParams, $filterParams);
+
+    $base = ' FROM memberships m INNER JOIN membership_plans p ON p.id = m.plan_id INNER JOIN branches b ON b.id = m.branch_id WHERE ' . implode(' AND ', $where);
+    $memberBase = ' FROM memberships m INNER JOIN users u ON u.id = m.user_id INNER JOIN membership_plans p ON p.id = m.plan_id INNER JOIN branches b ON b.id = m.branch_id WHERE ' . implode(' AND ', $where);
+
+    return [
+        'metrics' => [
+            'today' => (float) reportValue($pdo, "SELECT COALESCE(SUM(amount_paid), 0) FROM memberships m WHERE payment_status = 'paid' AND {$paymentDate} BETWEEN CURDATE() AND CONCAT(CURDATE(), ' 23:59:59')"),
+            'week' => (float) reportValue($pdo, "SELECT COALESCE(SUM(amount_paid), 0) FROM memberships m WHERE payment_status = 'paid' AND {$paymentDate} >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)"),
+            'month' => (float) reportValue($pdo, "SELECT COALESCE(SUM(amount_paid), 0) FROM memberships m WHERE payment_status = 'paid' AND {$paymentDate} >= DATE_FORMAT(CURDATE(), '%Y-%m-01')"),
+            'year' => (float) reportValue($pdo, "SELECT COALESCE(SUM(amount_paid), 0) FROM memberships m WHERE payment_status = 'paid' AND {$paymentDate} >= MAKEDATE(YEAR(CURDATE()), 1)"),
+        ],
+        'by_plan' => reportRows($pdo, "SELECT p.label, COALESCE(SUM(m.amount_paid), 0) AS revenue, COUNT(*) AS payments {$base} GROUP BY p.id, p.label ORDER BY revenue DESC", $params),
+        'by_branch' => reportRows($pdo, "SELECT b.name, b.city, COALESCE(SUM(m.amount_paid), 0) AS revenue, COUNT(*) AS payments {$base} GROUP BY b.id, b.name, b.city ORDER BY revenue DESC", $params),
+        'by_month' => reportRows($pdo, "SELECT DATE_FORMAT({$paymentDate}, '%Y-%m') AS month_key, COALESCE(SUM(m.amount_paid), 0) AS revenue, COUNT(*) AS payments {$base} GROUP BY DATE_FORMAT({$paymentDate}, '%Y-%m') ORDER BY month_key ASC", $params),
+        'recent_payments' => reportRows($pdo, "SELECT CONCAT(u.first_name, ' ', u.last_name) AS member_name, u.email, p.label AS plan, b.name AS branch, m.amount_paid, m.payment_method, {$paymentDate} AS paid_at {$memberBase} ORDER BY paid_at DESC LIMIT 12", $params),
+        'recent_renewals' => reportRows($pdo, "SELECT CONCAT(u.first_name, ' ', u.last_name) AS member_name, p.label AS plan, b.name AS branch, m.amount_paid, {$paymentDate} AS paid_at {$memberBase} AND EXISTS (SELECT 1 FROM memberships prev WHERE prev.user_id = m.user_id AND prev.id < m.id) ORDER BY paid_at DESC LIMIT 12", $params),
+        'summary' => reportRows($pdo, "SELECT p.label AS plan, b.name AS branch, COUNT(*) AS payments, COALESCE(SUM(m.amount_paid), 0) AS revenue {$base} GROUP BY p.id, p.label, b.id, b.name ORDER BY revenue DESC LIMIT 12", $params),
+    ];
+}
+
+function reportAttendance(PDO $pdo, array $filters): array
+{
+    [$where, $params] = reportAttendanceWhere($filters, 'al');
+    $whereSql = implode(' AND ', $where);
+    $days = max(1, (new DateTimeImmutable($filters['range']['start']))->diff(new DateTimeImmutable($filters['range']['end']))->days + 1);
+
+    return [
+        'metrics' => [
+            'total_checkins' => (int) reportValue($pdo, "SELECT COUNT(*) FROM attendance_logs al WHERE {$whereSql}", $params),
+            'unique_visitors' => (int) reportValue($pdo, "SELECT COUNT(DISTINCT al.user_id) FROM attendance_logs al WHERE {$whereSql}", $params),
+            'average_daily' => round(((int) reportValue($pdo, "SELECT COUNT(*) FROM attendance_logs al WHERE {$whereSql}", $params)) / $days, 1),
+            'peak_day' => reportRows($pdo, "SELECT DATE(al.check_in_at) AS day_key, COUNT(*) AS visits FROM attendance_logs al WHERE {$whereSql} GROUP BY DATE(al.check_in_at) ORDER BY visits DESC, day_key DESC LIMIT 1", $params)[0] ?? null,
+            'peak_hour' => reportRows($pdo, "SELECT HOUR(al.check_in_at) AS hour_key, COUNT(*) AS visits FROM attendance_logs al WHERE {$whereSql} GROUP BY HOUR(al.check_in_at) ORDER BY visits DESC, hour_key ASC LIMIT 1", $params)[0] ?? null,
+        ],
+        'most_active_members' => reportRows($pdo, "SELECT CONCAT(u.first_name, ' ', u.last_name) AS member_name, u.email, COUNT(al.id) AS visits, MAX(al.check_in_at) AS last_visit FROM attendance_logs al INNER JOIN users u ON u.id = al.user_id WHERE {$whereSql} GROUP BY u.id, u.first_name, u.last_name, u.email ORDER BY visits DESC LIMIT 10", $params),
+        'by_branch' => reportRows($pdo, "SELECT b.name, b.city, COUNT(al.id) AS visits, COUNT(DISTINCT al.user_id) AS visitors FROM branches b LEFT JOIN attendance_logs al ON al.branch_id = b.id AND al.check_in_at BETWEEN ? AND ?" . ($filters['branch_id'] > 0 ? ' AND al.branch_id = ?' : '') . " WHERE b.is_active = 1 GROUP BY b.id, b.name, b.city ORDER BY visits DESC, b.name ASC", $filters['branch_id'] > 0 ? [$filters['range']['start_dt'], $filters['range']['end_dt'], $filters['branch_id']] : [$filters['range']['start_dt'], $filters['range']['end_dt']]),
+        'by_date' => reportRows($pdo, "SELECT DATE(al.check_in_at) AS attendance_date, COUNT(*) AS visits, COUNT(DISTINCT al.user_id) AS visitors FROM attendance_logs al WHERE {$whereSql} GROUP BY DATE(al.check_in_at) ORDER BY attendance_date DESC LIMIT 14", $params),
+        'trend' => reportRows($pdo, "SELECT DATE(al.check_in_at) AS attendance_date, COUNT(*) AS visits FROM attendance_logs al WHERE {$whereSql} GROUP BY DATE(al.check_in_at) ORDER BY attendance_date ASC", $params),
+        'by_day_of_week' => reportRows($pdo, "SELECT DAYNAME(al.check_in_at) AS day_name, WEEKDAY(al.check_in_at) AS day_order, COUNT(*) AS visits FROM attendance_logs al WHERE {$whereSql} GROUP BY DAYNAME(al.check_in_at), WEEKDAY(al.check_in_at) ORDER BY day_order ASC", $params),
+    ];
+}
+
+function reportClasses(PDO $pdo, array $filters): array
+{
+    [$where, $params] = reportClassWhere($filters, 'cs', 'c');
+    $whereSql = implode(' AND ', $where);
+    $base = " FROM class_schedules cs INNER JOIN classes c ON c.id = cs.class_id INNER JOIN branches b ON b.id = cs.branch_id LEFT JOIN class_bookings cb ON cb.class_schedule_id = cs.id WHERE {$whereSql}";
+
+    return [
+        'metrics' => [
+            'total_bookings' => (int) reportValue($pdo, "SELECT COUNT(cb.id) {$base}", $params),
+            'total_attendance' => (int) reportValue($pdo, "SELECT COUNT(CASE WHEN cb.booking_status = 'attended' THEN 1 END) {$base}", $params),
+            'average_attendance' => (float) reportValue($pdo, "SELECT COALESCE(COUNT(CASE WHEN cb.booking_status = 'attended' THEN 1 END) / NULLIF(COUNT(DISTINCT cs.id), 0), 0) {$base}", $params),
+            'completion_rate' => (float) reportValue($pdo, "SELECT COALESCE(SUM(cs.status = 'completed') / NULLIF(COUNT(DISTINCT cs.id), 0) * 100, 0) FROM class_schedules cs INNER JOIN classes c ON c.id = cs.class_id WHERE {$whereSql}", $params),
+        ],
+        'popular_classes' => reportRows($pdo, "SELECT c.title, b.name AS branch, COUNT(cb.id) AS bookings, COUNT(CASE WHEN cb.booking_status = 'attended' THEN 1 END) AS attendance, MAX(c.capacity) AS capacity, COALESCE(COUNT(cb.id) / NULLIF(SUM(COALESCE(c.capacity, 0)), 0) * 100, 0) AS utilization {$base} GROUP BY c.id, c.title, b.id, b.name ORDER BY bookings DESC, attendance DESC LIMIT 10", $params),
+        'upcoming_classes' => reportRows($pdo, 'SELECT c.title, b.name AS branch, cs.scheduled_date, cs.start_time, c.capacity, COUNT(cb.id) AS bookings FROM class_schedules cs INNER JOIN classes c ON c.id = cs.class_id INNER JOIN branches b ON b.id = cs.branch_id LEFT JOIN class_bookings cb ON cb.class_schedule_id = cs.id AND cb.booking_status IN ("booked","attended") WHERE cs.status = "scheduled" AND TIMESTAMP(cs.scheduled_date, cs.start_time) >= NOW() GROUP BY cs.id, c.title, b.name, cs.scheduled_date, cs.start_time, c.capacity ORDER BY cs.scheduled_date ASC, cs.start_time ASC LIMIT 10'),
+        'ranking' => reportRows($pdo, "SELECT c.title, b.name AS branch, COUNT(cb.id) AS bookings, COUNT(CASE WHEN cb.booking_status = 'attended' THEN 1 END) AS attendance, MAX(c.capacity) AS capacity, COALESCE(COUNT(cb.id) / NULLIF(SUM(COALESCE(c.capacity, 0)), 0) * 100, 0) AS utilization {$base} GROUP BY c.id, c.title, b.id, b.name ORDER BY utilization DESC, bookings DESC LIMIT 12", $params),
+        'bookings_per_class' => reportRows($pdo, "SELECT c.title, COUNT(cb.id) AS bookings {$base} GROUP BY c.id, c.title ORDER BY bookings DESC LIMIT 10", $params),
+        'attendance_per_class' => reportRows($pdo, "SELECT c.title, COUNT(CASE WHEN cb.booking_status = 'attended' THEN 1 END) AS attendance {$base} GROUP BY c.id, c.title ORDER BY attendance DESC LIMIT 10", $params),
+    ];
+}
+
+function reportExportRows(PDO $pdo, string $type, array $filters): array
+{
+    return match ($type) {
+        'memberships' => reportMembershipExport($pdo, $filters),
+        'revenue' => reportRevenueExport($pdo, $filters),
+        'attendance' => reportAttendanceExport($pdo, $filters),
+        'classes' => reportClassesExport($pdo, $filters),
         default => [],
     };
+}
+
+function reportMembershipExport(PDO $pdo, array $filters): array
+{
+    [$where, $params] = reportMembershipWhere($filters, 'm');
+    $where[] = 'm.created_at BETWEEN ? AND ?';
+    $params[] = $filters['range']['start_dt'];
+    $params[] = $filters['range']['end_dt'];
+    return reportRows($pdo, 'SELECT u.first_name, u.last_name, u.email, p.label AS plan, b.name AS branch, m.starts_at, m.ends_at, m.amount_paid, m.payment_method, m.payment_status, m.status, m.created_at FROM memberships m INNER JOIN users u ON u.id = m.user_id INNER JOIN membership_plans p ON p.id = m.plan_id INNER JOIN branches b ON b.id = m.branch_id WHERE ' . implode(' AND ', $where) . ' ORDER BY m.created_at DESC', $params);
+}
+
+function reportRevenueExport(PDO $pdo, array $filters): array
+{
+    [$where, $params] = reportMembershipWhere($filters, 'm');
+    $paymentDate = reportPaymentDateSql('m');
+    array_unshift($where, "m.payment_status = 'paid'", "{$paymentDate} BETWEEN ? AND ?");
+    array_unshift($params, $filters['range']['end_dt']);
+    array_unshift($params, $filters['range']['start_dt']);
+    return reportRows($pdo, "SELECT CONCAT(u.first_name, ' ', u.last_name) AS member, u.email, p.label AS plan, b.name AS branch, m.amount_paid, m.payment_method, {$paymentDate} AS paid_at, m.payment_ref FROM memberships m INNER JOIN users u ON u.id = m.user_id INNER JOIN membership_plans p ON p.id = m.plan_id INNER JOIN branches b ON b.id = m.branch_id WHERE " . implode(' AND ', $where) . ' ORDER BY paid_at DESC', $params);
+}
+
+function reportAttendanceExport(PDO $pdo, array $filters): array
+{
+    [$where, $params] = reportAttendanceWhere($filters, 'al');
+    return reportRows($pdo, 'SELECT al.check_in_at, u.first_name, u.last_name, u.email, b.name AS branch, al.notes FROM attendance_logs al INNER JOIN users u ON u.id = al.user_id INNER JOIN branches b ON b.id = al.branch_id WHERE ' . implode(' AND ', $where) . ' ORDER BY al.check_in_at DESC', $params);
+}
+
+function reportClassesExport(PDO $pdo, array $filters): array
+{
+    [$where, $params] = reportClassWhere($filters, 'cs', 'c');
+    return reportRows($pdo, 'SELECT c.title, b.name AS branch, cs.scheduled_date, cs.start_time, cs.end_time, cs.status, c.capacity, COUNT(cb.id) AS bookings, COUNT(CASE WHEN cb.booking_status = "attended" THEN 1 END) AS attendance, COALESCE(COUNT(cb.id) / NULLIF(c.capacity, 0) * 100, 0) AS utilization_rate FROM class_schedules cs INNER JOIN classes c ON c.id = cs.class_id INNER JOIN branches b ON b.id = cs.branch_id LEFT JOIN class_bookings cb ON cb.class_schedule_id = cs.id WHERE ' . implode(' AND ', $where) . ' GROUP BY cs.id, c.title, b.name, cs.scheduled_date, cs.start_time, cs.end_time, cs.status, c.capacity ORDER BY cs.scheduled_date DESC, cs.start_time DESC', $params);
 }
