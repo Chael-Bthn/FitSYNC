@@ -6,6 +6,7 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 }
 
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/qr_helpers.php';
 require_once __DIR__ . '/../includes/membership_helpers.php';
 require_once __DIR__ . '/../includes/schedule_helpers.php';
 
@@ -138,6 +139,9 @@ function createMember(array $data): void
         ]);
 
         $pdo->commit();
+
+        // Generate QR Code
+        generateUserQrCode($userId);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) {
             $pdo->rollBack();

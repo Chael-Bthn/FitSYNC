@@ -50,7 +50,6 @@ match ($action) {
     'update_profile'  => actionUpdateProfile($data, $userId),
     'change_password' => actionChangePassword($data, $userId),
     'submit_feedback' => actionSubmitFeedback($data, $userId),
-    'log_attendance'  => actionLogAttendance($data, $userId),
     'renew_membership'=> actionRenewMembership($data, $userId),
     'book_class'      => actionBookClass($data, $userId),
     'cancel_booking'  => actionCancelBooking($data, $userId),
@@ -206,79 +205,7 @@ function actionSubmitFeedback(array $data, int $userId): void
     respond(true, 'Thank you! Your review has been submitted.', ['card' => $card]);
 }
 
-// ─────────────────────────────────────────────────────────
-//  HELPER
-// ─────────────────────────────────────────────────────────
-function actionLogAttendance(array $data, int $userId): void
-{
-    if (($_SESSION['user_role'] ?? '') !== 'member') {
-        http_response_code(403);
-        respond(false, 'Only members can log attendance.');
-    }
-
-    $notes = trim((string) ($data['notes'] ?? ''));
-    if (strlen($notes) > 500) {
-        respond(false, 'Notes must be 500 characters or fewer.');
-    }
-
-    $pdo = db();
-    $membership = fitsyncActiveMembership($pdo, $userId);
-    if (!$membership) {
-        respond(false, 'An active membership is required before checking in.');
-    }
-
-    try {
-        $pdo->beginTransaction();
-
-        $lock = $pdo->prepare('SELECT id FROM users WHERE id = ? FOR UPDATE');
-        $lock->execute([$userId]);
-
-        $exists = $pdo->prepare(
-            'SELECT id FROM attendance_logs
-             WHERE user_id = ? AND DATE(check_in_at) = CURDATE()
-             LIMIT 1'
-        );
-        $exists->execute([$userId]);
-        if ($exists->fetch()) {
-            $pdo->rollBack();
-            $dates = fitsyncAttendanceDates($pdo, $userId);
-            respond(false, 'Your visit is already logged for today.', [
-                'already_logged' => true,
-                'attendance_dates' => $dates,
-                'attendance_total' => fitsyncAttendanceTotal($pdo, $userId),
-                'current_streak' => fitsyncCurrentStreak($dates),
-            ]);
-        }
-
-        $stmt = $pdo->prepare(
-            'INSERT INTO attendance_logs (user_id, branch_id, check_in_at, notes)
-             VALUES (?, ?, NOW(), ?)'
-        );
-        $stmt->execute([
-            $userId,
-            (int) $membership['branch_id'],
-            $notes !== '' ? $notes : null,
-        ]);
-
-        $pdo->commit();
-    } catch (Throwable $e) {
-        if ($pdo->inTransaction()) {
-            $pdo->rollBack();
-        }
-        error_log('[FitSync Attendance] Check-in failed: ' . $e->getMessage());
-        http_response_code(500);
-        respond(false, 'Unable to log attendance right now. Please try again.');
-    }
-
-    $dates = fitsyncAttendanceDates($pdo, $userId);
-    respond(true, 'Check-in logged successfully.', [
-        'attendance_dates' => $dates,
-        'attendance_total' => fitsyncAttendanceTotal($pdo, $userId),
-        'current_streak' => fitsyncCurrentStreak($dates),
-        'checked_in_at' => date('Y-m-d H:i:s'),
-        'branch_name' => $membership['branch_name'],
-    ]);
-}
+// Attendance logging action removed
 
 function actionRenewMembership(array $data, int $userId): void
 {

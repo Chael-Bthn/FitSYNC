@@ -2248,7 +2248,14 @@ $workoutPrograms = [
                 <?php if (!$isPending): ?>
                     <div class="hero-qr-section" id="heroQrSection">
                         <div class="hero-qr-box" id="heroQrBox" onclick="openQrModal()" title="Tap to enlarge">
-                            <div id="heroQrCode"></div>
+                            <?php 
+                            $qrFile = 'qrcodes/member' . $userId . '.png';
+                            if (file_exists(__DIR__ . '/' . $qrFile)):
+                            ?>
+                                <img src="<?= $qrFile ?>" alt="QR Code" />
+                            <?php else: ?>
+                                <div id="heroQrCode"></div>
+                            <?php endif; ?>
                         </div>
                         <div class="hero-qr-label"><i class="ti ti-qrcode" aria-hidden="true"></i> Check-in QR</div>
                         <button class="hero-scan-btn" onclick="openScannerModal()">
@@ -2753,7 +2760,13 @@ $workoutPrograms = [
                         </p>
                         <div style="display:flex;justify-content:center;margin-bottom:1.25rem">
                             <div class="qr-modal-wrap">
-                                <div id="qrModalCode"></div>
+                                <?php 
+                                if (file_exists(__DIR__ . '/' . $qrFile)):
+                                ?>
+                                    <img src="<?= $qrFile ?>" alt="QR Code" />
+                                <?php else: ?>
+                                    <div id="qrModalCode"></div>
+                                <?php endif; ?>
                             </div>
                         </div>
                         <div style="font-weight:800;font-size:1rem;color:var(--text-primary)"><?= $fullName ?></div>
@@ -3239,7 +3252,6 @@ $workoutPrograms = [
 
             document.getElementById('calGrid').innerHTML = html;
             updateStreakDisplays();
-            updateLogBtn();
         }
 
         function calNav(dir) {
@@ -3255,40 +3267,7 @@ $workoutPrograms = [
             renderCalendar();
         }
 
-        async function logTodayGym() {
-            if (!HAS_ACTIVE_MEMBERSHIP) {
-                alert('An active membership is required before checking in.');
-                return;
-            }
-
-            try {
-                const data = await apiPost({
-                    action: 'log_attendance'
-                });
-                if (data.attendance_dates) attendanceDates = data.attendance_dates;
-                if (typeof data.attendance_total !== 'undefined') attendanceTotal = Number(data.attendance_total);
-                if (typeof data.current_streak !== 'undefined') currentStreak = Number(data.current_streak);
-
-                updateLogBtn();
-                showTab('dashboard', null);
-                setTimeout(renderCalendar, 50);
-
-                if (!data.success && !data.already_logged) {
-                    alert(data.message || 'Unable to log attendance.');
-                }
-            } catch {
-                alert('Connection error. Please try again.');
-            }
-        }
-
-        function updateLogBtn() {
-            const t = todayStr();
-            const attended = loadAttendance();
-            const label = attended.includes(t) ? "Today's Visit Logged" : "Log Today's Visit";
-            document.querySelectorAll('.log-btn-text').forEach(logBtn => {
-                logBtn.textContent = label;
-            });
-        }
+        // Manual attendance logging functions removed
 
         /* ════════════════════════════════════
            WORKOUT PROGRAMS
@@ -3346,22 +3325,8 @@ $workoutPrograms = [
    QR CHECK-IN SYSTEM
 ══════════════════════════════════════════════ */
 
-        /* ── Token: user-specific, rotates daily ── */
-        function makeCheckinToken() {
-            const d = new Date();
-            const key = d.getFullYear() +
-                String(d.getMonth() + 1).padStart(2, '0') +
-                String(d.getDate()).padStart(2, '0');
-            return btoa('fitsync:' + USER_ID + ':' + key).replace(/[+=\/]/g, '').substring(0, 28);
-        }
-
         function getQrPayload() {
-            return JSON.stringify({
-                app: 'FitSync',
-                action: 'checkin',
-                uid: USER_ID,
-                t: makeCheckinToken()
-            });
+            return 'MBR-' + String(USER_ID).padStart(5, '0');
         }
 
         /* ── Hero QR ── */
@@ -3382,16 +3347,17 @@ $workoutPrograms = [
         /* ── QR view modal ── */
         function openQrModal() {
             const el = document.getElementById('qrModalCode');
-            if (!el) return;
-            el.innerHTML = '';
-            new QRCode(el, {
-                text: getQrPayload(),
-                width: 176,
-                height: 176,
-                colorDark: '#111111',
-                colorLight: '#ffffff',
-                correctLevel: QRCode.CorrectLevel.M
-            });
+            if (el && typeof QRCode !== 'undefined') {
+                el.innerHTML = '';
+                new QRCode(el, {
+                    text: getQrPayload(),
+                    width: 176,
+                    height: 176,
+                    colorDark: '#111111',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+            }
             bootstrap.Modal.getOrCreateInstance(document.getElementById('qrModal')).show();
         }
 
@@ -3402,6 +3368,7 @@ $workoutPrograms = [
 
         /* ── BOOT ── */
         renderCalendar();
+        initHeroQr();
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>

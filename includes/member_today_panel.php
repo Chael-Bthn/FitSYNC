@@ -6,9 +6,6 @@
             <div class="section-subtitle">Fast status for your next gym visit.</div>
         </div>
         <div class="quick-action-row">
-            <button class="btn btn-fs rounded-pill px-3" onclick="logTodayGym()" <?= $hasActiveMembership ? '' : 'disabled' ?>>
-                <i class="ti ti-login-2 me-1"></i><span class="log-btn-text"><?= $memberHub['attendance']['checked_in_today'] ? 'Visit Logged' : 'Check In Today' ?></span>
-            </button>
             <button class="btn btn-outline-secondary rounded-pill px-3" onclick="showTab('schedule', null)">
                 <i class="ti ti-calendar-event me-1"></i>Schedule
             </button>

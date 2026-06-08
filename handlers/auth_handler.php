@@ -11,6 +11,7 @@ declare(strict_types=1);
 session_start();
 
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/qr_helpers.php';
 
 header('Content-Type: application/json');
 
@@ -208,6 +209,9 @@ function actionRegister(array $data): void
     $userId = (int) $pdo->lastInsertId();
     // New registrations are set to active=1 so they can login, but is_approved=0 (pending)
     $pdo->prepare('UPDATE users SET is_active = 1, is_approved = 0 WHERE id = ?')->execute([$userId]);
+
+    // Generate QR Code
+    generateUserQrCode($userId);
 
     // ── Membership ────────────────────────────────────────
     $planStmt = $pdo->prepare(
