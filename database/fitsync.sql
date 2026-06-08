@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Jun 01, 2026 at 06:08 PM
+-- Generation Time: Jun 08, 2026 at 03:44 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -34,6 +34,13 @@ CREATE TABLE `attendance_logs` (
   `check_in_at` datetime NOT NULL DEFAULT current_timestamp(),
   `notes` varchar(500) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `attendance_logs`
+--
+
+INSERT INTO `attendance_logs` (`id`, `user_id`, `branch_id`, `check_in_at`, `notes`) VALUES
+(4, 3, 4, '2026-06-06 20:41:32', NULL);
 
 -- --------------------------------------------------------
 
@@ -307,7 +314,16 @@ INSERT INTO `login_logs` (`id`, `user_id`, `email`, `ip_address`, `user_agent`, 
 (43, 6, 'member4@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-06-01 22:57:47'),
 (44, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-06-01 23:39:54'),
 (45, 7, 'member5@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 0, '2026-06-02 00:05:16'),
-(46, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-06-02 00:05:26');
+(46, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-06-02 00:05:26'),
+(47, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1', 1, '2026-06-06 20:38:52'),
+(48, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-06-06 20:39:44'),
+(49, 3, 'member1@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-06-06 20:41:22'),
+(50, 4, 'member2@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-06-06 20:42:49'),
+(51, 1, 'admin@fitsync.com', '10.96.211.28', 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Mobile Safari/537.36', 1, '2026-06-08 20:05:27'),
+(52, 4, 'member2@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-06-08 20:07:26'),
+(53, 4, 'member2@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-06-08 20:08:45'),
+(54, 3, 'member1@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-06-08 21:25:07'),
+(55, 2, 'member@fitsync.com', '10.96.211.28', 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Mobile Safari/537.36', 1, '2026-06-08 21:34:36');
 
 -- --------------------------------------------------------
 
@@ -432,10 +448,10 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `role`, `first_name`, `last_name`, `email`, `password_hash`, `birthdate`, `gender`, `email_verified_at`, `verification_token`, `remember_token`, `profile_photo`, `is_active`, `last_login_at`, `created_at`, `updated_at`, `is_approved`) VALUES
-(1, 'admin', 'FitSync', 'Admin', 'admin@fitsync.com', '$2y$12$fjUipSsJhqxbfNt5gYTXvufikLX0YajhMIbyKAaCoUhQW67fHFUqq', NULL, NULL, '2026-05-19 10:04:41', NULL, NULL, NULL, 1, '2026-06-02 00:05:26', '2026-05-19 02:43:50', '2026-06-02 00:05:26', 1),
-(2, 'member', 'Juan', 'Dela Cruz', 'member@fitsync.com', '$2y$12$nmaTKg0EuRoOhdlOzNRFvOsmbwBPdhGTDgS6onsWs1Lb2SUZCk7tC', '2010-05-01', 'male', NULL, '01c4a90c7e9243b174ce673b7fd9e37d75a381e1feb35c5f40ca84129dfb832e', NULL, NULL, 1, NULL, '2026-05-26 09:00:13', '2026-05-26 09:00:13', 1),
-(3, 'member', 'John', 'Doe', 'member1@fitsync.com', '$2y$12$7UYLNybn/mm.9zaETT4qsOrVHXHrypIbdah3gxURwrEKi7z8FMZr6', '2010-05-02', 'male', NULL, 'b54816ab62f86a6e3cf0be5a478318885b8deb25e1793c13c6996aa264c8925a', NULL, NULL, 1, NULL, '2026-05-26 09:01:46', '2026-05-26 09:01:46', 1),
-(4, 'member', 'Pedro', 'Penduco', 'member2@fitsync.com', '$2y$12$1OSqEWWCh70wGT9pciRDBupYagf.zoQpOnXSxgvbIU4kAMMcwY50K', '2010-05-03', 'male', NULL, 'fa39b920d88ce562f9b96b650c5c4138cb50f9beba35f8b66e3357c1846f6625', NULL, NULL, 1, NULL, '2026-05-26 09:02:41', '2026-05-26 09:02:41', 1),
+(1, 'admin', 'FitSync', 'Admin', 'admin@fitsync.com', '$2y$12$fjUipSsJhqxbfNt5gYTXvufikLX0YajhMIbyKAaCoUhQW67fHFUqq', NULL, NULL, '2026-05-19 10:04:41', NULL, NULL, NULL, 1, '2026-06-08 20:05:27', '2026-05-19 02:43:50', '2026-06-08 20:05:27', 1),
+(2, 'member', 'Juan', 'Dela Cruz', 'member@fitsync.com', '$2y$12$nmaTKg0EuRoOhdlOzNRFvOsmbwBPdhGTDgS6onsWs1Lb2SUZCk7tC', '2010-05-01', 'male', NULL, '01c4a90c7e9243b174ce673b7fd9e37d75a381e1feb35c5f40ca84129dfb832e', NULL, NULL, 1, '2026-06-08 21:34:36', '2026-05-26 09:00:13', '2026-06-08 21:34:36', 1),
+(3, 'member', 'John', 'Doe', 'member1@fitsync.com', '$2y$12$7UYLNybn/mm.9zaETT4qsOrVHXHrypIbdah3gxURwrEKi7z8FMZr6', '2010-05-02', 'male', NULL, 'b54816ab62f86a6e3cf0be5a478318885b8deb25e1793c13c6996aa264c8925a', NULL, NULL, 1, '2026-06-08 21:25:08', '2026-05-26 09:01:46', '2026-06-08 21:25:08', 1),
+(4, 'member', 'Pedro', 'Penduco', 'member2@fitsync.com', '$2y$12$1OSqEWWCh70wGT9pciRDBupYagf.zoQpOnXSxgvbIU4kAMMcwY50K', '2010-05-03', 'male', NULL, 'fa39b920d88ce562f9b96b650c5c4138cb50f9beba35f8b66e3357c1846f6625', NULL, NULL, 1, '2026-06-08 20:08:45', '2026-05-26 09:02:41', '2026-06-08 20:08:45', 1),
 (5, 'member', 'Maria', 'Clara', 'member3@fitsync.com', '$2y$12$mhmrga1/M8/czTwxXh20sOVL1lmIjCdoKhQ3mrvjSop88.8/BQ3r6', '2010-05-04', 'female', NULL, 'e25390c9720ddf3a5e7a3358c34e049f2d6f2beac9216d457a9a791b3bd39c83', NULL, NULL, 1, '2026-05-26 09:32:00', '2026-05-26 09:03:49', '2026-05-26 09:47:37', 1),
 (6, 'member', 'John', 'Doe', 'member4@fitsync.com', '$2y$12$jV4ZvhN1npLhCa43drioxefr9d9vELpE/VRcmxK.9eMsdrfhAvwqi', '1999-01-06', 'male', NULL, '9f7ff6a9217353756a706b8cc8b28c5a7d2335dd41087060a0bb8430dc42d0d3', NULL, NULL, 1, '2026-06-01 22:57:48', '2026-06-01 20:40:14', '2026-06-01 22:57:48', 1);
 
@@ -582,7 +598,7 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `attendance_logs`
 --
 ALTER TABLE `attendance_logs`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `branches`
@@ -636,7 +652,7 @@ ALTER TABLE `feedback`
 -- AUTO_INCREMENT for table `login_logs`
 --
 ALTER TABLE `login_logs`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=47;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=56;
 
 --
 -- AUTO_INCREMENT for table `memberships`
