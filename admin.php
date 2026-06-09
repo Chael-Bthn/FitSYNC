@@ -101,7 +101,7 @@ $adminUser = adminRows($pdo, 'SELECT first_name, last_name, email, role, updated
 $membersRaw = adminRows(
     $pdo,
     'SELECT u.id, u.first_name AS fname, u.last_name AS lname, u.email, u.is_active, u.is_approved, u.created_at,
-            lm.id AS membership_id, lm.starts_at, lm.ends_at, lm.status, lm.payment_status, lm.amount_paid,
+            lm.id AS membership_id, lm.starts_at, lm.ends_at, lm.status, lm.payment_status, lm.amount_paid, lm.payment_method,
             p.id AS plan_id, p.label AS plan, b.id AS branch_id, b.name AS branch
      FROM users u
      LEFT JOIN memberships lm ON lm.id = (
@@ -139,6 +139,7 @@ $members = array_map(static function (array $m): array {
         'expiry' => (string) ($m['ends_at'] ?? ''),
         'status' => $status,
         'payment' => (string) ($m['payment_status'] ?? 'none'),
+        'payment_method' => (string) ($m['payment_method'] ?? ''),
         'amount' => (float) ($m['amount_paid'] ?? 0),
         'approved' => (int) ($m['is_approved'] ?? 1) === 1,
         'active_account' => (int) ($m['is_active'] ?? 0) === 1,
@@ -839,6 +840,11 @@ $adminData = [
             overflow: hidden;
         }
 
+        .card > table {
+            overflow-x: auto;
+            display: block;
+        }
+
         .card-head {
             display: flex;
             align-items: center;
@@ -1480,8 +1486,14 @@ $adminData = [
             padding: .9rem 1.3rem;
             border-top: 1px solid var(--border);
             display: flex;
-            gap: .5rem;
+            gap: .45rem;
+            flex-wrap: wrap;
             justify-content: flex-end;
+        }
+        @media (max-width: 520px) {
+            .modal-foot { justify-content: stretch; }
+            .modal-foot .btn { flex: 1 1 auto; justify-content: center; min-width: 0; }
+            .modal-box { border-radius: 14px; }
         }
 
         /* detail grid inside modal */
@@ -1710,6 +1722,10 @@ $adminData = [
                 display: none;
             }
 
+            .topbar .notif-btn {
+                margin-left: auto;
+            }
+
             .burger {
                 display: flex !important;
             }
@@ -1727,9 +1743,12 @@ $adminData = [
         @media(max-width:540px) {
 
             .g-4,
-            .g-3,
-            .g-2 {
+            .g-3 {
                 grid-template-columns: 1fr 1fr;
+            }
+
+            .g-2 {
+                grid-template-columns: 1fr;
             }
 
             .page {
@@ -1752,6 +1771,209 @@ $adminData = [
             color: var(--text);
             font-size: 1.2rem;
             cursor: pointer;
+        }
+
+        /* ─── MEMBERS TAB MOBILE ─────────────────── */
+        .members-sec-head {
+            flex-wrap: wrap;
+            gap: .6rem;
+        }
+
+        .members-actions {
+            display: flex;
+            gap: .5rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        @media (max-width: 540px) {
+            .members-sec-head {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .members-actions {
+                width: 100%;
+            }
+
+            .members-actions select,
+            .members-actions button {
+                flex: 1;
+                justify-content: center;
+            }
+
+            /* Hide less-critical columns on very small screens */
+            .members-tbl th:nth-child(2),
+            .members-tbl td:nth-child(2),
+            .members-tbl th:nth-child(4),
+            .members-tbl td:nth-child(4),
+            .members-tbl th:nth-child(5),
+            .members-tbl td:nth-child(5) {
+                display: none;
+            }
+        }
+
+        /* Pending modal detail highlight */
+        .pending-detail-banner {
+            display: flex;
+            align-items: flex-start;
+            gap: .65rem;
+            background: rgba(214, 161, 0, .08);
+            border: 1px solid rgba(214, 161, 0, .25);
+            border-radius: 10px;
+            padding: .75rem .9rem;
+            margin-top: .85rem;
+            font-size: .8rem;
+            color: rgba(214, 161, 0, .9);
+            line-height: 1.55;
+        }
+
+        .pending-detail-banner i {
+            font-size: 1rem;
+            flex-shrink: 0;
+            margin-top: .05rem;
+        }
+
+        .pending-detail-banner strong {
+            color: #d6a100;
+        }
+
+        /* ─── SCHEDULES TAB MOBILE ───────────────── */
+        .sched-sec-head {
+            flex-wrap: wrap;
+            gap: .6rem;
+        }
+
+        .sched-actions {
+            display: flex;
+            gap: .5rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .sched-show-sm {
+            display: none;
+        }
+
+        @media (max-width: 900px) {
+            .sched-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 540px) {
+            .sched-sec-head {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .sched-actions {
+                width: 100%;
+            }
+
+            .sched-actions .btn {
+                flex: 1;
+                justify-content: center;
+                font-size: .72rem;
+                padding: .4rem .5rem;
+            }
+
+            .sched-hide-sm {
+                display: none;
+            }
+
+            .sched-show-sm {
+                display: block;
+            }
+        }
+
+        /* ─── SETTINGS TAB MOBILE ────────────────── */
+        @media (max-width: 900px) {
+            #page-settings .grid.g-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 540px) {
+            .settings-row {
+                flex-wrap: wrap;
+                gap: .5rem;
+            }
+
+            .settings-row > div {
+                flex: 1 1 0;
+                min-width: 0;
+            }
+
+            .settings-sub {
+                word-break: break-word;
+            }
+
+            .settings-row .btn,
+            .settings-row .badge {
+                flex-shrink: 0;
+                align-self: center;
+            }
+        }
+
+        /* Scrollable tab strip — no wrapping, just swipe */
+        #page-reports .dash-tabs {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            flex-wrap: nowrap;
+            white-space: nowrap;
+        }
+
+        #page-reports .dash-tabs::-webkit-scrollbar {
+            display: none;
+        }
+
+        #page-reports .dash-tab {
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 900px) {
+            /* Single-column report grids */
+            #page-reports .grid.g-2,
+            #page-reports .grid.g-3,
+            #page-reports .grid.g-2-1,
+            #page-reports .grid.g-1-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 540px) {
+            /* Stat grids: 2 columns max */
+            #page-reports .grid.g-4 {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            /* Filter form: two columns on small screens */
+            #page-reports .report-filters-body {
+                grid-template-columns: 1fr 1fr !important;
+            }
+
+            /* Export button rows */
+            #page-reports [style*="justify-content:flex-end"] {
+                justify-content: flex-start !important;
+            }
+
+            /* Tighten stat values */
+            #page-reports .stat-val {
+                font-size: 1.4rem;
+            }
+
+            #page-reports .stat-lbl {
+                font-size: .62rem;
+            }
+
+            /* Tables inside reports: make them block-scroll */
+            #page-reports .tbl-wrap table,
+            #page-reports .card > table {
+                min-width: 420px;
+            }
         }
     </style>
 </head>
@@ -1917,6 +2139,13 @@ $adminData = [
                 <div class="grid g-2">
                     <div class="card">
                         <div class="card-head">
+                            <div class="card-title">Pending approvals</div>
+                            <span class="badge pending"><?= number_format($dashboard['pending_payments']) ?> pending</span>
+                        </div>
+                        <div class="card-body" id="pending-list"></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-head">
                             <div class="card-title">Recent registrations</div>
                             <button class="btn sm ghost" onclick="showPage('members',null)">View all <i class="ti ti-chevron-right"></i></button>
                         </div>
@@ -1930,13 +2159,6 @@ $adminData = [
                             </thead>
                             <tbody id="recent-tbody"></tbody>
                         </table>
-                    </div>
-                    <div class="card">
-                        <div class="card-head">
-                            <div class="card-title">Pending approvals</div>
-                            <span class="badge pending"><?= number_format($dashboard['pending_payments']) ?> pending</span>
-                        </div>
-                        <div class="card-body" id="pending-list"></div>
                     </div>
                 </div>
             </div><!-- /overview tab -->
@@ -2150,9 +2372,9 @@ $adminData = [
 
         <!-- ─── MEMBERS ────────────────────────────── -->
         <div class="page" id="page-members">
-            <div class="sec-head">
+            <div class="sec-head members-sec-head">
                 <div class="sec-title">All Members <small id="member-count"></small></div>
-                <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+                <div class="members-actions">
                     <select class="btn" id="status-filter" onchange="filterMembers()" style="padding:.38rem .8rem;border-radius:9px;background:var(--surface);color:var(--text);border:1px solid var(--border);font-size:.78rem;appearance:none">
                         <option value="">All Statuses</option>
                         <option value="active">Active</option>
@@ -2164,7 +2386,7 @@ $adminData = [
                 </div>
             </div>
             <div class="tbl-wrap">
-                <table>
+                <table class="members-tbl">
                     <thead>
                         <tr>
                             <th>Member</th>
@@ -2191,26 +2413,26 @@ $adminData = [
 
         <!-- ─── SCHEDULES ─────────────────────────── -->
         <div class="page" id="page-schedules">
-            <div class="sec-head">
+            <div class="sec-head sched-sec-head">
                 <div class="sec-title">Schedules</div>
-                <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+                <div class="sched-actions">
                     <button class="btn primary" onclick="openClassModal()"><i class="ti ti-plus"></i> Class</button>
                     <button class="btn primary" onclick="openScheduleModal()"><i class="ti ti-calendar-plus"></i> Schedule</button>
                     <button class="btn primary" onclick="openAnnouncementModal()"><i class="ti ti-speakerphone"></i> Announcement</button>
                 </div>
             </div>
-            <div class="grid g-2" style="margin-bottom:1.25rem">
+            <div class="grid g-2 sched-grid" style="margin-bottom:1.25rem">
                 <div class="tbl-wrap">
                     <div class="card-head" style="border-bottom:1px solid var(--border)">
                         <div class="card-title">Upcoming class schedules</div>
                     </div>
-                    <table>
+                    <table class="sched-tbl">
                         <thead>
                             <tr>
                                 <th>Class</th>
-                                <th>Branch</th>
+                                <th class="sched-hide-sm">Branch</th>
                                 <th>Date</th>
-                                <th>Status</th>
+                                <th class="sched-hide-sm">Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -2221,10 +2443,11 @@ $adminData = [
                                         <td>
                                             <div style="font-weight:600"><?= htmlspecialchars((string) $schedule['title']) ?></div>
                                             <div style="font-size:.7rem;color:var(--text-3)"><?= htmlspecialchars((string) ($schedule['trainer_name'] ?? '')) ?></div>
+                                            <div class="sched-show-sm"><span class="badge <?= htmlspecialchars((string) $schedule['status']) ?>" style="margin-top:.25rem"><?= htmlspecialchars(ucfirst((string) $schedule['status'])) ?></span></div>
                                         </td>
-                                        <td><?= htmlspecialchars((string) $schedule['branch_name']) ?></td>
-                                        <td style="font-size:.8rem;color:var(--text-2)"><?= htmlspecialchars(date('M j, Y', strtotime((string) $schedule['scheduled_date'])) . ' ' . substr((string) $schedule['start_time'], 0, 5)) ?></td>
-                                        <td><span class="badge <?= htmlspecialchars((string) $schedule['status']) ?>"><?= htmlspecialchars(ucfirst((string) $schedule['status'])) ?></span></td>
+                                        <td class="sched-hide-sm"><?= htmlspecialchars((string) $schedule['branch_name']) ?></td>
+                                        <td style="font-size:.8rem;color:var(--text-2);white-space:nowrap"><?= htmlspecialchars(date('M j, Y', strtotime((string) $schedule['scheduled_date'])) . ' ' . substr((string) $schedule['start_time'], 0, 5)) ?></td>
+                                        <td class="sched-hide-sm"><span class="badge <?= htmlspecialchars((string) $schedule['status']) ?>"><?= htmlspecialchars(ucfirst((string) $schedule['status'])) ?></span></td>
                                         <td>
                                             <div class="actions">
                                                 <button class="tbtn" title="Edit" onclick="openScheduleModal(<?= (int) $schedule['id'] ?>)"><i class="ti ti-pencil"></i></button>
@@ -2245,12 +2468,12 @@ $adminData = [
                     <div class="card-head" style="border-bottom:1px solid var(--border)">
                         <div class="card-title">Classes</div>
                     </div>
-                    <table>
+                    <table class="sched-tbl">
                         <thead>
                             <tr>
                                 <th>Class</th>
-                                <th>Branch</th>
-                                <th>Capacity</th>
+                                <th class="sched-hide-sm">Branch</th>
+                                <th class="sched-hide-sm">Capacity</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
@@ -2259,9 +2482,12 @@ $adminData = [
                             <?php if ($classes): ?>
                                 <?php foreach ($classes as $class): ?>
                                     <tr>
-                                        <td style="font-weight:600"><?= htmlspecialchars((string) $class['title']) ?></td>
-                                        <td><?= htmlspecialchars((string) ($class['branch_name'] ?? 'Unassigned')) ?></td>
-                                        <td><?= $class['capacity'] !== null ? number_format((int) $class['capacity']) : 'Open' ?></td>
+                                        <td>
+                                            <div style="font-weight:600"><?= htmlspecialchars((string) $class['title']) ?></div>
+                                            <div class="sched-show-sm" style="font-size:.7rem;color:var(--text-3)"><?= htmlspecialchars((string) ($class['branch_name'] ?? 'Unassigned')) ?></div>
+                                        </td>
+                                        <td class="sched-hide-sm"><?= htmlspecialchars((string) ($class['branch_name'] ?? 'Unassigned')) ?></td>
+                                        <td class="sched-hide-sm"><?= $class['capacity'] !== null ? number_format((int) $class['capacity']) : 'Open' ?></td>
                                         <td><span class="badge <?= (int) $class['is_active'] === 1 ? 'active' : 'expired' ?>"><?= (int) $class['is_active'] === 1 ? 'Active' : 'Inactive' ?></span></td>
                                         <td>
                                             <div class="actions">
@@ -2279,19 +2505,22 @@ $adminData = [
                     </table>
                 </div>
             </div>
-            <div class="grid g-2">
+            <div class="grid g-2 sched-grid">
                 <div class="tbl-wrap">
                     <div class="card-head" style="border-bottom:1px solid var(--border)">
                         <div class="card-title">Announcements</div>
                     </div>
-                    <table>
-                        <thead><tr><th>Title</th><th>Branch</th><th>Status</th><th>Actions</th></tr></thead>
+                    <table class="sched-tbl">
+                        <thead><tr><th>Title</th><th class="sched-hide-sm">Branch</th><th>Status</th><th>Actions</th></tr></thead>
                         <tbody>
                             <?php if ($announcements): ?>
                                 <?php foreach ($announcements as $notice): ?>
                                     <tr>
-                                        <td style="font-weight:600"><?= htmlspecialchars((string) $notice['title']) ?></td>
-                                        <td><?= htmlspecialchars((string) $notice['branch_name']) ?></td>
+                                        <td>
+                                            <div style="font-weight:600"><?= htmlspecialchars((string) $notice['title']) ?></div>
+                                            <div class="sched-show-sm" style="font-size:.7rem;color:var(--text-3)"><?= htmlspecialchars((string) $notice['branch_name']) ?></div>
+                                        </td>
+                                        <td class="sched-hide-sm"><?= htmlspecialchars((string) $notice['branch_name']) ?></td>
                                         <td><span class="badge <?= (int) $notice['is_active'] === 1 ? 'active' : 'expired' ?>"><?= (int) $notice['is_active'] === 1 ? 'Active' : 'Inactive' ?></span></td>
                                         <td>
                                             <div class="actions">
@@ -2313,7 +2542,7 @@ $adminData = [
                         <div class="card-title">Operating hours</div>
                         <button class="btn sm" onclick="openOperatingHourModal()"><i class="ti ti-plus"></i> Edit Hours</button>
                     </div>
-                    <table>
+                    <table class="sched-tbl">
                         <thead><tr><th>Branch</th><th>Day</th><th>Hours</th><th>Actions</th></tr></thead>
                         <tbody>
                             <?php $dayNames = [1 => 'Mon', 2 => 'Tue', 3 => 'Wed', 4 => 'Thu', 5 => 'Fri', 6 => 'Sat', 7 => 'Sun']; ?>
@@ -2322,7 +2551,7 @@ $adminData = [
                                     <tr>
                                         <td style="font-weight:600"><?= htmlspecialchars((string) $hour['branch_name']) ?></td>
                                         <td><?= htmlspecialchars($dayNames[(int) $hour['day_of_week']] ?? (string) $hour['day_of_week']) ?></td>
-                                        <td style="font-size:.8rem;color:var(--text-2)"><?= (int) $hour['is_closed'] === 1 ? 'Closed' : htmlspecialchars(substr((string) $hour['open_time'], 0, 5) . ' - ' . substr((string) $hour['close_time'], 0, 5)) ?></td>
+                                        <td style="font-size:.8rem;color:var(--text-2);white-space:nowrap"><?= (int) $hour['is_closed'] === 1 ? 'Closed' : htmlspecialchars(substr((string) $hour['open_time'], 0, 5) . ' – ' . substr((string) $hour['close_time'], 0, 5)) ?></td>
                                         <td><button class="tbtn" title="Edit" onclick="openOperatingHourModal(<?= (int) $hour['branch_id'] ?>,<?= (int) $hour['day_of_week'] ?>)"><i class="ti ti-pencil"></i></button></td>
                                     </tr>
                                 <?php endforeach ?>
@@ -2398,7 +2627,7 @@ $adminData = [
             </div>
             <form method="get" action="admin.php#reports" class="card" style="margin-bottom:1.25rem">
                 <input type="hidden" name="report_tab" value="<?= htmlspecialchars($activeReportTab) ?>">
-                <div class="card-body" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:.75rem;align-items:end">
+                <div class="card-body report-filters-body" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:.75rem;align-items:end">
                     <label style="font-size:.72rem;color:var(--text-3);font-weight:700">Start<input class="btn" type="date" name="start" value="<?= htmlspecialchars($reportFilters['range']['start']) ?>" style="width:100%;margin-top:.35rem"></label>
                     <label style="font-size:.72rem;color:var(--text-3);font-weight:700">End<input class="btn" type="date" name="end" value="<?= htmlspecialchars($reportFilters['range']['end']) ?>" style="width:100%;margin-top:.35rem"></label>
                     <?php if ($activeReportTab !== 'overview'): ?>
@@ -2454,71 +2683,9 @@ $adminData = [
                 <div class="grid g-2" style="margin-bottom:1.25rem"><div class="card"><div class="card-head"><div class="card-title">Bookings Per Class</div></div><div class="card-body"><?php $bookMax = max(1, ...array_map('intval', array_column($classReport['bookings_per_class'], 'bookings') ?: [1])); ?><?php foreach ($classReport['bookings_per_class'] as $row): ?><div class="rev-row"><span class="rev-label"><?= htmlspecialchars($row['title']) ?></span><div class="rev-track"><div class="rev-fill" style="width:<?= min(100, ((int) $row['bookings'] / $bookMax) * 100) ?>%"></div></div><span class="rev-val"><?= number_format((int) $row['bookings']) ?></span></div><?php endforeach ?></div></div><div class="card"><div class="card-head"><div class="card-title">Attendance Per Class</div></div><div class="card-body"><?php $classAttMax = max(1, ...array_map('intval', array_column($classReport['attendance_per_class'], 'attendance') ?: [1])); ?><?php foreach ($classReport['attendance_per_class'] as $row): ?><div class="rev-row"><span class="rev-label"><?= htmlspecialchars($row['title']) ?></span><div class="rev-track"><div class="rev-fill" style="width:<?= min(100, ((int) $row['attendance'] / $classAttMax) * 100) ?>%"></div></div><span class="rev-val"><?= number_format((int) $row['attendance']) ?></span></div><?php endforeach ?></div></div></div>
                 <div class="grid g-3"><div class="tbl-wrap"><div class="card-head"><div class="card-title">Most Popular Classes</div></div><table><thead><tr><th>Class</th><th>Bookings</th><th>Attendance</th><th>Utilization</th></tr></thead><tbody><?php foreach ($classReport['popular_classes'] as $row): ?><tr><td><?= htmlspecialchars($row['title']) ?><div style="font-size:.7rem;color:var(--text-3)"><?= htmlspecialchars($row['branch']) ?> · Capacity <?= number_format((int) ($row['capacity'] ?? 0)) ?></div></td><td><?= number_format((int) $row['bookings']) ?></td><td><?= number_format((int) $row['attendance']) ?></td><td><?= reportPercent($row['utilization']) ?></td></tr><?php endforeach ?><?php if (!$classReport['popular_classes']): ?><tr><td colspan="4"><div class="empty"><i class="ti ti-calendar-off"></i>No class bookings in this range</div></td></tr><?php endif ?></tbody></table></div><div class="tbl-wrap"><div class="card-head"><div class="card-title">Upcoming Classes</div></div><table><thead><tr><th>Class</th><th>Date</th><th>Capacity</th><th>Bookings</th></tr></thead><tbody><?php foreach ($classReport['upcoming_classes'] as $row): ?><tr><td><?= htmlspecialchars($row['title']) ?><div style="font-size:.7rem;color:var(--text-3)"><?= htmlspecialchars($row['branch']) ?></div></td><td><?= htmlspecialchars(date('M j, Y', strtotime($row['scheduled_date'])) . ' ' . date('g:i A', strtotime($row['start_time']))) ?></td><td><?= $row['capacity'] !== null ? number_format((int) $row['capacity']) : 'Open' ?></td><td><?= number_format((int) $row['bookings']) ?></td></tr><?php endforeach ?><?php if (!$classReport['upcoming_classes']): ?><tr><td colspan="4"><div class="empty"><i class="ti ti-calendar-off"></i>No upcoming classes</div></td></tr><?php endif ?></tbody></table></div><div class="tbl-wrap"><div class="card-head"><div class="card-title">Class Performance Ranking</div></div><table><thead><tr><th>Class</th><th>Bookings</th><th>Attendance</th><th>Utilization</th></tr></thead><tbody><?php foreach ($classReport['ranking'] as $row): ?><tr><td><?= htmlspecialchars($row['title']) ?><div style="font-size:.7rem;color:var(--text-3)"><?= htmlspecialchars($row['branch']) ?> · Capacity <?= number_format((int) ($row['capacity'] ?? 0)) ?></div></td><td><?= number_format((int) $row['bookings']) ?></td><td><?= number_format((int) $row['attendance']) ?></td><td><?= reportPercent($row['utilization']) ?></td></tr><?php endforeach ?><?php if (!$classReport['ranking']): ?><tr><td colspan="4"><div class="empty"><i class="ti ti-chart-bar-off"></i>No class performance data</div></td></tr><?php endif ?></tbody></table></div></div>
             </div>
-            <?php if (false): ?>
-            <div class="sec-head">
-                <div class="sec-title">Reports</div>
-            </div>
-            <div class="grid g-4" style="margin-bottom:1.25rem">
-                <div class="stat">
-                    <div class="stat-icon"><i class="ti ti-users"></i></div>
-                    <div class="stat-val"><?= number_format($dashboard['total_members']) ?></div>
-                    <div class="stat-lbl">Total Members</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-icon"><i class="ti ti-cash"></i></div>
-                    <div class="stat-val">₱<?= number_format($dashboard['revenue_month']) ?></div>
-                    <div class="stat-lbl">This Month</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-icon"><i class="ti ti-calendar-stats"></i></div>
-                    <div class="stat-val"><?= number_format($dashboard['attendance_month']) ?></div>
-                    <div class="stat-lbl">Attendance</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-icon"><i class="ti ti-repeat"></i></div>
-                    <div class="stat-val"><?= $dashboard['active_members'] > 0 ? number_format($dashboard['attendance_month'] / max(1, $dashboard['active_members']), 1) : '0.0' ?></div>
-                    <div class="stat-lbl">Avg Visits/Member</div>
-                </div>
-            </div>
-            <div class="grid g-2">
-                <div class="card">
-                    <div class="card-head">
-                        <div class="card-title">Revenue trend</div>
-                    </div>
-                    <div class="card-body" id="rev-bars"></div>
-                </div>
-                <div class="card">
-                    <div class="card-head">
-                        <div class="card-title">Revenue by plan</div>
-                    </div>
-                    <div class="card-body" id="revenue-by-plan">
-                        <div class="rev-row"><span class="rev-label">12 mo</span>
-                            <div class="rev-track">
-                                <div class="rev-fill" style="width:55%"></div>
-                            </div><span class="rev-val">₱72,000</span>
-                        </div>
-                        <div class="rev-row"><span class="rev-label">6 mo</span>
-                            <div class="rev-track">
-                                <div class="rev-fill" style="width:35%"></div>
-                            </div><span class="rev-val">₱42,000</span>
-                        </div>
-                        <div class="rev-row"><span class="rev-label">3 mo</span>
-                            <div class="rev-track">
-                                <div class="rev-fill" style="width:22%"></div>
-                            </div><span class="rev-val">₱24,000</span>
-                        </div>
-                        <div class="rev-row"><span class="rev-label">1 mo</span>
-                            <div class="rev-track">
-                                <div class="rev-fill" style="width:10%"></div>
-                            </div><span class="rev-val">₱10,000</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <!-- ─── SETTINGS ──────────────────────────── -->
-            <?php endif; ?>
         <div class="page" id="page-settings">
             <div class="sec-head">
                 <div class="sec-title">Settings</div>
@@ -3238,6 +3405,10 @@ $adminData = [
             const m = adminMembers.find(x => x.id === id);
             if (!m) return;
             document.getElementById('modal-title').textContent = `${m.fname} ${m.lname}`;
+            const amountStr = m.amount > 0 ? `₱${Number(m.amount).toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2})}` : '—';
+            const paymentMethodLabel = m.payment_method
+                ? m.payment_method.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+                : '—';
             document.getElementById('modal-body').innerHTML = `
     <div style="display:flex;align-items:center;gap:.9rem;margin-bottom:1.1rem">
       <div class="mem-av" style="width:44px;height:44px;border-radius:12px;font-size:1rem">${initials(m.fname,m.lname)}</div>
@@ -3249,11 +3420,13 @@ $adminData = [
     </div>
     <div class="detail-grid">
       <div class="detail-cell"><div class="detail-label">Member ID</div><div class="detail-val">#${String(m.id).padStart(5,'0')}</div></div>
-      <div class="detail-cell"><div class="detail-label">Plan</div><div class="detail-val">${m.plan}</div></div>
+      <div class="detail-cell"><div class="detail-label">Branch</div><div class="detail-val">${m.branch || '—'}</div></div>
+      <div class="detail-cell"><div class="detail-label">Plan</div><div class="detail-val"><span class="plan-badge ${m.planCls}">${m.plan}</span></div></div>
+      <div class="detail-cell"><div class="detail-label">Amount Paid</div><div class="detail-val">${amountStr}</div></div>
+      <div class="detail-cell"><div class="detail-label">Payment Method</div><div class="detail-val">${paymentMethodLabel}</div></div>
+      <div class="detail-cell"><div class="detail-label">Payment Status</div><div class="detail-val"><span class="badge ${m.payment==='paid'?'paid':'pending'}">${cap(m.payment)}</span></div></div>
       <div class="detail-cell"><div class="detail-label">Joined</div><div class="detail-val">${fmtDate(m.joined)}</div></div>
       <div class="detail-cell"><div class="detail-label">Expires</div><div class="detail-val">${fmtDate(m.expiry)}</div></div>
-      <div class="detail-cell"><div class="detail-label">Payment</div><div class="detail-val"><span class="badge ${m.payment==='paid'?'paid':'pending'}">${cap(m.payment)}</span></div></div>
-      <div class="detail-cell"><div class="detail-label">Membership</div><div class="detail-val"><span class="badge ${m.status}">${cap(m.status)}</span></div></div>
     </div>
     <div style="margin-top:1rem">
       <div class="detail-label" style="margin-bottom:.35rem">Recent Notes</div>
@@ -3267,16 +3440,16 @@ $adminData = [
   `;
             const foot = document.getElementById('modal-foot');
             const actions = [];
-            if (m.payment === 'pending') actions.push(`<button class="btn success-btn sm" onclick="closeModal();paymentAction('approve_payment',${m.membership_id || 0})"><i class="ti ti-check"></i> Approve</button>`);
-            if (!m.approved) actions.push(`<button class="btn success-btn sm" onclick="closeModal();accountAction('approve_account',${m.id})"><i class="ti ti-user-check"></i> Approve Account</button>`);
+            if (!m.approved) {
+                actions.push(`<button class="btn success-btn sm" onclick="closeModal();accountAction('approve_account',${m.id})"><i class="ti ti-user-check"></i> Approve</button>`);
+                actions.push(`<button class="btn sm" style="border-color:rgba(220,53,69,.4);color:#e05656" onclick="closeModal();accountAction('reject_account',${m.id})"><i class="ti ti-user-x"></i> Reject</button>`);
+            }
             actions.push(`<button class="btn sm" onclick="openMemberPlanModal(${m.id})"><i class="ti ti-id-badge-2"></i> Plan</button>`);
             actions.push(`<button class="btn sm" onclick="openMemberBranchModal(${m.id})"><i class="ti ti-building-store"></i> Branch</button>`);
             actions.push(`<button class="btn sm" onclick="openExtendMembershipModal(${m.id})"><i class="ti ti-calendar-plus"></i> Extend</button>`);
             actions.push(`<button class="btn sm" onclick="openMemberNoteModal(${m.id})"><i class="ti ti-note"></i> Note</button>`);
             if (m.status === 'active') actions.push(`<button class="btn sm" onclick="closeModal();membershipStatusAction(${m.membership_id || 0},'frozen')"><i class="ti ti-player-pause"></i> Freeze</button>`);
-            actions.push(`<button class="btn danger sm" onclick="closeModal();accountAction('reject_account',${m.id})"><i class="ti ti-user-x"></i> Reject</button>`);
             actions.push(`<button class="btn danger sm" onclick="closeModal();accountAction('delete_account',${m.id})"><i class="ti ti-trash"></i> Delete</button>`);
-            actions.push(`<button class="btn sm" onclick="closeModal()">Close</button>`);
             foot.innerHTML = actions.join('');
             document.getElementById('modal-backdrop').style.display = 'flex';
         }
@@ -3404,31 +3577,36 @@ $adminData = [
         function toggleTheme() {
             const h = document.documentElement;
             const isDark = h.getAttribute('data-theme') === 'dark';
-            h.setAttribute('data-theme', isDark ? 'light' : 'dark');
-            localStorage.setItem('fs-theme', isDark ? 'light' : 'dark');
+            const newTheme = isDark ? 'light' : 'dark';
+            h.setAttribute('data-theme', newTheme);
+            localStorage.setItem('fs-theme', newTheme);
+            const logo = document.getElementById('sidebarLogo');
+            if (logo) logo.src = logo.dataset['logo' + (newTheme.charAt(0).toUpperCase() + newTheme.slice(1))];
         }
         (() => {
             const s = localStorage.getItem('fs-theme');
-            if (s) document.documentElement.setAttribute('data-theme', s);
+            if (s) {
+                document.documentElement.setAttribute('data-theme', s);
+                const logo = document.getElementById('sidebarLogo');
+                if (logo) logo.src = logo.dataset['logo' + (s.charAt(0).toUpperCase() + s.slice(1))];
+            }
         })();
 
         /* ── BOOT ────────────────────────────────── */
         init();
     </script>
 
-    <!-- ══ QR SCANNER FAB + FULLSCREEN OVERLAY ══ -->
+    <!-- ══ QR SCANNER FAB + MODAL ══ -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 
-    <!-- FAB Button -->
+    <!-- FAB -->
     <button id="qr-fab" onclick="openQR()" title="QR Scanner">
         <i class="ti ti-qrcode"></i>
     </button>
 
-    <!-- Fullscreen Scanner Overlay -->
+    <!-- Scanner overlay (camera only) -->
     <div id="qr-overlay">
         <div id="qr-overlay-inner">
-
-            <!-- Header -->
             <div id="qr-overlay-header">
                 <div>
                     <div id="qr-overlay-title"><i class="ti ti-scan" style="color:var(--red);margin-right:.4rem"></i>QR Scanner</div>
@@ -3441,226 +3619,116 @@ $adminData = [
                 </div>
             </div>
 
-            <!-- Two-column body -->
-            <div id="qr-body">
-
-                <!-- LEFT: scanner -->
-                <div id="qr-left">
-                    <div class="qr-cam-wrap" id="qr-cam-wrap">
-                        <video id="qr-video" autoplay playsinline muted></video>
-                        <canvas id="qr-canvas" style="display:none"></canvas>
-
-                        <div class="qr-idle" id="qr-idle">
-                            <i class="ti ti-camera-off"></i>
-                            <p>Camera is off. Press <strong>Start Camera</strong> below.</p>
-                        </div>
-
-                        <div class="qr-scan-overlay" id="qr-scan-overlay" style="display:none">
-                            <div class="qr-frame">
-                                <div class="qr-cb"></div><div class="qr-cbr"></div>
-                                <div class="qr-laser"></div>
-                            </div>
-                        </div>
-
-                        <div class="qr-flash" id="qr-flash"></div>
-                    </div>
-
-                    <!-- Controls -->
-                    <div class="qr-controls">
-                        <button class="qr-btn qr-btn-primary" id="qr-btn-start" onclick="qrStartCamera()"><i class="ti ti-player-play"></i> Start Camera</button>
-                        <button class="qr-btn" id="qr-btn-stop"  onclick="qrStopCamera()"  disabled><i class="ti ti-player-stop"></i> Stop</button>
-                        <button class="qr-btn" id="qr-btn-flip"  onclick="qrFlipCamera()"  disabled><i class="ti ti-camera-rotate"></i> Flip</button>
-                    </div>
-
-                    <!-- Manual entry -->
-                    <div class="qr-manual-wrap">
-                        <div class="qr-section-lbl"><i class="ti ti-keyboard"></i> Manual ID Entry</div>
-                        <div class="qr-manual-row">
-                            <input type="text" id="qr-manual-input" placeholder="Enter Member ID (e.g. MBR-00001)" onkeydown="if(event.key==='Enter')qrManualLookup()" />
-                            <button class="qr-btn qr-btn-primary" onclick="qrManualLookup()"><i class="ti ti-search"></i> Lookup</button>
-                        </div>
-                    </div>
-
-                    <!-- Scan log -->
-                    <div class="qr-log-wrap">
-                        <div class="qr-log-head">
-                            <span class="qr-log-title">Recent Scans</span>
-                            <button class="qr-btn" style="padding:.2rem .55rem;font-size:.68rem" onclick="qrClearLog()"><i class="ti ti-trash"></i> Clear</button>
-                        </div>
-                        <div class="qr-tbl-wrap">
-                            <table class="qr-table">
-                                <thead><tr><th>Member ID</th><th>Name</th><th>Status</th><th>Time</th></tr></thead>
-                                <tbody id="qr-log-body">
-                                    <tr><td colspan="4" class="qr-empty-log"><i class="ti ti-history" style="display:block;font-size:1.3rem;margin-bottom:.35rem"></i>No scans yet</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
+            <div id="qr-cam-wrap">
+                <video id="qr-video" autoplay playsinline muted></video>
+                <canvas id="qr-canvas" style="display:none"></canvas>
+                <div class="qr-idle" id="qr-idle">
+                    <i class="ti ti-camera-off"></i>
+                    <p>Camera is off. Press <strong>Start Camera</strong> below.</p>
+                </div>
+                <div class="qr-scan-overlay" id="qr-scan-overlay" style="display:none">
+                    <div class="qr-frame">
+                        <div class="qr-cb"></div><div class="qr-cbr"></div>
+                        <div class="qr-laser"></div>
                     </div>
                 </div>
+                <div class="qr-flash" id="qr-flash"></div>
+            </div>
 
-                <!-- RIGHT: member info -->
-                <div id="qr-right">
+            <div class="qr-controls">
+                <button class="qr-btn qr-btn-primary" id="qr-btn-start" onclick="qrStartCamera()"><i class="ti ti-player-play"></i> Start Camera</button>
+                <button class="qr-btn" id="qr-btn-stop"  onclick="qrStopCamera()"  disabled><i class="ti ti-player-stop"></i> Stop</button>
+                <button class="qr-btn" id="qr-btn-flip"  onclick="qrFlipCamera()"  disabled><i class="ti ti-camera-rotate"></i> Flip</button>
+            </div>
+        </div>
+    </div>
 
-                    <!-- Member card -->
-                    <div class="qr-card">
-                        <div class="qr-card-head">
-                            <div>
-                                <div class="qr-card-title"><i class="ti ti-id-badge-2" style="color:var(--red);margin-right:.35rem"></i>Member Info</div>
-                                <div class="qr-card-sub">Scanned member details</div>
-                            </div>
-                        </div>
-                        <div class="qr-card-body">
-                            <div class="qr-mem-empty" id="qr-mem-empty">
-                                <div class="qr-icon-ring"><i class="ti ti-user-search"></i></div>
-                                <h3>Awaiting Scan</h3>
-                                <p>Scan a QR code or enter a Member ID to view details.</p>
-                            </div>
-                            <div id="qr-mem-data" style="display:none">
-                                <div class="qr-mem-header">
-                                    <div class="qr-mem-av" id="qr-mem-initials">--</div>
-                                    <div>
-                                        <div class="qr-mem-name" id="qr-mem-name">—</div>
-                                        <div class="qr-mem-id" id="qr-mem-id">ID: —</div>
-                                    </div>
-                                    <span class="badge" id="qr-mem-badge" style="margin-left:auto">—</span>
-                                </div>
-                                <div class="qr-expiry-warn" id="qr-expiry-warn" style="display:none">
-                                    <i class="ti ti-alert-triangle"></i>
-                                    <span id="qr-expiry-txt"></span>
-                                </div>
-                                <div class="qr-detail-list">
-                                    <div class="qr-detail-row"><span class="qr-detail-lbl"><i class="ti ti-id-badge"></i> Membership</span><span class="qr-detail-val" id="qr-mem-plan">—</span></div>
-                                    <div class="qr-detail-row"><span class="qr-detail-lbl"><i class="ti ti-activity"></i> Status</span><span class="qr-detail-val" id="qr-mem-status">—</span></div>
-                                    <div class="qr-detail-row"><span class="qr-detail-lbl"><i class="ti ti-calendar-event"></i> Expiry Date</span><span class="qr-detail-val" id="qr-mem-expiry">—</span></div>
-                                    <div class="qr-detail-row"><span class="qr-detail-lbl"><i class="ti ti-clock"></i> Last Visit</span><span class="qr-detail-val" id="qr-mem-last">—</span></div>
-                                    <div class="qr-detail-row"><span class="qr-detail-lbl"><i class="ti ti-building"></i> Branch</span><span class="qr-detail-val" id="qr-mem-branch">—</span></div>
-                                </div>
-                                <div class="qr-checkin-row">
-                                    <button class="qr-btn-checkin" id="qr-btn-checkin" onclick="qrDoCheckIn()"><i class="ti ti-check"></i> Confirm Check-In</button>
-                                    <button class="qr-btn-clear" onclick="qrClearMember()" title="Clear"><i class="ti ti-x"></i></button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+    <!-- Confirm check-in modal -->
+    <div id="qr-modal-backdrop">
+        <div id="qr-modal-box">
+            <button class="qr-modal-close" onclick="qrDismissModal()" title="Dismiss"><i class="ti ti-x"></i></button>
 
-                    <!-- Stats card -->
-                    <div class="qr-card" style="margin-top:1rem">
-                        <div class="qr-card-head">
-                            <div class="qr-card-title"><i class="ti ti-chart-bar" style="color:var(--red);margin-right:.35rem"></i>Today's Check-Ins</div>
-                            <div class="qr-card-sub" id="qr-today-date">—</div>
-                        </div>
-                        <div class="qr-card-body">
-                            <div class="qr-stats-grid">
-                                <div class="qr-stat"><div class="qr-stat-lbl">Total</div><div class="qr-stat-val" id="qr-stat-total">0</div></div>
-                                <div class="qr-stat"><div class="qr-stat-lbl">Active</div><div class="qr-stat-val" style="color:#4caf87" id="qr-stat-active">0</div></div>
-                                <div class="qr-stat"><div class="qr-stat-lbl">Expired</div><div class="qr-stat-val" style="color:#e05656" id="qr-stat-expired">0</div></div>
-                                <div class="qr-stat"><div class="qr-stat-lbl">Denied</div><div class="qr-stat-val" style="color:#d6a100" id="qr-stat-denied">0</div></div>
-                            </div>
-                        </div>
-                    </div>
+            <!-- Avatar + name -->
+            <div class="qr-modal-avatar" id="qrm-initials">--</div>
+            <div class="qr-modal-name"   id="qrm-name">—</div>
+            <div class="qr-modal-id"     id="qrm-id">—</div>
 
-                </div><!-- /qr-right -->
-            </div><!-- /qr-body -->
-        </div><!-- /qr-overlay-inner -->
-    </div><!-- /qr-overlay -->
+            <!-- Status badge -->
+            <span class="badge" id="qrm-badge" style="margin-bottom:.9rem">—</span>
+
+            <!-- Expiry warning -->
+            <div class="qr-modal-warn" id="qrm-warn" style="display:none">
+                <i class="ti ti-alert-triangle"></i>
+                <span id="qrm-warn-txt"></span>
+            </div>
+
+            <!-- Detail rows -->
+            <div class="qr-modal-details">
+                <div class="qr-modal-row"><span class="qr-modal-lbl"><i class="ti ti-id-badge"></i> Plan</span><span class="qr-modal-val" id="qrm-plan">—</span></div>
+                <div class="qr-modal-row"><span class="qr-modal-lbl"><i class="ti ti-calendar-event"></i> Expires</span><span class="qr-modal-val" id="qrm-expiry">—</span></div>
+                <div class="qr-modal-row"><span class="qr-modal-lbl"><i class="ti ti-building"></i> Branch</span><span class="qr-modal-val" id="qrm-branch">—</span></div>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="qr-modal-actions">
+                <button class="qr-modal-reject" onclick="qrReject()"><i class="ti ti-x"></i> Reject</button>
+                <button class="qr-modal-accept" id="qrm-accept-btn" onclick="qrAccept()"><i class="ti ti-check"></i> Accept</button>
+            </div>
+        </div>
+    </div>
 
     <style>
-        /* ── FAB ─────────────────────────────────── */
+        /* ── FAB ── */
         #qr-fab {
-            position: fixed;
-            bottom: 1.6rem;
-            right: 1.6rem;
-            z-index: 500;
-            width: 52px;
-            height: 52px;
-            border-radius: 14px;
-            background: var(--red);
-            border: none;
-            color: #fff;
-            font-size: 1.35rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 6px 20px var(--red-glow);
-            cursor: pointer;
+            position: fixed; bottom: 1.6rem; right: 1.6rem; z-index: 500;
+            width: 52px; height: 52px; border-radius: 14px;
+            background: var(--red); border: none; color: #fff;
+            font-size: 1.35rem; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 6px 20px var(--red-glow); cursor: pointer;
             transition: background .15s, transform .15s, box-shadow .15s;
         }
-        #qr-fab:hover {
-            background: #a01212;
-            transform: translateY(-2px);
-            box-shadow: 0 10px 28px var(--red-glow);
-        }
+        #qr-fab:hover { background: #a01212; transform: translateY(-2px); box-shadow: 0 10px 28px var(--red-glow); }
 
-        /* ── FULLSCREEN OVERLAY ──────────────────── */
+        /* ── SCANNER OVERLAY ── */
         #qr-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            z-index: 600;
-            background: var(--bg);
-            overflow-y: auto;
+            display: none; position: fixed; inset: 0; z-index: 600;
+            background: var(--bg); overflow-y: auto;
         }
         #qr-overlay.qr-open { display: block; }
 
         #qr-overlay-inner {
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
+            display: flex; flex-direction: column;
+            max-width: 560px; margin: 0 auto;
             padding: 1.25rem 1.5rem 2rem;
+            min-height: 100vh;
         }
 
         /* header */
         #qr-overlay-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 1.25rem;
-            padding-bottom: 1rem;
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 1.25rem; padding-bottom: 1rem;
             border-bottom: 1px solid var(--border);
         }
-        #qr-overlay-title {
-            font-size: 1rem;
-            font-weight: 700;
-        }
-        .qr-sub-label { font-size: .72rem; color: var(--text-3); margin-top: .1rem; }
-        .qr-status-txt { font-size: .72rem; color: var(--text-3); }
+        #qr-overlay-title { font-size: 1rem; font-weight: 700; }
+        .qr-sub-label    { font-size: .72rem; color: var(--text-3); margin-top: .1rem; }
+        .qr-status-txt   { font-size: .72rem; color: var(--text-3); }
         .qr-close-btn {
-            background: none;
-            border: 1px solid var(--border2);
-            color: var(--text-2);
-            border-radius: 9px;
-            width: 34px; height: 34px;
+            background: none; border: 1px solid var(--border2); color: var(--text-2);
+            border-radius: 9px; width: 34px; height: 34px;
             display: flex; align-items: center; justify-content: center;
             font-size: 1rem; cursor: pointer; transition: all .15s;
         }
         .qr-close-btn:hover { background: var(--red-soft); color: var(--text); border-color: rgba(204,26,26,.3); }
 
-        /* two-col body */
-        #qr-body {
-            display: grid;
-            grid-template-columns: 1fr 360px;
-            gap: 1.25rem;
-            align-items: start;
-            flex: 1;
-        }
-
-        /* ── STATUS DOT ──────────────────────────── */
-        .qr-dot {
-            width: 7px; height: 7px; border-radius: 50%; display: inline-block;
-        }
-        .qr-dot-online  { background: #4caf87; box-shadow: 0 0 5px rgba(76,175,135,.5); }
-        .qr-dot-offline { background: #555; }
-
-        /* ── CAMERA ──────────────────────────────── */
-        .qr-cam-wrap {
+        /* camera */
+        #qr-cam-wrap {
             position: relative; width: 100%; aspect-ratio: 4/3;
-            background: #000; border-radius: 10px; overflow: hidden;
+            background: #000; border-radius: 12px; overflow: hidden;
         }
-        #qr-video { width:100%; height:100%; object-fit:cover; display:block; }
+        #qr-video { width: 100%; height: 100%; object-fit: cover; display: block; }
 
         .qr-idle {
-            position: absolute; inset: 0;
-            display: flex; flex-direction: column;
+            position: absolute; inset: 0; display: flex; flex-direction: column;
             align-items: center; justify-content: center; gap: .75rem;
             background: var(--surface2);
         }
@@ -3668,13 +3736,12 @@ $adminData = [
         .qr-idle p { font-size: .8rem; color: var(--text-2); }
 
         .qr-scan-overlay {
-            position: absolute; inset: 0;
-            display: flex; align-items: center; justify-content: center;
-            pointer-events: none;
+            position: absolute; inset: 0; display: flex;
+            align-items: center; justify-content: center; pointer-events: none;
         }
         .qr-frame { width: 190px; height: 190px; position: relative; }
         .qr-frame::before, .qr-frame::after, .qr-cb, .qr-cbr {
-            content:''; position: absolute; width: 28px; height: 28px;
+            content: ''; position: absolute; width: 28px; height: 28px;
             border-color: var(--red); border-style: solid;
         }
         .qr-frame::before { top:0; left:0;   border-width:3px 0 0 3px; border-radius:4px 0 0 0; }
@@ -3703,7 +3770,7 @@ $adminData = [
         }
         @keyframes qrFlashIn { 0%{opacity:0} 30%{opacity:1} 100%{opacity:1} }
 
-        /* ── BUTTONS ─────────────────────────────── */
+        /* controls */
         .qr-controls { display: flex; gap: .6rem; margin-top: .9rem; flex-wrap: wrap; }
         .qr-btn {
             display: inline-flex; align-items: center; gap: .4rem;
@@ -3717,173 +3784,127 @@ $adminData = [
         .qr-btn-primary:hover { background: #a01212; border-color: #a01212; }
         .qr-btn:disabled { opacity: .4; pointer-events: none; }
 
-        /* ── MANUAL ENTRY ────────────────────────── */
-        .qr-manual-wrap {
-            margin-top: 1.1rem; padding-top: 1.1rem;
-            border-top: 1px solid var(--border);
-        }
-        .qr-section-lbl {
-            font-size: .68rem; font-weight: 700; color: var(--text-3);
-            text-transform: uppercase; letter-spacing: .6px; margin-bottom: .5rem;
-        }
-        .qr-manual-row { display: flex; gap: .6rem; }
-        .qr-manual-row input {
-            flex: 1; background: var(--input-bg); border: 1px solid var(--border);
-            color: var(--text); border-radius: 9px; padding: .42rem .85rem;
-            font-size: .82rem; font-family: inherit; outline: none; transition: border-color .2s;
-        }
-        .qr-manual-row input:focus { border-color: rgba(204,26,26,.45); }
-        .qr-manual-row input::placeholder { color: var(--text-3); }
+        /* status dot */
+        .qr-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+        .qr-dot-online  { background: #4caf87; box-shadow: 0 0 5px rgba(76,175,135,.5); }
+        .qr-dot-offline { background: #555; }
 
-        /* ── LOG TABLE ───────────────────────────── */
-        .qr-log-wrap { margin-top: 1.3rem; }
-        .qr-log-head {
-            display: flex; align-items: center; justify-content: space-between; margin-bottom: .5rem;
+        /* ── CONFIRM MODAL ── */
+        #qr-modal-backdrop {
+            display: none; position: fixed; inset: 0; z-index: 700;
+            background: rgba(0,0,0,.65); backdrop-filter: blur(4px);
+            align-items: center; justify-content: center;
         }
-        .qr-log-title { font-size: .82rem; font-weight: 700; }
-        .qr-tbl-wrap { border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
-        .qr-table { width: 100%; border-collapse: collapse; }
-        .qr-table thead th {
-            background: rgba(255,255,255,.03); border-bottom: 1px solid var(--border);
-            color: var(--text-3); font-size: .6rem; font-weight: 700;
-            text-transform: uppercase; letter-spacing: .7px;
-            padding: .65rem 1rem; text-align: left; white-space: nowrap;
-        }
-        .qr-table tbody td { padding: .7rem 1rem; border-bottom: 1px solid var(--border); font-size: .82rem; vertical-align: middle; }
-        .qr-table tbody tr:last-child td { border-bottom: none; }
-        .qr-table tbody tr:hover td { background: var(--row-hover); }
-        .qr-empty-log { text-align: center; color: var(--text-3); font-size: .78rem; padding: 2rem 1rem; }
+        #qr-modal-backdrop.qrm-open { display: flex; }
 
-        /* ── MEMBER CARD ─────────────────────────── */
-        .qr-card {
-            background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
-        }
-        .qr-card-head {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: .9rem 1.1rem; border-bottom: 1px solid var(--border);
-        }
-        .qr-card-title { font-size: .9rem; font-weight: 700; }
-        .qr-card-sub   { font-size: .7rem; color: var(--text-3); margin-top: .1rem; }
-        .qr-card-body  { padding: 1.25rem; }
-
-        .qr-mem-empty {
+        #qr-modal-box {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 18px; padding: 1.75rem 1.5rem 1.5rem;
+            width: min(360px, calc(100vw - 2rem));
             display: flex; flex-direction: column; align-items: center;
-            justify-content: center; gap: .7rem; padding: 2.5rem 1.5rem; text-align: center;
+            gap: .35rem; position: relative;
+            animation: qrmSlide .22s ease;
         }
-        .qr-icon-ring {
-            width: 58px; height: 58px; border-radius: 50%;
-            background: var(--red-soft);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 1.5rem; color: var(--red);
-        }
-        .qr-mem-empty h3 { font-size: .9rem; font-weight: 700; }
-        .qr-mem-empty p  { font-size: .76rem; color: var(--text-2); }
+        @keyframes qrmSlide { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:none; } }
 
-        .qr-mem-header { display: flex; align-items: center; gap: .85rem; margin-bottom: 1.1rem; }
-        .qr-mem-av {
-            width: 50px; height: 50px; border-radius: 13px;
+        .qr-modal-close {
+            position: absolute; top: .85rem; right: .85rem;
+            background: none; border: 1px solid var(--border2); color: var(--text-2);
+            border-radius: 8px; width: 30px; height: 30px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: .9rem; cursor: pointer; transition: all .15s;
+        }
+        .qr-modal-close:hover { background: var(--red-soft); color: var(--text); }
+
+        .qr-modal-avatar {
+            width: 64px; height: 64px; border-radius: 16px;
             background: linear-gradient(135deg, var(--red), #7a0f0f);
             display: flex; align-items: center; justify-content: center;
-            font-size: 1.15rem; font-weight: 800; color: #fff; flex-shrink: 0;
+            font-size: 1.4rem; font-weight: 800; color: #fff;
+            margin-bottom: .4rem;
         }
-        .qr-mem-name { font-size: .98rem; font-weight: 700; line-height: 1.25; }
-        .qr-mem-id   { font-size: .7rem; color: var(--text-3); margin-top: .1rem; }
+        .qr-modal-name { font-size: 1.1rem; font-weight: 700; text-align: center; }
+        .qr-modal-id   { font-size: .72rem; color: var(--text-3); margin-bottom: .4rem; }
 
-        .qr-expiry-warn {
-            display: flex; align-items: center; gap: .55rem;
+        .qr-modal-warn {
+            display: flex; align-items: center; gap: .5rem;
             background: rgba(204,26,26,.08); border: 1px solid rgba(204,26,26,.2);
-            border-radius: 9px; padding: .6rem .8rem;
-            font-size: .76rem; color: rgba(255,120,120,.85); margin-bottom: .85rem;
+            border-radius: 9px; padding: .55rem .8rem;
+            font-size: .74rem; color: rgba(255,120,120,.9);
+            width: 100%; margin-bottom: .2rem;
         }
-        .qr-expiry-warn i { font-size: .9rem; color: var(--red); flex-shrink: 0; }
+        .qr-modal-warn i { color: var(--red); flex-shrink: 0; }
 
-        .qr-detail-list { display: flex; flex-direction: column; gap: .55rem; }
-        .qr-detail-row {
+        .qr-modal-details {
+            width: 100%; display: flex; flex-direction: column;
+            gap: .45rem; margin: .5rem 0 .9rem;
+        }
+        .qr-modal-row {
             display: flex; align-items: center; justify-content: space-between;
-            padding: .52rem .7rem; background: var(--surface2);
+            padding: .48rem .7rem; background: var(--surface2);
             border-radius: 9px; border: 1px solid var(--border);
         }
-        .qr-detail-lbl {
-            font-size: .68rem; font-weight: 700; color: var(--text-3);
+        .qr-modal-lbl {
+            font-size: .67rem; font-weight: 700; color: var(--text-3);
             text-transform: uppercase; letter-spacing: .5px;
-            display: flex; align-items: center; gap: .35rem;
+            display: flex; align-items: center; gap: .3rem;
         }
-        .qr-detail-lbl i { font-size: .82rem; }
-        .qr-detail-val { font-size: .83rem; font-weight: 600; }
+        .qr-modal-val { font-size: .82rem; font-weight: 600; }
 
-        .qr-checkin-row { display: flex; gap: .6rem; margin-top: 1.1rem; }
-        .qr-btn-checkin {
-            flex: 1; padding: .6rem 1rem; border-radius: 10px;
-            font-size: .84rem; font-weight: 700; border: none;
-            background: var(--red); color: #fff; cursor: pointer;
-            display: flex; align-items: center; justify-content: center; gap: .5rem;
-            transition: background .15s; font-family: inherit;
+        .qr-modal-actions { display: flex; gap: .7rem; width: 100%; margin-top: .2rem; }
+        .qr-modal-reject, .qr-modal-accept {
+            flex: 1; padding: .65rem 1rem; border-radius: 10px;
+            font-size: .85rem; font-weight: 700; font-family: inherit;
+            border: none; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: .45rem;
+            transition: background .15s;
         }
-        .qr-btn-checkin:hover { background: #a01212; }
-        .qr-btn-checkin:disabled { opacity: .4; pointer-events: none; }
-        .qr-btn-clear {
-            padding: .6rem .9rem; border-radius: 10px; font-size: .82rem;
-            font-weight: 600; font-family: inherit;
-            border: 1px solid var(--border2); background: transparent;
-            color: var(--text-2); cursor: pointer; transition: all .15s;
+        .qr-modal-reject {
+            background: var(--surface2); border: 1px solid var(--border2); color: var(--text-2);
         }
-        .qr-btn-clear:hover { background: var(--input-bg); color: var(--text); }
-
-        /* ── STATS ───────────────────────────────── */
-        .qr-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .65rem; }
-        .qr-stat {
-            background: var(--surface2); border: 1px solid var(--border);
-            border-radius: 10px; padding: .85rem 1rem;
-        }
-        .qr-stat-lbl { font-size: .62rem; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .5px; margin-bottom: .3rem; }
-        .qr-stat-val { font-size: 1.9rem; font-weight: 800; line-height: 1; }
-
-        /* ── RESPONSIVE ──────────────────────────── */
-        @media (max-width: 860px) {
-            #qr-body { grid-template-columns: 1fr; }
-        }
+        .qr-modal-reject:hover { background: var(--input-bg); color: var(--text); }
+        .qr-modal-accept { background: var(--red); color: #fff; }
+        .qr-modal-accept:hover { background: #a01212; }
+        .qr-modal-accept:disabled { opacity: .4; pointer-events: none; }
     </style>
 
     <script>
+    /* ── member lookup map ── */
     const qrMembers = Object.fromEntries(adminMembers.map(m => [
         `MBR-${String(m.id).padStart(5,'0')}`,
         {
-            id: `MBR-${String(m.id).padStart(5,'0')}`,
-            member_id: m.id,
+            id:            `MBR-${String(m.id).padStart(5,'0')}`,
+            member_id:     m.id,
             membership_id: m.membership_id,
-            fname: m.fname,
-            lname: m.lname,
-            plan: m.plan,
-            status: m.status,
-            expiry: m.expiry,
-            lastVisit: 'From attendance records',
-            branch: m.branch
+            fname:         m.fname,
+            lname:         m.lname,
+            plan:          m.plan,
+            status:        m.status,
+            expiry:        m.expiry,
+            branch:        m.branch,
+            branch_id:     m.branch_id,
         }
     ]));
 
-    let qrStats = { total:0, active:0, expired:0, denied:0 };
-    let qrLog = [];
+    let qrStream      = null;
+    let qrScanning    = false;
+    let qrFacingMode  = 'environment';
+    let qrRafId       = null;
     let qrCurrentMember = null;
-    let qrStream = null;
-    let qrScanning = false;
-    let qrFacingMode = 'environment';
-    let qrRafId = null;
 
-    /* ── OPEN / CLOSE ────────────────────────── */
+    /* ── open / close overlay ── */
     function openQR() {
         document.getElementById('qr-overlay').classList.add('qr-open');
         document.body.style.overflow = 'hidden';
-        // sync theme: overlay inherits CSS vars from html[data-theme] automatically
-        document.getElementById('qr-today-date').textContent =
-            new Date().toLocaleDateString('en-PH', { weekday:'short', month:'long', day:'numeric' });
     }
     function closeQR() {
         qrStopCamera();
         document.getElementById('qr-overlay').classList.remove('qr-open');
         document.body.style.overflow = '';
+        qrDismissModal();
     }
 
-    /* ── CAMERA ──────────────────────────────── */
+    /* ── camera ── */
     async function qrStartCamera() {
         try {
             qrStream = await navigator.mediaDevices.getUserMedia({
@@ -3899,7 +3920,7 @@ $adminData = [
             document.getElementById('qr-btn-flip').disabled  = false;
             document.getElementById('qr-status-dot').className = 'qr-dot qr-dot-online';
             document.getElementById('qr-status-txt').textContent = 'Live';
-            document.getElementById('qr-overlay-sub').textContent = 'Scanning for QR codes…';
+            document.getElementById('qr-overlay-sub').textContent = 'Scanning for QR codes\u2026';
             qrScanning = true;
             requestAnimationFrame(qrScanFrame);
         } catch(e) {
@@ -3913,29 +3934,23 @@ $adminData = [
         if (qrStream) { qrStream.getTracks().forEach(t => t.stop()); qrStream = null; }
         const v = document.getElementById('qr-video');
         if (v) v.srcObject = null;
-        const idle = document.getElementById('qr-idle');
-        const overlay = document.getElementById('qr-scan-overlay');
-        if (idle)    idle.style.display = 'flex';
-        if (overlay) overlay.style.display = 'none';
-        const btnStart = document.getElementById('qr-btn-start');
-        const btnStop  = document.getElementById('qr-btn-stop');
-        const btnFlip  = document.getElementById('qr-btn-flip');
-        if (btnStart) btnStart.disabled = false;
-        if (btnStop)  btnStop.disabled  = true;
-        if (btnFlip)  btnFlip.disabled  = true;
-        const dot = document.getElementById('qr-status-dot');
-        const txt = document.getElementById('qr-status-txt');
-        const sub = document.getElementById('qr-overlay-sub');
-        if (dot) dot.className = 'qr-dot qr-dot-offline';
-        if (txt) txt.textContent = 'Offline';
-        if (sub) sub.textContent = 'Camera inactive — press Start to begin';
+        document.getElementById('qr-idle').style.display    = 'flex';
+        document.getElementById('qr-scan-overlay').style.display = 'none';
+        document.getElementById('qr-btn-start').disabled = false;
+        document.getElementById('qr-btn-stop').disabled  = true;
+        document.getElementById('qr-btn-flip').disabled  = true;
+        document.getElementById('qr-status-dot').className = 'qr-dot qr-dot-offline';
+        document.getElementById('qr-status-txt').textContent = 'Offline';
+        document.getElementById('qr-overlay-sub').textContent = 'Camera inactive \u2014 press Start to begin';
     }
 
     async function qrFlipCamera() {
         qrFacingMode = qrFacingMode === 'environment' ? 'user' : 'environment';
-        qrStopCamera(); await qrStartCamera();
+        qrStopCamera();
+        await qrStartCamera();
     }
 
+    /* ── scan loop ── */
     function qrScanFrame() {
         if (!qrScanning) return;
         const v = document.getElementById('qr-video');
@@ -3947,26 +3962,18 @@ $adminData = [
             const img = ctx.getImageData(0, 0, c.width, c.height);
             const code = jsQR(img.data, img.width, img.height, { inversionAttempts:'dontInvert' });
             if (code) {
-                qrHandleScan(code.data);
+                /* pause scanning while modal is open */
                 qrScanning = false;
-                setTimeout(() => { qrScanning = true; requestAnimationFrame(qrScanFrame); }, 2500);
+                qrHandleScan(code.data);
                 return;
             }
         }
         qrRafId = requestAnimationFrame(qrScanFrame);
     }
 
-    /* ── LOOKUP ──────────────────────────────── */
-    function qrHandleScan(raw) { qrLookup(raw.trim().toUpperCase()); }
-
-    function qrManualLookup() {
-        const val = document.getElementById('qr-manual-input').value.trim().toUpperCase();
-        if (!val) { toast('error', 'Empty input', 'Please enter a Member ID.'); return; }
-        document.getElementById('qr-manual-input').value = '';
-        qrLookup(val);
-    }
-
-    function qrLookup(id) {
+    /* ── lookup & show modal ── */
+    function qrHandleScan(raw) {
+        const id = raw.trim().toUpperCase();
         const flash = document.getElementById('qr-flash');
         flash.style.display = 'block';
         setTimeout(() => flash.style.display = 'none', 700);
@@ -3974,101 +3981,126 @@ $adminData = [
         const m = qrMembers[id] || null;
         if (!m) {
             toast('error', 'Not found', `No member with ID "${id}".`);
-            qrAddLog(id, '—', 'not found');
-            qrStats.denied++; qrStats.total++;
-            qrUpdateStats(); return;
-        }
-        qrCurrentMember = m;
-        qrRenderMember(m);
-        const type  = { active:'success', expired:'error', frozen:'info' }[m.status] || 'info';
-        const label = { active:'Member found', expired:'Membership expired', frozen:'Membership frozen' }[m.status];
-        toast(type, label, `${m.fname} ${m.lname} — ${m.plan}`);
-    }
-
-    function qrRenderMember(m) {
-        document.getElementById('qr-mem-empty').style.display = 'none';
-        document.getElementById('qr-mem-data').style.display  = 'block';
-        document.getElementById('qr-mem-initials').textContent = (m.fname[0]+m.lname[0]).toUpperCase();
-        document.getElementById('qr-mem-name').textContent = `${m.fname} ${m.lname}`;
-        document.getElementById('qr-mem-id').textContent   = `ID: ${m.id}`;
-        document.getElementById('qr-mem-plan').textContent   = m.plan;
-        document.getElementById('qr-mem-last').textContent   = m.lastVisit;
-        document.getElementById('qr-mem-branch').textContent = m.branch;
-        document.getElementById('qr-mem-expiry').textContent = qrFmtDate(m.expiry);
-        document.getElementById('qr-mem-status').textContent = qrCap(m.status);
-        const badge = document.getElementById('qr-mem-badge');
-        badge.textContent = qrCap(m.status); badge.className = `badge ${m.status}`;
-
-        const daysLeft = Math.ceil((new Date(m.expiry) - new Date()) / 86400000);
-        const warn = document.getElementById('qr-expiry-warn');
-        if (m.status === 'active' && daysLeft <= 30 && daysLeft >= 0) {
-            warn.style.display = 'flex';
-            document.getElementById('qr-expiry-txt').textContent = `Membership expires in ${daysLeft} day${daysLeft===1?'':'s'}.`;
-        } else if (m.status === 'expired') {
-            warn.style.display = 'flex';
-            document.getElementById('qr-expiry-txt').textContent = `Membership expired on ${qrFmtDate(m.expiry)}.`;
-        } else { warn.style.display = 'none'; }
-
-        document.getElementById('qr-btn-checkin').disabled = m.status !== 'active';
-    }
-
-    function qrClearMember() {
-        qrCurrentMember = null;
-        document.getElementById('qr-mem-empty').style.display = 'flex';
-        document.getElementById('qr-mem-data').style.display  = 'none';
-    }
-
-    function qrDoCheckIn() {
-        if (!qrCurrentMember) return;
-        const m = qrCurrentMember;
-        qrAddLog(m.id, `${m.fname} ${m.lname}`, 'denied');
-        qrStats.total++;
-        qrStats.denied++;
-        qrUpdateStats();
-        toast('error', 'Check-in unavailable', 'No existing admin/scanner attendance handler is available to log this visit.');
-    }
-
-    /* ── LOG ─────────────────────────────────── */
-    function qrAddLog(id, name, status) {
-        const time = new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
-        qrLog.unshift({ id, name, status, time });
-        qrRenderLog();
-    }
-    function qrRenderLog() {
-        const body = document.getElementById('qr-log-body');
-        if (!qrLog.length) {
-            body.innerHTML = '<tr><td colspan="4" class="qr-empty-log"><i class="ti ti-history" style="display:block;font-size:1.3rem;margin-bottom:.35rem"></i>No scans yet</td></tr>';
+            /* resume scanning */
+            qrScanning = true;
+            requestAnimationFrame(qrScanFrame);
             return;
         }
-        const map = { active:'active', expired:'expired', frozen:'frozen', 'not found':'cancelled' };
-        body.innerHTML = qrLog.slice(0,10).map(r => `
-            <tr>
-                <td style="font-family:monospace;font-size:.77rem">${r.id}</td>
-                <td style="font-weight:600">${r.name}</td>
-                <td><span class="badge ${map[r.status]||''}">${r.status}</span></td>
-                <td style="color:var(--text-3)">${r.time}</td>
-            </tr>`).join('');
-    }
-    function qrClearLog() { qrLog = []; qrRenderLog(); }
-
-    /* ── STATS ───────────────────────────────── */
-    function qrUpdateStats() {
-        document.getElementById('qr-stat-total').textContent   = qrStats.total;
-        document.getElementById('qr-stat-active').textContent  = qrStats.active;
-        document.getElementById('qr-stat-expired').textContent = qrStats.expired;
-        document.getElementById('qr-stat-denied').textContent  = qrStats.denied;
+        qrCurrentMember = m;
+        qrShowModal(m);
     }
 
-    /* ── UTILS ───────────────────────────────── */
+    function qrShowModal(m) {
+        /* populate */
+        document.getElementById('qrm-initials').textContent = (m.fname[0]+m.lname[0]).toUpperCase();
+        document.getElementById('qrm-name').textContent     = `${m.fname} ${m.lname}`;
+        document.getElementById('qrm-id').textContent       = `ID: ${m.id}`;
+        document.getElementById('qrm-plan').textContent     = m.plan;
+        document.getElementById('qrm-expiry').textContent   = qrFmtDate(m.expiry);
+        document.getElementById('qrm-branch').textContent   = m.branch;
+
+        const badge = document.getElementById('qrm-badge');
+        badge.textContent = qrCap(m.status);
+        badge.className   = `badge ${m.status}`;
+
+        /* expiry warning */
+        const warn     = document.getElementById('qrm-warn');
+        const warnTxt  = document.getElementById('qrm-warn-txt');
+        const daysLeft = Math.ceil((new Date(m.expiry) - new Date()) / 86400000);
+        if (m.status === 'expired') {
+            warn.style.display = 'flex';
+            warnTxt.textContent = `Membership expired on ${qrFmtDate(m.expiry)}.`;
+        } else if (m.status === 'active' && daysLeft <= 30 && daysLeft >= 0) {
+            warn.style.display = 'flex';
+            warnTxt.textContent = `Expires in ${daysLeft} day${daysLeft===1?'':'s'}.`;
+        } else {
+            warn.style.display = 'none';
+        }
+
+        /* disable Accept if not active */
+        document.getElementById('qrm-accept-btn').disabled = m.status !== 'active';
+
+        document.getElementById('qr-modal-backdrop').classList.add('qrm-open');
+    }
+
+    function qrDismissModal() {
+        document.getElementById('qr-modal-backdrop').classList.remove('qrm-open');
+        qrCurrentMember = null;
+        /* resume scanning */
+        if (qrStream) {
+            qrScanning = true;
+            requestAnimationFrame(qrScanFrame);
+        }
+    }
+
+    /* ── reject ── */
+    function qrReject() {
+        toast('info', 'Check-in rejected', qrCurrentMember
+            ? `${qrCurrentMember.fname} ${qrCurrentMember.lname} was not admitted.`
+            : 'Entry rejected.');
+        qrDismissModal();
+    }
+
+    /* ── accept (write to DB) ── */
+    async function qrAccept() {
+        if (!qrCurrentMember) return;
+        const m   = qrCurrentMember;
+        const btn = document.getElementById('qrm-accept-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Logging\u2026';
+
+        try {
+            const res  = await fetch('handlers/checkin_handler.php', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({
+                    action:     'checkin',
+                    user_id:    m.member_id,
+                    branch_id:  m.branch_id,
+                    csrf_token: CSRF_TOKEN,
+                }),
+            });
+            const data = await res.json().catch(() => ({ success: false, message: 'Invalid server response.' }));
+
+            if (data.success) {
+                toast('success', 'Checked in!', `${m.fname} ${m.lname} has been admitted.`);
+                qrDismissModal();
+            } else {
+                toast('error', 'Check-in failed', data.message || 'Could not log visit.');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ti ti-check"></i> Accept';
+            }
+        } catch(e) {
+            toast('error', 'Network error', e.message || 'Could not reach server.');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ti ti-check"></i> Accept';
+        }
+    }
+
+    /* ── utils ── */
     function qrFmtDate(d) {
-        if (!d) return '—';
+        if (!d) return '\u2014';
         return new Date(d+'T00:00:00').toLocaleDateString('en-PH', { month:'short', day:'numeric', year:'numeric' });
     }
     function qrCap(s) { return s ? s.charAt(0).toUpperCase()+s.slice(1) : s; }
 
-    /* close on Escape key */
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeQR(); });
+    /* close on Escape */
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+            if (document.getElementById('qr-modal-backdrop').classList.contains('qrm-open')) {
+                qrDismissModal();
+            } else {
+                closeQR();
+            }
+        }
+    });
+
+    /* close modal when clicking backdrop */
+    document.getElementById('qr-modal-backdrop').addEventListener('click', function(e) {
+        if (e.target === this) qrDismissModal();
+    });
     </script>
+
 </body>
 
 </html>

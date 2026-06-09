@@ -298,8 +298,18 @@ function approveAccount(array $data): void
     }
 
     $pdo = db();
-    $stmt = $pdo->prepare('UPDATE users SET is_active = 1, updated_at = NOW() WHERE id = ? AND role = "member"');
+    $stmt = $pdo->prepare('UPDATE users SET is_active = 1, is_approved = 1, updated_at = NOW() WHERE id = ? AND role = "member"');
     $stmt->execute([$memberId]);
+
+    // Also activate the pending membership so payment_status and status are no longer pending
+    $mem = $pdo->prepare(
+        'UPDATE memberships
+         SET payment_status = "paid",
+             status         = "active",
+             updated_at     = NOW()
+         WHERE user_id = ? AND payment_status = "pending" AND status = "pending"'
+    );
+    $mem->execute([$memberId]);
 
     respond($stmt->rowCount() > 0, $stmt->rowCount() > 0 ? 'Account approved.' : 'Member account was already active or not found.', [
         'reload' => true,

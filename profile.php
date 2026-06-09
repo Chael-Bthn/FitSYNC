@@ -13,6 +13,7 @@ require_once __DIR__ . '/includes/schedule_helpers.php';
 
 $pdo    = db();
 $userId = (int) $_SESSION['user_id'];
+$qrFile = 'qrcodes/member' . $userId . '.png';
 
 // Check if account is pending approval
 $isPending = isset($_SESSION['pending_approval']) && $_SESSION['pending_approval'];
@@ -549,40 +550,116 @@ $workoutPrograms = [
             transition: margin .3s
         }
 
+        /* ── PENDING OVERLAY (blurry backdrop) ── */
         .pending-overlay {
             position: absolute;
             inset: 0;
             z-index: 150;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 1.5rem;
             background: rgba(10, 10, 10, .55);
             backdrop-filter: blur(10px);
             pointer-events: auto;
         }
 
-        .pending-overlay-card {
-            max-width: 520px;
-            width: 100%;
+        /* ── PENDING NOTICE (fixed top-center, above overlay) ── */
+        .pending-notice {
+            position: fixed;
+            top: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            /* on desktop, account for sidebar width so it centres in the content area */
+            margin-left: calc(var(--sidebar-w) / 2);
+            z-index: 190;
+            width: calc(100% - var(--sidebar-w) - 3rem);
+            max-width: 560px;
+            min-width: 280px;
+            pointer-events: none; /* let clicks pass through to sidebar */
+        }
+
+        .pending-notice-card {
             background: rgba(17, 17, 17, .98);
-            border: 1px solid rgba(255, 193, 7, .2);
-            box-shadow: 0 25px 80px rgba(0, 0, 0, .35);
-            border-radius: 24px;
-            padding: 2rem;
+            border: 1px solid rgba(255, 193, 7, .3);
+            box-shadow: 0 8px 40px rgba(255, 193, 7, .08), 0 4px 24px rgba(0,0,0,.45);
+            border-radius: 20px;
+            padding: 1.35rem 1.6rem;
+            color: var(--text-primary);
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            pointer-events: auto;
+        }
+
+        [data-bs-theme="light"] .pending-notice-card {
+            background: #fffdf0;
+            border-color: rgba(214, 161, 0, .35);
+            box-shadow: 0 8px 40px rgba(214, 161, 0, .1), 0 4px 24px rgba(0,0,0,.12);
+        }
+
+        .pending-notice-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 11px;
+            background: rgba(255, 193, 7, .12);
+            border: 1px solid rgba(255, 193, 7, .22);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #d6a100;
+            font-size: 1.25rem;
+            flex-shrink: 0;
+            margin-top: .1rem;
+        }
+
+        .pending-notice-body h2 {
+            margin: 0 0 .3rem;
+            font-size: 1rem;
+            font-weight: 900;
             color: var(--text-primary);
         }
 
-        .pending-overlay-card h2 {
-            margin: 0 0 1rem;
-            font-size: 1.35rem;
-            font-weight: 900;
+        .pending-notice-body p {
+            margin: 0;
+            color: var(--text-muted);
+            font-size: .82rem;
+            line-height: 1.6;
         }
 
-        .pending-overlay-card p {
-            margin: .75rem 0 0;
-            color: var(--text-muted);
-            line-height: 1.7;
+        .pending-notice-body p + p {
+            margin-top: .4rem;
+        }
+
+        /* On mobile: full-width, no sidebar offset */
+        @media (max-width: 991.98px) {
+            .pending-notice {
+                left: 1rem;
+                right: 1rem;
+                transform: none;
+                margin-left: 0;
+                width: auto;
+                max-width: none;
+                top: 5rem; /* clears the hamburger row height + gap */
+            }
+        }
+
+        @media (max-width: 575.98px) {
+            .pending-notice-card {
+                padding: 1rem 1.1rem;
+                gap: .75rem;
+            }
+
+            .pending-notice-icon {
+                width: 34px;
+                height: 34px;
+                font-size: 1rem;
+                border-radius: 9px;
+            }
+
+            .pending-notice-body h2 {
+                font-size: .9rem;
+            }
+
+            .pending-notice-body p {
+                font-size: .78rem;
+            }
         }
 
         /* ── HERO DASHBOARD HEADER ── */
@@ -2198,18 +2275,26 @@ $workoutPrograms = [
     <!-- ════════ MAIN ════════ -->
     <main class="main-content">
 
-        <!-- Mobile hamburger row -->
-        <div style="display:flex;align-items:center;gap:.65rem;margin-bottom:1.5rem" class="d-lg-none">
+        <!-- Mobile hamburger row — z-index above pending overlay so it stays tappable -->
+        <div id="mobileHamburgerRow" style="display:flex;align-items:center;gap:.65rem;margin-bottom:1.5rem;position:relative;z-index:200" class="d-lg-none">
             <button class="hamburger" onclick="openSidebar()"><i class="ti ti-menu-2"></i></button>
             <span style="font-size:.9rem;font-weight:700;color:var(--text-muted)">FitSync</span>
         </div>
 
         <?php if ($isPending): ?>
-            <div class="pending-overlay">
-                <div class="pending-overlay-card">
-                    <h2>Account Pending Approval</h2>
-                    <p>Your account is currently under review by our administrators. The full member dashboard is visible, but interactions are disabled until approval.</p>
-                    <p>Use the sidebar to toggle dark mode or log out while you wait.</p>
+            <!-- Blurry backdrop overlay covering main content -->
+            <div class="pending-overlay"></div>
+            <!-- Notice card: fixed top-center, above overlay, above sidebar on mobile -->
+            <div class="pending-notice">
+                <div class="pending-notice-card">
+                    <div class="pending-notice-icon">
+                        <i class="ti ti-clock-hour-4"></i>
+                    </div>
+                    <div class="pending-notice-body">
+                        <h2>Account Pending Approval</h2>
+                        <p>Your account is currently under review by our administrators. The full member dashboard is visible, but interactions are disabled until approval.</p>
+                        <p>Use the sidebar to toggle dark mode or log out while you wait.</p>
+                    </div>
                 </div>
             </div>
         <?php endif; ?>
@@ -2248,9 +2333,7 @@ $workoutPrograms = [
                 <?php if (!$isPending): ?>
                     <div class="hero-qr-section" id="heroQrSection">
                         <div class="hero-qr-box" id="heroQrBox" onclick="openQrModal()" title="Tap to enlarge">
-                            <?php 
-                            $qrFile = 'qrcodes/member' . $userId . '.png';
-                            if (file_exists(__DIR__ . '/' . $qrFile)):
+                            <?php if (file_exists(__DIR__ . '/' . $qrFile)): ?>
                             ?>
                                 <img src="<?= $qrFile ?>" alt="QR Code" />
                             <?php else: ?>
@@ -2828,13 +2911,17 @@ $workoutPrograms = [
         function openSidebar() {
             document.getElementById('sidebar').classList.add('open');
             document.getElementById('sbOverlay').classList.add('active');
-            document.body.style.overflow = 'hidden'
+            document.body.style.overflow = 'hidden';
+            const hb = document.getElementById('mobileHamburgerRow');
+            if (hb) hb.style.visibility = 'hidden';
         }
 
         function closeSidebar() {
             document.getElementById('sidebar').classList.remove('open');
             document.getElementById('sbOverlay').classList.remove('active');
-            document.body.style.overflow = ''
+            document.body.style.overflow = '';
+            const hb = document.getElementById('mobileHamburgerRow');
+            if (hb) hb.style.visibility = 'visible';
         }
 
         /* ── THEME ── */

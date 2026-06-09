@@ -21,12 +21,37 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 
 /**
  * Redirect to login if there is no active session.
+ * Also refreshes is_approved / pending_approval from the DB on every load
+ * so admin approval takes effect immediately without requiring re-login.
  */
 function requireLogin(): void
 {
     if (empty($_SESSION['user_id'])) {
         header('Location: auth.php');
         exit;
+    }
+
+    // Re-check approval status from DB so it reflects admin changes instantly
+    try {
+        require_once __DIR__ . '/db.php';
+        $pdo  = db();
+        $stmt = $pdo->prepare('SELECT is_approved, is_active FROM users WHERE id = ? LIMIT 1');
+        $stmt->execute([$_SESSION['user_id']]);
+        $row  = $stmt->fetch();
+
+        if ($row) {
+            // If the account was deactivated after login, force logout
+            if (!(int) $row['is_active']) {
+                $_SESSION = [];
+                session_destroy();
+                header('Location: auth.php');
+                exit;
+            }
+            // Keep pending_approval in sync with the actual DB value
+            $_SESSION['pending_approval'] = !(int) $row['is_approved'];
+        }
+    } catch (Throwable) {
+        // Non-fatal — fall back to session value if DB check fails
     }
 }
 
