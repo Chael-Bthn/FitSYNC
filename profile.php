@@ -103,6 +103,115 @@ if ($isPending) {
         $elapsed       = $start <= $cap ? (int) $start->diff($cap)->days : 0;
         $progressPct   = min(100, (int) round(($elapsed / $totalDays) * 100));
     }
+    /* ── NOTIFICATIONS ── */
+    $notifications = [];
+
+    if (!$isPending) {
+        // No active membership
+        if (!$hasActiveMembership) {
+            $latestStatus = $mem ? $mem['status'] : null;
+            $notifications[] = [
+                'id'           => 'no_membership',
+                'type'         => 'danger',
+                'icon'         => 'ti-alert-circle',
+                'title'        => $latestStatus === 'expired' ? 'Membership Expired' : 'No Active Membership',
+                'body'         => $latestStatus === 'expired'
+                    ? 'Your ' . htmlspecialchars($mem['plan_label']) . ' plan has expired. Renew to regain full access.'
+                    : 'You don\'t have an active membership yet. Request one to unlock all features.',
+                'action'       => 'billing',
+                'action_label' => 'View Plans',
+                'time'         => 'Now',
+            ];
+        } else {
+            // Expiring soon (≤ 7 days)
+            if ($daysRemaining > 0 && $daysRemaining <= 7) {
+                $notifications[] = [
+                    'id'           => 'mem_expiring',
+                    'type'         => 'warning',
+                    'icon'         => 'ti-clock-exclamation',
+                    'title'        => 'Membership Expiring Soon',
+                    'body'         => 'Your ' . htmlspecialchars($mem['plan_label']) . ' plan expires in '
+                        . $daysRemaining . ' ' . ($daysRemaining === 1 ? 'day' : 'days') . '. Renew to keep access.',
+                    'action'       => 'billing',
+                    'action_label' => 'Renew Now',
+                    'time'         => 'In ' . $daysRemaining . 'd',
+                ];
+            }
+
+            // Haven't checked in today
+            if (!$checkedInToday) {
+                $notifications[] = [
+                    'id'           => 'checkin_today',
+                    'type'         => 'info',
+                    'icon'         => 'ti-door-enter',
+                    'title'        => 'Haven\'t Checked In Today',
+                    'body'         => 'Scan your QR code at the front desk to log today\'s visit and keep your streak alive.',
+                    'action'       => null,
+                    'action_label' => null,
+                    'time'         => 'Today',
+                ];
+            }
+
+            // Streak milestones
+            if ($currentStreak > 0 && in_array($currentStreak, [3, 7, 14, 21, 30, 60, 90, 100, 365])) {
+                $notifications[] = [
+                    'id'           => 'streak_' . $currentStreak,
+                    'type'         => 'success',
+                    'icon'         => 'ti-flame',
+                    'title'        => $currentStreak . '-Day Streak! 🔥',
+                    'body'         => 'You\'ve trained ' . $currentStreak . ' days in a row. Outstanding consistency — keep the momentum!',
+                    'action'       => null,
+                    'action_label' => null,
+                    'time'         => 'Today',
+                ];
+            }
+
+            // Visit milestones (exact match only, so it shows once per milestone)
+            foreach ([10, 25, 50, 100, 200, 500] as $milestone) {
+                if ($attendanceTotal === $milestone) {
+                    $notifications[] = [
+                        'id'           => 'milestone_' . $milestone,
+                        'type'         => 'success',
+                        'icon'         => 'ti-trophy',
+                        'title'        => number_format($milestone) . ' Visits — Milestone Reached!',
+                        'body'         => 'You\'ve completed ' . number_format($milestone) . ' gym visits. That\'s serious dedication!',
+                        'action'       => null,
+                        'action_label' => null,
+                        'time'         => 'Today',
+                    ];
+                    break;
+                }
+            }
+
+            // No visits this calendar month yet
+            if ($monthlyVisits === 0) {
+                $notifications[] = [
+                    'id'           => 'monthly_zero_' . date('Y-m'),
+                    'type'         => 'info',
+                    'icon'         => 'ti-calendar-stats',
+                    'title'        => 'No Visits in ' . date('F') . ' Yet',
+                    'body'         => 'Your membership is active but you haven\'t visited the gym this month. Don\'t let it go to waste!',
+                    'action'       => null,
+                    'action_label' => null,
+                    'time'         => date('M Y'),
+                ];
+            }
+
+            // Welcome message for brand-new active members
+            if ($attendanceTotal === 0) {
+                $notifications[] = [
+                    'id'           => 'welcome_first',
+                    'type'         => 'success',
+                    'icon'         => 'ti-confetti',
+                    'title'        => 'Welcome to FitSync!',
+                    'body'         => 'Your membership is active. Use the QR code below to check in for your very first session.',
+                    'action'       => null,
+                    'action_label' => null,
+                    'time'         => 'New',
+                ];
+            }
+        }
+    }
 }
 
 $scheduleContext = memberScheduleContext($pdo, $mem, $userId);
@@ -572,13 +681,14 @@ $workoutPrograms = [
             width: calc(100% - var(--sidebar-w) - 3rem);
             max-width: 560px;
             min-width: 280px;
-            pointer-events: none; /* let clicks pass through to sidebar */
+            pointer-events: none;
+            /* let clicks pass through to sidebar */
         }
 
         .pending-notice-card {
             background: rgba(17, 17, 17, .98);
             border: 1px solid rgba(255, 193, 7, .3);
-            box-shadow: 0 8px 40px rgba(255, 193, 7, .08), 0 4px 24px rgba(0,0,0,.45);
+            box-shadow: 0 8px 40px rgba(255, 193, 7, .08), 0 4px 24px rgba(0, 0, 0, .45);
             border-radius: 20px;
             padding: 1.35rem 1.6rem;
             color: var(--text-primary);
@@ -591,7 +701,7 @@ $workoutPrograms = [
         [data-bs-theme="light"] .pending-notice-card {
             background: #fffdf0;
             border-color: rgba(214, 161, 0, .35);
-            box-shadow: 0 8px 40px rgba(214, 161, 0, .1), 0 4px 24px rgba(0,0,0,.12);
+            box-shadow: 0 8px 40px rgba(214, 161, 0, .1), 0 4px 24px rgba(0, 0, 0, .12);
         }
 
         .pending-notice-icon {
@@ -623,7 +733,7 @@ $workoutPrograms = [
             line-height: 1.6;
         }
 
-        .pending-notice-body p + p {
+        .pending-notice-body p+p {
             margin-top: .4rem;
         }
 
@@ -636,7 +746,8 @@ $workoutPrograms = [
                 margin-left: 0;
                 width: auto;
                 max-width: none;
-                top: 5rem; /* clears the hamburger row height + gap */
+                top: 5rem;
+                /* clears the hamburger row height + gap */
             }
         }
 
@@ -2209,6 +2320,383 @@ $workoutPrograms = [
                 padding: 5px
             }
         }
+
+        /* ════════════════════════════════════
+   NOTIFICATION SYSTEM
+════════════════════════════════════ */
+
+        /* Bell button */
+        .notif-btn {
+            position: relative;
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            border: 1px solid var(--card-border);
+            background: var(--card-bg);
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: all .18s;
+            flex-shrink: 0;
+        }
+
+        .notif-btn:hover {
+            border-color: var(--fs-red);
+            color: var(--fs-red);
+            background: var(--fs-red-soft);
+        }
+
+        /* Unread badge on bell */
+        .notif-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            min-width: 18px;
+            height: 18px;
+            border-radius: 50px;
+            background: var(--fs-red);
+            color: #fff;
+            font-size: .6rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 4px;
+            border: 2px solid var(--page-bg);
+            line-height: 1;
+        }
+
+        /* Slide-out panel */
+        .notif-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 380px;
+            max-width: 100vw;
+            background: var(--sidebar-bg);
+            border-left: 1px solid var(--sidebar-border);
+            z-index: 300;
+            display: flex;
+            flex-direction: column;
+            transform: translateX(105%);
+            transition: transform .3s cubic-bezier(.25, .46, .45, .94);
+            box-shadow: -12px 0 50px rgba(0, 0, 0, .35);
+        }
+
+        .notif-panel.open {
+            transform: translateX(0);
+        }
+
+        /* Panel header */
+        .notif-panel-header {
+            padding: 1.25rem 1.35rem 1rem;
+            border-bottom: 1px solid var(--sidebar-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .notif-panel-title {
+            font-size: 1rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+        }
+
+        .notif-panel-title>i {
+            color: var(--fs-red);
+            font-size: 1.1rem;
+        }
+
+        .notif-unread-chip {
+            font-size: .62rem;
+            font-weight: 800;
+            background: var(--fs-red);
+            color: #fff;
+            padding: .1rem .5rem;
+            border-radius: 50px;
+            line-height: 1.6;
+            margin-left: .15rem;
+        }
+
+        .notif-panel-actions {
+            display: flex;
+            align-items: center;
+            gap: .45rem;
+        }
+
+        .notif-mark-all-btn {
+            font-size: .7rem;
+            font-weight: 700;
+            color: var(--fs-red);
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: .3rem .65rem;
+            border-radius: 8px;
+            transition: background .15s;
+            white-space: nowrap;
+        }
+
+        .notif-mark-all-btn:hover {
+            background: var(--fs-red-soft);
+        }
+
+        .notif-close-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 9px;
+            border: 1px solid var(--card-border);
+            background: var(--input-bg);
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .85rem;
+            transition: all .15s;
+            flex-shrink: 0;
+        }
+
+        .notif-close-btn:hover {
+            color: var(--text-primary);
+            border-color: rgba(255, 255, 255, .2);
+        }
+
+        /* Filter bar */
+        .notif-filter-bar {
+            display: flex;
+            gap: .4rem;
+            padding: .65rem .75rem;
+            border-bottom: 1px solid var(--sidebar-border);
+            flex-shrink: 0;
+        }
+
+        .notif-filter-btn {
+            font-size: .7rem;
+            font-weight: 700;
+            padding: .28rem .75rem;
+            border-radius: 50px;
+            border: 1px solid var(--card-border);
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all .15s;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .notif-filter-btn.active,
+        .notif-filter-btn:hover {
+            background: var(--fs-red-soft);
+            border-color: rgba(204, 26, 26, .25);
+            color: var(--fs-red);
+        }
+
+        /* Scrollable list */
+        .notif-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: .65rem;
+        }
+
+        .notif-list::-webkit-scrollbar {
+            width: 3px;
+        }
+
+        .notif-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .notif-list::-webkit-scrollbar-thumb {
+            background: var(--card-border);
+            border-radius: 3px;
+        }
+
+        /* Individual notification item */
+        .notif-item {
+            display: flex;
+            align-items: flex-start;
+            gap: .85rem;
+            padding: .9rem 1rem;
+            border-radius: 14px;
+            margin-bottom: .45rem;
+            cursor: pointer;
+            transition: background .15s, border-color .15s;
+            position: relative;
+            background: var(--input-bg);
+            border: 1px solid var(--card-border);
+        }
+
+        .notif-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .notif-item:hover {
+            background: var(--row-hover);
+            border-color: rgba(204, 26, 26, .2);
+        }
+
+        .notif-item.unread {
+            background: var(--fs-red-soft);
+            border-color: rgba(204, 26, 26, .2);
+        }
+
+        .notif-item.unread::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: .9rem;
+            transform: translateY(-50%);
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--fs-red);
+            flex-shrink: 0;
+        }
+
+        /* Type-coloured icon box */
+        .notif-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.05rem;
+            flex-shrink: 0;
+        }
+
+        .notif-icon.success {
+            background: rgba(76, 175, 135, .12);
+            color: #4caf87;
+        }
+
+        .notif-icon.warning {
+            background: rgba(255, 193, 7, .12);
+            color: #d6a100;
+        }
+
+        .notif-icon.danger {
+            background: rgba(220, 53, 69, .12);
+            color: #e05656;
+        }
+
+        .notif-icon.info {
+            background: rgba(74, 158, 218, .12);
+            color: #4a9eda;
+        }
+
+        /* Notification body */
+        .notif-content {
+            flex: 1;
+            min-width: 0;
+            padding-right: 1rem;
+            /* leave room for unread dot */
+        }
+
+        .notif-title {
+            font-size: .86rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.25;
+            margin-bottom: .2rem;
+        }
+
+        .notif-body-text {
+            font-size: .76rem;
+            color: var(--text-muted);
+            line-height: 1.55;
+            margin-bottom: .4rem;
+        }
+
+        .notif-meta-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: .5rem;
+        }
+
+        .notif-time {
+            font-size: .65rem;
+            color: var(--text-dimmed);
+            font-weight: 600;
+        }
+
+        .notif-action-link {
+            font-size: .68rem;
+            font-weight: 700;
+            color: var(--fs-red);
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+            transition: opacity .15s;
+        }
+
+        .notif-action-link:hover {
+            opacity: .75;
+            text-decoration: underline;
+        }
+
+        /* Empty state */
+        .notif-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem 1.5rem;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .notif-empty i {
+            font-size: 2.5rem;
+            color: var(--text-dimmed);
+            margin-bottom: .75rem;
+            display: block;
+        }
+
+        .notif-empty p {
+            font-size: .84rem;
+            margin: 0;
+            line-height: 1.65;
+        }
+
+        /* Panel footer */
+        .notif-panel-foot {
+            padding: .85rem;
+            border-top: 1px solid var(--sidebar-border);
+            flex-shrink: 0;
+        }
+
+        /* Backdrop overlay */
+        .notif-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .45);
+            z-index: 299;
+        }
+
+        .notif-overlay.active {
+            display: block;
+        }
+
+        /* Mobile: full-width panel */
+        @media (max-width: 575.98px) {
+            .notif-panel {
+                width: 100vw;
+                border-left: none;
+            }
+        }
     </style>
 </head>
 
@@ -2279,6 +2767,12 @@ $workoutPrograms = [
         <div id="mobileHamburgerRow" style="display:flex;align-items:center;gap:.65rem;margin-bottom:1.5rem;position:relative;z-index:200" class="d-lg-none">
             <button class="hamburger" onclick="openSidebar()"><i class="ti ti-menu-2"></i></button>
             <span style="font-size:.9rem;font-weight:700;color:var(--text-muted)">FitSync</span>
+            <button class="notif-btn ms-auto" id="notifBellMobile"
+                onclick="toggleNotifPanel()" title="Notifications"
+                aria-label="Notifications">
+                <i class="ti ti-bell"></i>
+                <span class="notif-badge" id="notifBadgeMobile" style="display:none">0</span>
+            </button>
         </div>
 
         <?php if ($isPending): ?>
@@ -2300,6 +2794,15 @@ $workoutPrograms = [
         <?php endif; ?>
 
         <!-- ── HERO HEADER ── -->
+        <!-- Notification action bar (desktop) -->
+        <div class="d-none d-lg-flex" style="justify-content:flex-end;margin-bottom:.85rem">
+            <button class="notif-btn" id="notifBellDesktop"
+                onclick="toggleNotifPanel()" title="Notifications"
+                aria-label="Notifications">
+                <i class="ti ti-bell"></i>
+                <span class="notif-badge" id="notifBadgeDesktop" style="display:none">0</span>
+            </button>
+        </div>
         <div class="dash-hero" id="dashHero">
             <div style="position:relative;z-index:1;display:flex;align-items:flex-start;justify-content:space-between;gap:2rem;flex-wrap:wrap">
                 <!-- Left: greeting + stats -->
@@ -2334,16 +2837,13 @@ $workoutPrograms = [
                     <div class="hero-qr-section" id="heroQrSection">
                         <div class="hero-qr-box" id="heroQrBox" onclick="openQrModal()" title="Tap to enlarge">
                             <?php if (file_exists(__DIR__ . '/' . $qrFile)): ?>
-                            ?>
+                                ?>
                                 <img src="<?= $qrFile ?>" alt="QR Code" />
                             <?php else: ?>
                                 <div id="heroQrCode"></div>
                             <?php endif; ?>
                         </div>
                         <div class="hero-qr-label"><i class="ti ti-qrcode" aria-hidden="true"></i> Check-in QR</div>
-                        <button class="hero-scan-btn" onclick="openScannerModal()">
-                            <i class="ti ti-scan" aria-hidden="true"></i> Scan to Check In
-                        </button>
                     </div>
                 <?php endif; ?>
             </div>
@@ -2843,7 +3343,7 @@ $workoutPrograms = [
                         </p>
                         <div style="display:flex;justify-content:center;margin-bottom:1.25rem">
                             <div class="qr-modal-wrap">
-                                <?php 
+                                <?php
                                 if (file_exists(__DIR__ . '/' . $qrFile)):
                                 ?>
                                     <img src="<?= $qrFile ?>" alt="QR Code" />
@@ -2867,6 +3367,48 @@ $workoutPrograms = [
                 </div>
             </div>
         </div>
+
+        <!-- ════ NOTIFICATION PANEL ════ -->
+        <div class="notif-overlay" id="notifOverlay" onclick="closeNotifPanel()"></div>
+
+        <aside class="notif-panel" id="notifPanel" aria-label="Notifications">
+
+            <div class="notif-panel-header">
+                <div class="notif-panel-title">
+                    <i class="ti ti-bell"></i>
+                    Notifications
+                    <span class="notif-unread-chip" id="notifUnreadChip" style="display:none">0</span>
+                </div>
+                <div class="notif-panel-actions">
+                    <button class="notif-mark-all-btn" id="markAllBtn"
+                        onclick="markAllRead()" style="display:none">
+                        Mark all read
+                    </button>
+                    <button class="notif-close-btn" onclick="closeNotifPanel()"
+                        aria-label="Close notifications">
+                        <i class="ti ti-x"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="notif-filter-bar">
+                <button class="notif-filter-btn active"
+                    data-filter="all" onclick="filterNotifs('all', this)">All</button>
+                <button class="notif-filter-btn"
+                    data-filter="unread" onclick="filterNotifs('unread', this)">Unread</button>
+            </div>
+
+            <div class="notif-list" id="notifList">
+                <!-- Populated by JS -->
+            </div>
+
+            <div class="notif-panel-foot">
+                <div style="font-size:.7rem;color:var(--text-dimmed);text-align:center">
+                    Notifications refresh on page load
+                </div>
+            </div>
+
+        </aside>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -2880,6 +3422,153 @@ $workoutPrograms = [
 
         // Workout programs data
         const programs = <?= json_encode($workoutPrograms, JSON_HEX_TAG) ?>;
+
+        /* ════════════════════════════════════
+   NOTIFICATION SYSTEM
+════════════════════════════════════ */
+        const ALL_NOTIFS = <?= json_encode($notifications, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+
+        // Persist read state per user in localStorage
+        let readNotifIds = new Set(
+            JSON.parse(localStorage.getItem('fs_read_notifs_' + USER_ID) || '[]')
+        );
+        let notifFilter = 'all';
+
+        /* ── Helpers ── */
+        function getUnreadCount() {
+            return ALL_NOTIFS.filter(n => !readNotifIds.has(n.id)).length;
+        }
+
+        function saveReadIds() {
+            localStorage.setItem('fs_read_notifs_' + USER_ID, JSON.stringify([...readNotifIds]));
+        }
+
+        /* ── Update all badges ── */
+        function updateNotifBadges() {
+            const count = getUnreadCount();
+
+            // All bell badge elements
+            ['notifBadgeMobile', 'notifBadgeDesktop'].forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                if (count > 0) {
+                    el.textContent = count > 99 ? '99+' : count;
+                    el.style.display = 'flex';
+                } else {
+                    el.style.display = 'none';
+                }
+            });
+
+            // Panel header chip
+            const chip = document.getElementById('notifUnreadChip');
+            if (chip) {
+                chip.textContent = count;
+                chip.style.display = count > 0 ? 'inline-block' : 'none';
+            }
+
+            // "Mark all read" button visibility
+            const markBtn = document.getElementById('markAllBtn');
+            if (markBtn) markBtn.style.display = count > 0 ? 'block' : 'none';
+        }
+
+        /* ── Render the list ── */
+        function renderNotifList() {
+            const list = document.getElementById('notifList');
+            if (!list) return;
+
+            let notifs = ALL_NOTIFS;
+            if (notifFilter === 'unread') {
+                notifs = notifs.filter(n => !readNotifIds.has(n.id));
+            }
+
+            if (notifs.length === 0) {
+                const msg = notifFilter === 'unread' ?
+                    'All caught up — no unread notifications.' :
+                    'No notifications right now. Check back later.';
+                list.innerHTML = `
+            <div class="notif-empty">
+                <i class="ti ti-bell-off"></i>
+                <p>${msg}</p>
+            </div>`;
+                return;
+            }
+
+            list.innerHTML = notifs.map(n => {
+                const isUnread = !readNotifIds.has(n.id);
+                const actionHtml = n.action ? `
+            <button class="notif-action-link"
+                    onclick="notifAction('${n.id}','${n.action}', event)">
+                ${n.action_label}
+            </button>` : '';
+
+                return `
+            <div class="notif-item ${isUnread ? 'unread' : ''}"
+                 onclick="markRead('${n.id}')">
+                <div class="notif-icon ${n.type}">
+                    <i class="ti ${n.icon}"></i>
+                </div>
+                <div class="notif-content">
+                    <div class="notif-title">${n.title}</div>
+                    <div class="notif-body-text">${n.body}</div>
+                    <div class="notif-meta-row">
+                        <span class="notif-time">${n.time}</span>
+                        ${actionHtml}
+                    </div>
+                </div>
+            </div>`;
+            }).join('');
+        }
+
+        /* ── Actions ── */
+        function markRead(id) {
+            readNotifIds.add(id);
+            saveReadIds();
+            renderNotifList();
+            updateNotifBadges();
+        }
+
+        function markAllRead() {
+            ALL_NOTIFS.forEach(n => readNotifIds.add(n.id));
+            saveReadIds();
+            renderNotifList();
+            updateNotifBadges();
+        }
+
+        function filterNotifs(filter, btn) {
+            notifFilter = filter;
+            document.querySelectorAll('.notif-filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderNotifList();
+        }
+
+        function notifAction(id, tab, e) {
+            e.stopPropagation();
+            markRead(id);
+            closeNotifPanel();
+            setTimeout(() => showTab(tab, null), 220);
+        }
+
+        /* ── Panel open / close ── */
+        function toggleNotifPanel() {
+            const panel = document.getElementById('notifPanel');
+            panel.classList.contains('open') ? closeNotifPanel() : openNotifPanel();
+        }
+
+        function openNotifPanel() {
+            renderNotifList();
+            document.getElementById('notifPanel').classList.add('open');
+            document.getElementById('notifOverlay').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeNotifPanel() {
+            document.getElementById('notifPanel').classList.remove('open');
+            document.getElementById('notifOverlay').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        // Initialise badges on load
+        updateNotifBadges();
 
         /* ── TAB NAV ── */
         function showTab(id, btn) {
