@@ -101,7 +101,7 @@ $adminUser = adminRows($pdo, 'SELECT first_name, last_name, email, role, updated
 $membersRaw = adminRows(
     $pdo,
     'SELECT u.id, u.first_name AS fname, u.last_name AS lname, u.email, u.is_active, u.is_approved, u.created_at,
-            lm.id AS membership_id, lm.starts_at, lm.ends_at, lm.status, lm.payment_status, lm.amount_paid, lm.payment_method,
+            lm.id AS membership_id, lm.starts_at, lm.ends_at, lm.status, lm.payment_status, lm.amount_paid, lm.payment_method, lm.proof_file_path, lm.proof_uploaded_at,
             p.id AS plan_id, p.label AS plan, b.id AS branch_id, b.name AS branch
      FROM users u
      LEFT JOIN memberships lm ON lm.id = (
@@ -141,6 +141,8 @@ $members = array_map(static function (array $m): array {
         'payment' => (string) ($m['payment_status'] ?? 'none'),
         'payment_method' => (string) ($m['payment_method'] ?? ''),
         'amount' => (float) ($m['amount_paid'] ?? 0),
+        'proof_file' => (string) ($m['proof_file_path'] ?? ''),
+        'proof_date' => (string) ($m['proof_uploaded_at'] ?? ''),
         'approved' => (int) ($m['is_approved'] ?? 1) === 1,
         'active_account' => (int) ($m['is_active'] ?? 0) === 1,
     ];
@@ -2316,6 +2318,9 @@ $adminData = [
                                             <td>₱<?= number_format((float) $pm['amount'], 2) ?></td>
                                             <td>
                                                 <div class="actions">
+                                                    <?php if ($pm['proof_file']): ?>
+                                                        <button class="tbtn" title="View Receipt" onclick="viewReceipt('<?= htmlspecialchars($pm['proof_file']) ?>', '<?= htmlspecialchars($pm['proof_date']) ?>', '<?= htmlspecialchars($pmName) ?>')"><i class="ti ti-file-invoice"></i></button>
+                                                    <?php endif ?>
                                                     <button class="tbtn success" title="Approve" onclick="paymentAction('approve_payment',<?= (int) ($pm['membership_id'] ?? 0) ?>)"><i class="ti ti-check"></i></button>
                                                     <button class="tbtn danger" title="Reject" onclick="paymentAction('reject_payment',<?= (int) ($pm['membership_id'] ?? 0) ?>)"><i class="ti ti-x"></i></button>
                                                 </div>
@@ -3284,6 +3289,27 @@ $adminData = [
   `).join('');
         }
 
+        function viewReceipt(path, date, name) {
+            if (!path) return;
+            const isPdf = path.toLowerCase().endsWith('.pdf');
+            if (isPdf) {
+                window.open(path, '_blank');
+                return;
+            }
+            const modalHtml = `
+            <div id="receipt-modal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;padding:2rem;" onclick="this.remove()">
+                <div style="background:var(--surface);padding:1.5rem;border-radius:12px;max-width:800px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,0.5);" onclick="event.stopPropagation()">
+                    <h3 style="margin-bottom:0.5rem">Payment Receipt for ${name}</h3>
+                    <p style="color:var(--text-3);margin-bottom:1rem;font-size:0.85rem;">Uploaded: ${date}</p>
+                    <img src="${path}" style="max-width:100%;max-height:65vh;border-radius:8px;object-fit:contain;background:#000;" />
+                    <div style="margin-top:1.5rem">
+                        <button class="btn" onclick="document.getElementById('receipt-modal').remove()">Close</button>
+                    </div>
+                </div>
+            </div>`;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        }
+
         function renderPendingList() {
             const el = document.getElementById('pending-list');
             if (!el) return;
@@ -3300,6 +3326,7 @@ $adminData = [
         <div style="font-size:.7rem;color:var(--text-3)">${m.plan}</div>
       </div>
       <div style="display:flex;gap:.3rem">
+        ${m.proof_file ? `<button class="tbtn" title="View Receipt" onclick="viewReceipt('${m.proof_file}', '${m.proof_date}', '${m.fname} ${m.lname}')"><i class="ti ti-file-invoice"></i></button>` : ''}
         <button class="tbtn success" title="Approve" onclick="paymentAction('approve_payment',${m.membership_id || 0})"><i class="ti ti-check"></i></button>
         <button class="tbtn danger" title="Reject" onclick="paymentAction('reject_payment',${m.membership_id || 0})"><i class="ti ti-x"></i></button>
       </div>
@@ -3440,16 +3467,35 @@ $adminData = [
   `;
             const foot = document.getElementById('modal-foot');
             const actions = [];
-            if (!m.approved) {
-                actions.push(`<button class="btn success-btn sm" onclick="closeModal();accountAction('approve_account',${m.id})"><i class="ti ti-user-check"></i> Approve</button>`);
-                actions.push(`<button class="btn sm" style="border-color:rgba(220,53,69,.4);color:#e05656" onclick="closeModal();accountAction('reject_account',${m.id})"><i class="ti ti-user-x"></i> Reject</button>`);
+            
+            const isPendingAccount = !m.approved;
+            const isPendingPayment = m.payment === 'pending';
+
+            if (isPendingAccount || isPendingPayment) {
+                if (isPendingAccount) {
+                    actions.push(`<button class="btn success-btn sm" onclick="closeModal();accountAction('approve_account',${m.id})"><i class="ti ti-user-check"></i> Approve</button>`);
+                    actions.push(`<button class="btn sm" style="border-color:rgba(220,53,69,.4);color:#e05656" onclick="closeModal();accountAction('reject_account',${m.id})"><i class="ti ti-user-x"></i> Reject</button>`);
+                } else {
+                    actions.push(`<button class="btn success-btn sm" onclick="closeModal();paymentAction('approve_payment',${m.membership_id || 0})"><i class="ti ti-check"></i> Approve</button>`);
+                    actions.push(`<button class="btn sm" style="border-color:rgba(220,53,69,.4);color:#e05656" onclick="closeModal();paymentAction('reject_payment',${m.membership_id || 0})"><i class="ti ti-x"></i> Reject</button>`);
+                }
+
+                if (m.proof_file) {
+                    actions.push(`<button class="btn sm" onclick="viewReceipt('${m.proof_file}', '${m.proof_date}', '${m.fname} ${m.lname}')"><i class="ti ti-file-invoice"></i> View Receipt</button>`);
+                }
+                
+                actions.push(`<div style="flex-basis:100%;height:0;margin:0;"></div>`);
             }
-            actions.push(`<button class="btn sm" onclick="openMemberPlanModal(${m.id})"><i class="ti ti-id-badge-2"></i> Plan</button>`);
+
             actions.push(`<button class="btn sm" onclick="openMemberBranchModal(${m.id})"><i class="ti ti-building-store"></i> Branch</button>`);
+            actions.push(`<button class="btn sm" onclick="openMemberPlanModal(${m.id})"><i class="ti ti-id-badge-2"></i> Plan</button>`);
             actions.push(`<button class="btn sm" onclick="openExtendMembershipModal(${m.id})"><i class="ti ti-calendar-plus"></i> Extend</button>`);
             actions.push(`<button class="btn sm" onclick="openMemberNoteModal(${m.id})"><i class="ti ti-note"></i> Note</button>`);
             if (m.status === 'active') actions.push(`<button class="btn sm" onclick="closeModal();membershipStatusAction(${m.membership_id || 0},'frozen')"><i class="ti ti-player-pause"></i> Freeze</button>`);
             actions.push(`<button class="btn danger sm" onclick="closeModal();accountAction('delete_account',${m.id})"><i class="ti ti-trash"></i> Delete</button>`);
+
+            foot.style.flexWrap = 'wrap';
+            foot.style.justifyContent = 'flex-start';
             foot.innerHTML = actions.join('');
             document.getElementById('modal-backdrop').style.display = 'flex';
         }
@@ -3956,11 +4002,20 @@ $adminData = [
         const v = document.getElementById('qr-video');
         const c = document.getElementById('qr-canvas');
         if (v.readyState === v.HAVE_ENOUGH_DATA) {
-            c.width = v.videoWidth; c.height = v.videoHeight;
-            const ctx = c.getContext('2d');
+            // Downscale the image to a max dimension of ~600px.
+            // Mobile cameras output huge resolutions (e.g. 4K) which choke jsQR
+            // and reduce its ability to find finder patterns.
+            const maxDim = 600;
+            const scale = Math.min(maxDim / Math.max(v.videoWidth, v.videoHeight), 1);
+            
+            c.width = Math.floor(v.videoWidth * scale);
+            c.height = Math.floor(v.videoHeight * scale);
+            
+            const ctx = c.getContext('2d', { willReadFrequently: true });
             ctx.drawImage(v, 0, 0, c.width, c.height);
             const img = ctx.getImageData(0, 0, c.width, c.height);
-            const code = jsQR(img.data, img.width, img.height, { inversionAttempts:'dontInvert' });
+            
+            const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
             if (code) {
                 /* pause scanning while modal is open */
                 qrScanning = false;

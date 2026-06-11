@@ -356,6 +356,8 @@ CREATE TABLE `memberships` (
   `payment_status` enum('pending','paid','failed','refunded') NOT NULL DEFAULT 'paid',
   `status` enum('pending','active','expired','cancelled','frozen') NOT NULL DEFAULT 'active',
   `payment_ref` varchar(128) DEFAULT NULL,
+  `proof_file_path` varchar(255) DEFAULT NULL,
+  `proof_uploaded_at` datetime DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT current_timestamp(),
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

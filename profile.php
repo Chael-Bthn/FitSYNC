@@ -2837,7 +2837,6 @@ $workoutPrograms = [
                     <div class="hero-qr-section" id="heroQrSection">
                         <div class="hero-qr-box" id="heroQrBox" onclick="openQrModal()" title="Tap to enlarge">
                             <?php if (file_exists(__DIR__ . '/' . $qrFile)): ?>
-                                ?>
                                 <img src="<?= $qrFile ?>" alt="QR Code" />
                             <?php else: ?>
                                 <div id="heroQrCode"></div>

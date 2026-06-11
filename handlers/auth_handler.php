@@ -178,6 +178,49 @@ function actionRegister(array $data): void
         respond(false, 'Invalid payment method selected.');
     }
 
+    // ── File Upload Validation ──────────────────────────────
+    $proofFilePath = null;
+    $proofUploadedAt = null;
+
+    if (isset($_FILES['proof_file']) && $_FILES['proof_file']['error'] !== UPLOAD_ERR_NO_FILE) {
+        if ($_FILES['proof_file']['error'] !== UPLOAD_ERR_OK) {
+            respond(false, 'File upload failed. Please try again.');
+        }
+
+        $fileSize = $_FILES['proof_file']['size'];
+        if ($fileSize > 10 * 1024 * 1024) { // 10MB
+            respond(false, 'Proof of payment must be under 10MB.');
+        }
+
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mime = finfo_file($finfo, $_FILES['proof_file']['tmp_name']);
+        finfo_close($finfo);
+
+        $allowedMimes = ['image/jpeg', 'image/png', 'application/pdf'];
+        if (!in_array($mime, $allowedMimes, true)) {
+            respond(false, 'Proof of payment must be JPG, PNG, or PDF.');
+        }
+
+        $ext = strtolower(pathinfo($_FILES['proof_file']['name'], PATHINFO_EXTENSION));
+        if (!in_array($ext, ['jpg', 'jpeg', 'png', 'pdf'], true)) {
+            respond(false, 'Proof of payment must be JPG, PNG, or PDF.');
+        }
+
+        $filename = uniqid('proof_', true) . '.' . $ext;
+        $targetDir = __DIR__ . '/../uploads/payment_proofs/';
+        if (!is_dir($targetDir)) {
+            mkdir($targetDir, 0755, true);
+        }
+
+        $targetPath = $targetDir . $filename;
+        if (!move_uploaded_file($_FILES['proof_file']['tmp_name'], $targetPath)) {
+            respond(false, 'Failed to save proof of payment.');
+        }
+
+        $proofFilePath = 'uploads/payment_proofs/' . $filename;
+        $proofUploadedAt = date('Y-m-d H:i:s');
+    }
+
     $pdo = db();
 
     // Verify branch exists
@@ -227,8 +270,8 @@ function actionRegister(array $data): void
         // Create membership as pending so admin can review/approve payment
         $pdo->prepare(
             'INSERT INTO memberships
-                (user_id, plan_id, branch_id, starts_at, ends_at, amount_paid, payment_method, payment_status, status)
-             VALUES (?, ?, ?, ?, ?, ?, ?, "pending", "pending")'
+                (user_id, plan_id, branch_id, starts_at, ends_at, amount_paid, payment_method, payment_status, status, proof_file_path, proof_uploaded_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, "pending", "pending", ?, ?)'
         )->execute([
             $userId,
             $plan['id'],
@@ -237,6 +280,8 @@ function actionRegister(array $data): void
             $endsAt,
             $plan['price'],
             $paymentMethod,
+            $proofFilePath,
+            $proofUploadedAt
         ]);
 
         // Notify admins via contact_messages so they see a registration approval notification

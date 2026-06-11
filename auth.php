@@ -803,6 +803,454 @@ $rememberedEmail = htmlspecialchars($_COOKIE['fs_email'] ?? '', ENT_QUOTES, 'UTF
         }
 
         .upload-remove:hover { color: var(--fs-red); }
+
+        /* ── PAYMENT METHOD SELECTOR ──────────────────────────── */
+        .payment-method-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: .65rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .payment-method-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: .5rem;
+            padding: 1rem;
+            border: 2px solid var(--bs-border-color);
+            border-radius: 14px;
+            background: var(--bs-secondary-bg);
+            cursor: pointer;
+            transition: all .25s ease;
+            position: relative;
+            font-family: 'Outfit', sans-serif;
+            outline: none;
+            font-size: 0;
+        }
+
+        .payment-method-btn:hover {
+            border-color: rgba(204, 26, 26, .5);
+            background: rgba(204, 26, 26, .04);
+        }
+
+        .payment-method-btn.active {
+            border-color: var(--fs-red);
+            background: rgba(204, 26, 26, .1);
+        }
+
+        .payment-method-icon {
+            font-size: 1.8rem;
+            color: var(--fs-red);
+        }
+
+        .payment-method-label {
+            font-size: .72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .4px;
+            color: var(--bs-body-color);
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        .payment-method-badge {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--fs-red);
+            border: 2px solid var(--bs-body-bg);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: .55rem;
+            color: #fff;
+        }
+
+        .payment-method-btn.active .payment-method-badge {
+            display: flex;
+        }
+
+        /* ── PAYMENT INFO CARD ────────────────────────────────── */
+        .payment-info-card {
+            border: 1.5px solid var(--bs-border-color);
+            border-radius: 16px;
+            padding: 1.5rem;
+            background: rgba(var(--bs-secondary-bg-rgb, 30,30,30), .5);
+            margin-bottom: 1.25rem;
+            display: none;
+        }
+
+        .payment-info-card.active {
+            display: block;
+            animation: slideDown .25s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .payment-card-title {
+            font-size: .78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            color: var(--fs-red);
+            margin-bottom: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+        }
+
+        .payment-card-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .payment-card-section:last-child {
+            margin-bottom: 0;
+        }
+
+        /* QR CODE SECTION */
+        .payment-qr-section {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .payment-qr-container {
+            width: 240px;
+            height: 240px;
+            margin: 0 auto 1rem;
+            border: 2px solid var(--bs-border-color);
+            border-radius: 16px;
+            overflow: hidden;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .payment-qr-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            padding: 0;
+        }
+
+        .payment-qr-label {
+            font-size: .8rem;
+            color: var(--bs-secondary-color);
+            line-height: 1.5;
+            margin-top: .75rem;
+        }
+
+        /* PAYMENT ACCOUNT DETAILS */
+        .payment-details-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .payment-detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: .9rem 1.1rem;
+            background: rgba(204, 26, 26, .05);
+            border-radius: 12px;
+            border: 1px solid rgba(204, 26, 26, .15);
+            margin-bottom: .75rem;
+            gap: .75rem;
+        }
+
+        .payment-detail-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .payment-detail-label {
+            color: var(--bs-secondary-color);
+            font-weight: 600;
+            font-size: .75rem;
+            text-transform: uppercase;
+            letter-spacing: .3px;
+            min-width: 120px;
+        }
+
+        .payment-detail-content {
+            display: flex;
+            align-items: center;
+            gap: .6rem;
+            flex: 1;
+            justify-content: flex-end;
+        }
+
+        .payment-detail-value {
+            color: var(--bs-body-color);
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+            font-size: .85rem;
+        }
+
+        .payment-copy-btn {
+            background: rgba(204, 26, 26, .15);
+            border: none;
+            color: var(--fs-red);
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all .2s;
+            font-size: .8rem;
+            flex-shrink: 0;
+        }
+
+        .payment-copy-btn:hover {
+            background: var(--fs-red);
+            color: #fff;
+        }
+
+        .payment-copy-btn.copied {
+            background: rgba(46, 204, 113, .2);
+            color: #2ecc71;
+        }
+
+        /* HELPER TEXT */
+        .payment-helper-text {
+            font-size: .8rem;
+            color: var(--bs-secondary-color);
+            text-align: center;
+            line-height: 1.6;
+            padding: 1rem;
+            background: rgba(204, 26, 26, .04);
+            border-radius: 12px;
+            border: 1px solid rgba(204, 26, 26, .1);
+            margin-bottom: .75rem;
+        }
+
+        .payment-helper-text.secondary {
+            background: rgba(var(--bs-secondary-bg-rgb, 50,50,50), .3);
+            border: 1px solid var(--bs-border-color);
+            color: var(--bs-secondary-color);
+            font-size: .75rem;
+        }
+
+        /* BRAND BADGE */
+        .payment-brand-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: .4rem;
+            padding: .3rem .7rem;
+            background: rgba(204, 26, 26, .1);
+            border-radius: 20px;
+            font-size: .7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .3px;
+            margin-bottom: 1rem;
+        }
+
+        .payment-brand-badge i {
+            font-size: .8rem;
+        }
+
+        /* CASH NOTE */
+        .cash-note {
+            display: flex;
+            align-items: flex-start;
+            gap: .65rem;
+            padding: .8rem 1rem;
+            border-radius: 12px;
+            background: rgba(204, 26, 26, .07);
+            border: 1px solid rgba(204, 26, 26, .18);
+            font-size: .82rem;
+            color: var(--bs-body-color);
+            line-height: 1.5;
+        }
+
+        .cash-note i {
+            color: var(--fs-red);
+            font-size: 1.1rem;
+            flex-shrink: 0;
+            margin-top: .05rem;
+        }
+
+        /* ── CARD FORM DISPLAY ────────────────────────────────── */
+        .card-display-mock {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        [data-bs-theme="light"] .card-display-mock {
+            background: linear-gradient(135deg, #f0f0f0 0%, #e8e8e8 100%);
+        }
+
+        .card-display-mock::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 400px;
+            height: 400px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(204, 26, 26, .08) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .card-display-content {
+            position: relative;
+            z-index: 2;
+            color: #fff;
+        }
+
+        [data-bs-theme="light"] .card-display-content {
+            color: #333;
+        }
+
+        .card-chip {
+            width: 40px;
+            height: 32px;
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .7rem;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .card-number {
+            font-family: 'Courier New', monospace;
+            font-size: 1.1rem;
+            letter-spacing: 2px;
+            margin-bottom: .8rem;
+            font-weight: 600;
+        }
+
+        .card-info-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: .75rem;
+            font-weight: 500;
+        }
+
+        .card-info-item {
+            display: flex;
+            flex-direction: column;
+            gap: .15rem;
+        }
+
+        .card-label {
+            opacity: .7;
+            font-size: .65rem;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        /* ── RESPONSIVE ──────────────────────────────────────── */
+        @media (max-width: 479px) {
+            .payment-method-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .card-display-mock {
+                padding: 1.2rem;
+            }
+
+            .card-number {
+                font-size: .95rem;
+                letter-spacing: 1px;
+            }
+
+            .payment-qr-container {
+                width: 180px;
+                height: 180px;
+            }
+
+            .payment-detail-row {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: .8rem;
+            }
+
+            .payment-detail-content {
+                width: 100%;
+                justify-content: space-between;
+                margin-top: .4rem;
+            }
+
+            .payment-detail-label {
+                margin-bottom: .3rem;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .payment-method-grid {
+                gap: .5rem;
+            }
+
+            .payment-method-btn {
+                padding: .85rem .5rem;
+            }
+
+            .payment-info-card {
+                padding: 1.25rem;
+            }
+
+            .payment-card-title {
+                margin-bottom: 1rem;
+                font-size: .75rem;
+            }
+
+            .payment-qr-section {
+                margin-bottom: 1.25rem;
+            }
+
+            .payment-qr-container {
+                width: 200px;
+                height: 200px;
+            }
+
+            .payment-qr-label {
+                font-size: .75rem;
+                margin-top: .5rem;
+            }
+
+            .payment-detail-row {
+                padding: .75rem .9rem;
+            }
+
+            .payment-detail-label {
+                font-size: .7rem;
+                min-width: 100px;
+            }
+
+            .payment-detail-value {
+                font-size: .8rem;
+            }
+
+            .payment-copy-btn {
+                width: 24px;
+                height: 24px;
+                font-size: .7rem;
+            }
+        }
     </style>
 </head>
 
@@ -1078,185 +1526,304 @@ $rememberedEmail = htmlspecialchars($_COOKIE['fs_email'] ?? '', ENT_QUOTES, 'UTF
                             </div>
 
                             <!-- Payment method -->
-                            <div class="mb-1">
-                                <div class="auth-label">Payment Method</div>
-                                <div class="input-icon-wrap">
-                                    <i class="ti ti-credit-card ii"></i>
-                                    <select class="auth-select" id="regPayment" style="padding-left:2.6rem"
-                                        onchange="onPaymentChange(this.value)">
-                                        <option value="gcash">GCash</option>
-                                        <option value="maya">Maya</option>
-                                        <option value="credit_card">Credit Card</option>
-                                        <option value="debit_card">Debit Card</option>
-                                        <option value="bank_transfer">Bank Transfer</option>
-                                        <option value="cash" selected>Cash / Walk-in</option>
-                                    </select>
+                            <div class="mb-3">
+                                <div class="auth-label mb-2">Payment Method</div>
+                                <div class="payment-method-grid" id="paymentMethodGrid">
+                                    <button type="button" class="payment-method-btn active" data-method="cash" onclick="selectPaymentMethod('cash', event)">
+                                        <i class="ti ti-cash payment-method-icon"></i>
+                                        <span class="payment-method-label">Cash</span>
+                                        <div class="payment-method-badge"><i class="ti ti-check" style="font-size:.55rem"></i></div>
+                                    </button>
+                                    <button type="button" class="payment-method-btn" data-method="gcash" onclick="selectPaymentMethod('gcash', event)">
+                                        <i class="ti ti-wallet payment-method-icon"></i>
+                                        <span class="payment-method-label">GCash</span>
+                                        <div class="payment-method-badge"><i class="ti ti-check" style="font-size:.55rem"></i></div>
+                                    </button>
+                                    <button type="button" class="payment-method-btn" data-method="maya" onclick="selectPaymentMethod('maya', event)">
+                                        <i class="ti ti-wallet payment-method-icon"></i>
+                                        <span class="payment-method-label">Maya</span>
+                                        <div class="payment-method-badge"><i class="ti ti-check" style="font-size:.55rem"></i></div>
+                                    </button>
+                                    <button type="button" class="payment-method-btn" data-method="bank_transfer" onclick="selectPaymentMethod('bank_transfer', event)">
+                                        <i class="ti ti-building-bank payment-method-icon"></i>
+                                        <span class="payment-method-label">Bank Transfer</span>
+                                        <div class="payment-method-badge"><i class="ti ti-check" style="font-size:.55rem"></i></div>
+                                    </button>
+                                    <button type="button" class="payment-method-btn" data-method="credit_card" onclick="selectPaymentMethod('credit_card', event)">
+                                        <i class="ti ti-credit-card payment-method-icon"></i>
+                                        <span class="payment-method-label">Credit Card</span>
+                                        <div class="payment-method-badge"><i class="ti ti-check" style="font-size:.55rem"></i></div>
+                                    </button>
+                                    <button type="button" class="payment-method-btn" data-method="debit_card" onclick="selectPaymentMethod('debit_card', event)">
+                                        <i class="ti ti-credit-card payment-method-icon"></i>
+                                        <span class="payment-method-label">Debit Card</span>
+                                        <div class="payment-method-badge"><i class="ti ti-check" style="font-size:.55rem"></i></div>
+                                    </button>
                                 </div>
+                                <!-- Hidden select for form submission -->
+                                <select class="auth-select" id="regPayment" style="display:none">
+                                    <option value="gcash">GCash</option>
+                                    <option value="maya">Maya</option>
+                                    <option value="credit_card">Credit Card</option>
+                                    <option value="debit_card">Debit Card</option>
+                                    <option value="bank_transfer">Bank Transfer</option>
+                                    <option value="cash">Cash / Walk-in</option>
+                                </select>
                             </div>
 
-                            <!-- Payment Details (dynamic) -->
-                            <div class="pay-details-panel" id="payDetailsPanel">
-                                <div class="pay-details-inner">
+                            <!-- Payment Info Cards (dynamic) -->
+                            <div id="paymentInfoContainer">
 
-                                    <!-- GCash fields -->
-                                    <div id="pd-gcash" class="pay-fields" style="display:none">
-                                        <div class="mb-2">
-                                            <div class="auth-label">GCash Account Name</div>
-                                            <div class="input-icon-wrap">
-                                                <i class="ti ti-user ii"></i>
-                                                <input class="auth-input" type="text" id="pdGcashName"
-                                                    placeholder="Full name on GCash" />
+                                <!-- GCash -->
+                                <div class="payment-info-card" id="pay-info-gcash">
+                                    <div class="payment-card-title">
+                                        <i class="ti ti-wallet"></i> GCash Payment
+                                    </div>
+
+                                    <div class="payment-qr-section">
+                                        <div class="payment-qr-container" id="gcashQrContainer">
+                                            <img src="qrcodes/qr_sample.png" alt="GCash QR Code">
+                                        </div>
+                                        <div class="payment-qr-label">Scan the QR code using GCash to complete your payment.</div>
+                                    </div>
+
+                                    <div class="payment-details-section">
+                                        <div class="payment-detail-row">
+                                            <div class="payment-detail-label">Account Name</div>
+                                            <div class="payment-detail-content">
+                                                <span class="payment-detail-value">FitSync Gym</span>
+                                                <button type="button" class="payment-copy-btn" onclick="copyToClipboard('FitSync Gym', this)" title="Copy account name">
+                                                    <i class="ti ti-copy"></i>
+                                                </button>
                                             </div>
                                         </div>
-                                        <div class="mb-2">
-                                            <div class="auth-label">GCash Mobile Number</div>
-                                            <div class="input-icon-wrap">
-                                                <i class="ti ti-device-mobile ii"></i>
-                                                <input class="auth-input" type="tel" id="pdGcashNum"
-                                                    placeholder="09XX XXX XXXX" maxlength="11" />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div class="auth-label">Reference Number <span style="color:var(--bs-secondary-color);font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
-                                            <div class="input-icon-wrap">
-                                                <i class="ti ti-hash ii"></i>
-                                                <input class="auth-input" type="text" id="pdGcashRef"
-                                                    placeholder="GCash reference no." />
+                                        <div class="payment-detail-row">
+                                            <div class="payment-detail-label">Mobile Number</div>
+                                            <div class="payment-detail-content">
+                                                <span class="payment-detail-value">0917 123 4567</span>
+                                                <button type="button" class="payment-copy-btn" onclick="copyToClipboard('09171234567', this)" title="Copy mobile number">
+                                                    <i class="ti ti-copy"></i>
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
+                                </div>
 
-                                    <!-- Maya fields -->
-                                    <div id="pd-maya" class="pay-fields" style="display:none">
-                                        <div class="mb-2">
-                                            <div class="auth-label">Maya Account Name</div>
-                                            <div class="input-icon-wrap">
-                                                <i class="ti ti-user ii"></i>
-                                                <input class="auth-input" type="text" id="pdMayaName"
-                                                    placeholder="Full name on Maya" />
+                                <!-- Maya -->
+                                <div class="payment-info-card" id="pay-info-maya">
+                                    <div class="payment-card-title">
+                                        <i class="ti ti-wallet"></i> Maya Payment
+                                    </div>
+
+                                    <div class="payment-qr-section">
+                                        <div class="payment-qr-container" id="mayaQrContainer">
+                                            <img src="qrcodes/qr_sample.png" alt="Maya QR Code">
+                                        </div>
+                                        <div class="payment-qr-label">Scan the QR code using Maya to complete your payment.</div>
+                                    </div>
+
+                                    <div class="payment-details-section">
+                                        <div class="payment-detail-row">
+                                            <div class="payment-detail-label">Account Name</div>
+                                            <div class="payment-detail-content">
+                                                <span class="payment-detail-value">FitSync Gym</span>
+                                                <button type="button" class="payment-copy-btn" onclick="copyToClipboard('FitSync Gym', this)" title="Copy account name">
+                                                    <i class="ti ti-copy"></i>
+                                                </button>
                                             </div>
                                         </div>
-                                        <div class="mb-2">
-                                            <div class="auth-label">Maya Mobile Number</div>
-                                            <div class="input-icon-wrap">
-                                                <i class="ti ti-device-mobile ii"></i>
-                                                <input class="auth-input" type="tel" id="pdMayaNum"
-                                                    placeholder="09XX XXX XXXX" maxlength="11" />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div class="auth-label">Reference Number <span style="color:var(--bs-secondary-color);font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
-                                            <div class="input-icon-wrap">
-                                                <i class="ti ti-hash ii"></i>
-                                                <input class="auth-input" type="text" id="pdMayaRef"
-                                                    placeholder="Maya reference no." />
+                                        <div class="payment-detail-row">
+                                            <div class="payment-detail-label">Mobile Number</div>
+                                            <div class="payment-detail-content">
+                                                <span class="payment-detail-value">0917 765 4321</span>
+                                                <button type="button" class="payment-copy-btn" onclick="copyToClipboard('09177654321', this)" title="Copy mobile number">
+                                                    <i class="ti ti-copy"></i>
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
+                                </div>
 
-                                    <!-- Credit Card fields -->
-                                    <div id="pd-credit_card" class="pay-fields" style="display:none">
-                                        <div class="mb-2">
+                                <!-- Bank Transfer -->
+                                <div class="payment-info-card" id="pay-info-bank_transfer">
+                                    <div class="payment-card-title">
+                                        <i class="ti ti-building-bank"></i> Bank Transfer
+                                    </div>
+
+                                    <div class="payment-qr-section">
+                                        <div class="payment-qr-container" id="bankTransferQrContainer">
+                                            <img src="qrcodes/qr_sample.png" alt="Bank Transfer QR Code">
+                                        </div>
+                                        <div class="payment-qr-label">Scan the QR code or use the account details below to transfer.</div>
+                                    </div>
+
+                                    <div class="payment-details-section">
+                                        <div class="payment-detail-row">
+                                            <div class="payment-detail-label">Bank Name</div>
+                                            <div class="payment-detail-content">
+                                                <span class="payment-detail-value">Metrobank</span>
+                                                <button type="button" class="payment-copy-btn" onclick="copyToClipboard('Metrobank', this)" title="Copy bank name">
+                                                    <i class="ti ti-copy"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="payment-detail-row">
+                                            <div class="payment-detail-label">Account Name</div>
+                                            <div class="payment-detail-content">
+                                                <span class="payment-detail-value">FitSync Corp</span>
+                                                <button type="button" class="payment-copy-btn" onclick="copyToClipboard('FitSync Corp', this)" title="Copy account name">
+                                                    <i class="ti ti-copy"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="payment-detail-row">
+                                            <div class="payment-detail-label">Account Number</div>
+                                            <div class="payment-detail-content">
+                                                <span class="payment-detail-value">123 456 789 0</span>
+                                                <button type="button" class="payment-copy-btn" onclick="copyToClipboard('1234567890', this)" title="Copy account number">
+                                                    <i class="ti ti-copy"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Credit Card -->
+                                <div class="payment-info-card" id="pay-info-credit_card">
+                                    <div class="payment-card-title"><i class="ti ti-credit-card me-1"></i> Credit Card</div>
+                                    <div class="card-display-mock">
+                                        <div class="card-display-content">
+                                            <div class="card-chip"></div>
+                                            <div class="card-number">•••• •••• •••• <span id="ccDisplay4">0000</span></div>
+                                            <div class="card-info-row">
+                                                <div class="card-info-item">
+                                                    <span class="card-label">Cardholder</span>
+                                                    <span id="ccDisplayName" style="font-size:.78rem;text-transform:uppercase">YOUR NAME</span>
+                                                </div>
+                                                <div class="card-info-item">
+                                                    <span class="card-label">Valid Thru</span>
+                                                    <span id="ccDisplayExp" style="font-size:.78rem">MM/YY</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row g-2 mb-3">
+                                        <div class="col-6">
                                             <div class="auth-label">Cardholder Name</div>
                                             <div class="input-icon-wrap">
                                                 <i class="ti ti-user ii"></i>
                                                 <input class="auth-input" type="text" id="pdCcName"
-                                                    placeholder="As printed on card" autocomplete="cc-name" />
+                                                    placeholder="Juan Dela Cruz" oninput="updateCardDisplay()" />
                                             </div>
                                         </div>
-                                        <div class="row g-2">
-                                            <div class="col-6">
-                                                <div class="auth-label">Last 4 Digits</div>
-                                                <div class="input-icon-wrap">
-                                                    <i class="ti ti-credit-card ii"></i>
-                                                    <input class="auth-input" type="text" id="pdCcLast4"
-                                                        placeholder="•••• 1234" maxlength="4"
-                                                        oninput="this.value=this.value.replace(/\D/g,'')" />
-                                                </div>
+                                        <div class="col-6">
+                                            <div class="auth-label">Card Type</div>
+                                            <select class="auth-select" id="pdCcType">
+                                                <option value="">Select type</option>
+                                                <option value="visa">Visa</option>
+                                                <option value="mastercard">Mastercard</option>
+                                                <option value="amex">American Express</option>
+                                                <option value="jcb">JCB</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="row g-2 mb-3">
+                                        <div class="col-6">
+                                            <div class="auth-label">Last 4 Digits</div>
+                                            <div class="input-icon-wrap">
+                                                <i class="ti ti-credit-card ii"></i>
+                                                <input class="auth-input" type="text" id="pdCcLast4"
+                                                    placeholder="1234" maxlength="4"
+                                                    oninput="this.value=this.value.replace(/\D/g,'');updateCardDisplay()" />
                                             </div>
-                                            <div class="col-6">
-                                                <div class="auth-label">Card Type</div>
-                                                <select class="auth-select" id="pdCcType">
-                                                    <option value="">Select type</option>
-                                                    <option value="visa">Visa</option>
-                                                    <option value="mastercard">Mastercard</option>
-                                                    <option value="amex">Amex</option>
-                                                    <option value="jcb">JCB</option>
-                                                    <option value="other">Other</option>
-                                                </select>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="auth-label">Expiry (MM/YY)</div>
+                                            <input class="auth-input" type="text" id="pdCcExp"
+                                                placeholder="MM/YY" maxlength="5"
+                                                oninput="formatCardExpiry(this);updateCardDisplay()" />
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <div class="auth-label">CVV</div>
+                                        <input class="auth-input" type="text" id="pdCcCvv"
+                                            placeholder="•••" maxlength="4"
+                                            oninput="this.value=this.value.replace(/\D/g,'')" />
+                                    </div>
+                                </div>
+
+                                <!-- Debit Card -->
+                                <div class="payment-info-card" id="pay-info-debit_card">
+                                    <div class="payment-card-title"><i class="ti ti-credit-card me-1"></i> Debit Card</div>
+                                    <div class="card-display-mock">
+                                        <div class="card-display-content">
+                                            <div class="card-chip"></div>
+                                            <div class="card-number">•••• •••• •••• <span id="dcDisplay4">0000</span></div>
+                                            <div class="card-info-row">
+                                                <div class="card-info-item">
+                                                    <span class="card-label">Cardholder</span>
+                                                    <span id="dcDisplayName" style="font-size:.78rem;text-transform:uppercase">YOUR NAME</span>
+                                                </div>
+                                                <div class="card-info-item">
+                                                    <span class="card-label">Valid Thru</span>
+                                                    <span id="dcDisplayExp" style="font-size:.78rem">MM/YY</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-
-                                    <!-- Debit Card fields -->
-                                    <div id="pd-debit_card" class="pay-fields" style="display:none">
-                                        <div class="mb-2">
+                                    <div class="row g-2 mb-3">
+                                        <div class="col-6">
                                             <div class="auth-label">Cardholder Name</div>
                                             <div class="input-icon-wrap">
                                                 <i class="ti ti-user ii"></i>
                                                 <input class="auth-input" type="text" id="pdDcName"
-                                                    placeholder="As printed on card" />
+                                                    placeholder="Juan Dela Cruz" oninput="updateCardDisplay('debit')" />
                                             </div>
                                         </div>
-                                        <div class="row g-2">
-                                            <div class="col-6">
-                                                <div class="auth-label">Last 4 Digits</div>
-                                                <div class="input-icon-wrap">
-                                                    <i class="ti ti-credit-card ii"></i>
-                                                    <input class="auth-input" type="text" id="pdDcLast4"
-                                                        placeholder="•••• 5678" maxlength="4"
-                                                        oninput="this.value=this.value.replace(/\D/g,'')" />
-                                                </div>
-                                            </div>
-                                            <div class="col-6">
-                                                <div class="auth-label">Bank Name</div>
-                                                <input class="auth-input" type="text" id="pdDcBank"
-                                                    placeholder="e.g. BDO, BPI" />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Bank Transfer fields -->
-                                    <div id="pd-bank_transfer" class="pay-fields" style="display:none">
-                                        <div class="mb-2">
-                                            <div class="auth-label">Account Name</div>
-                                            <div class="input-icon-wrap">
-                                                <i class="ti ti-user ii"></i>
-                                                <input class="auth-input" type="text" id="pdBtAccName"
-                                                    placeholder="Account holder name" />
-                                            </div>
-                                        </div>
-                                        <div class="mb-2">
+                                        <div class="col-6">
                                             <div class="auth-label">Bank Name</div>
-                                            <div class="input-icon-wrap">
-                                                <i class="ti ti-building-bank ii"></i>
-                                                <input class="auth-input" type="text" id="pdBtBank"
-                                                    placeholder="e.g. Metrobank, UnionBank" />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div class="auth-label">Reference Number</div>
-                                            <div class="input-icon-wrap">
-                                                <i class="ti ti-hash ii"></i>
-                                                <input class="auth-input" type="text" id="pdBtRef"
-                                                    placeholder="Transfer reference no." />
-                                            </div>
+                                            <input class="auth-input" type="text" id="pdDcBank"
+                                                placeholder="e.g. BDO, BPI" />
                                         </div>
                                     </div>
-
-                                    <!-- Cash note -->
-                                    <div id="pd-cash" class="pay-fields" style="display:none">
-                                        <div class="cash-note">
-                                            <i class="ti ti-map-pin"></i>
-                                            <span>Payment will be completed at the gym branch. Please bring exact change or GCash as a backup.</span>
+                                    <div class="row g-2 mb-3">
+                                        <div class="col-6">
+                                            <div class="auth-label">Last 4 Digits</div>
+                                            <div class="input-icon-wrap">
+                                                <i class="ti ti-credit-card ii"></i>
+                                                <input class="auth-input" type="text" id="pdDcLast4"
+                                                    placeholder="5678" maxlength="4"
+                                                    oninput="this.value=this.value.replace(/\D/g,'');updateCardDisplay('debit')" />
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="auth-label">Expiry (MM/YY)</div>
+                                            <input class="auth-input" type="text" id="pdDcExp"
+                                                placeholder="MM/YY" maxlength="5"
+                                                oninput="formatCardExpiry(this, 'debit');updateCardDisplay('debit')" />
                                         </div>
                                     </div>
+                                    <div class="mb-3">
+                                        <div class="auth-label">CVV</div>
+                                        <input class="auth-input" type="text" id="pdDcCvv"
+                                            placeholder="•••" maxlength="4"
+                                            oninput="this.value=this.value.replace(/\D/g,'')" />
+                                    </div>
+                                </div>
 
-                                </div><!-- /.pay-details-inner -->
-                            </div><!-- /#payDetailsPanel -->
+                                <!-- Cash / Walk-in -->
+                                <div class="payment-info-card active" id="pay-info-cash">
+                                    <div class="payment-card-title"><i class="ti ti-cash me-1"></i> Walk-in Payment</div>
+                                    <div class="cash-note">
+                                        <i class="ti ti-map-pin"></i>
+                                        <span>Complete your payment at the gym branch.</span>
+                                    </div>
+                                </div>
+
+                            </div><!-- /#paymentInfoContainer -->
 
                             <!-- Proof of Payment Upload (Optional) -->
-                            <div class="mb-3" id="proofUploadSection" style="display:none">
+                            <div class="mb-3" id="proofUploadSection">
                                 <div class="auth-label mb-2">Proof of Payment <span style="color:var(--bs-secondary-color);font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
                                 <div class="upload-zone" id="uploadZone"
                                     ondragover="event.preventDefault();this.classList.add('dragover')"
@@ -1481,16 +2048,18 @@ $rememberedEmail = htmlspecialchars($_COOKIE['fs_email'] ?? '', ENT_QUOTES, 'UTF
 
         // ── API CALL ──────────────────────────────────────────────
         async function authRequest(payload) {
-            const res = await fetch('handlers/auth_handler.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
+            let options = { method: 'POST' };
+            if (payload instanceof FormData) {
+                payload.append('csrf_token', CSRF_TOKEN);
+                options.body = payload;
+            } else {
+                options.headers = { 'Content-Type': 'application/json' };
+                options.body = JSON.stringify({
                     ...payload,
                     csrf_token: CSRF_TOKEN
-                }),
-            });
+                });
+            }
+            const res = await fetch('handlers/auth_handler.php', options);
             if (!res.ok) throw new Error('Server error ' + res.status);
             return res.json();
         }
@@ -1560,19 +2129,23 @@ $rememberedEmail = htmlspecialchars($_COOKIE['fs_email'] ?? '', ENT_QUOTES, 'UTF
                 return;
             }
 
-            const payload = {
-                action: 'register',
-                first_name: first,
-                last_name: last,
-                birthdate,
-                email,
-                password,
-                confirm,
-                gender,
-                plan: selectedPlan,
-                branch_id: parseInt(document.getElementById('regBranch').value, 10),
-                payment_method: document.getElementById('regPayment').value,
-            };
+            const payload = new FormData();
+            payload.append('action', 'register');
+            payload.append('first_name', first);
+            payload.append('last_name', last);
+            payload.append('birthdate', birthdate);
+            payload.append('email', email);
+            payload.append('password', password);
+            payload.append('confirm', confirm);
+            payload.append('gender', gender);
+            payload.append('plan', selectedPlan);
+            payload.append('branch_id', parseInt(document.getElementById('regBranch').value, 10));
+            payload.append('payment_method', document.getElementById('regPayment').value);
+
+            const proofFile = document.getElementById('proofFile').files[0];
+            if (proofFile) {
+                payload.append('proof_file', proofFile);
+            }
 
             setLoading('regBtnText', 'regBtnSpinner', true);
             try {
@@ -1593,29 +2166,85 @@ $rememberedEmail = htmlspecialchars($_COOKIE['fs_email'] ?? '', ENT_QUOTES, 'UTF
         // ── PAYMENT DETAILS ───────────────────────────────────────
         const CASH_FREE_METHODS = ['gcash', 'maya', 'credit_card', 'debit_card', 'bank_transfer'];
 
-        function onPaymentChange(method) {
-            const panel = document.getElementById('payDetailsPanel');
+        function selectPaymentMethod(method, event) {
+            event.preventDefault();
+
+            // Update active button
+            document.querySelectorAll('.payment-method-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.currentTarget.classList.add('active');
+
+            // Update hidden select
+            const selectEl = document.getElementById('regPayment');
+            selectEl.value = method;
+
+            // Hide all payment info cards
+            document.querySelectorAll('.payment-info-card').forEach(card => {
+                card.classList.remove('active');
+            });
+
+            // Show the selected payment info card
+            const cardId = 'pay-info-' + method;
+            const card = document.getElementById(cardId);
+            if (card) {
+                card.classList.add('active');
+            }
+
+            // Show upload section for non-cash methods
             const uploadSection = document.getElementById('proofUploadSection');
-
-            // Hide all pay-fields
-            document.querySelectorAll('.pay-fields').forEach(el => el.style.display = 'none');
-
-            // Show the matching one
-            const target = document.getElementById('pd-' + method);
-            if (target) target.style.display = '';
-
-            // Open/close the panel
-            panel.classList.add('open');
-
-            // Show upload only for non-cash methods
             uploadSection.style.display = (method !== 'cash') ? 'block' : 'none';
         }
 
-        // Initialise on page load — show Cash note by default
+        function updateCardDisplay(cardType = 'credit') {
+            if (cardType === 'credit') {
+                const name = document.getElementById('pdCcName').value || 'YOUR NAME';
+                const last4 = document.getElementById('pdCcLast4').value || '0000';
+                const exp = document.getElementById('pdCcExp').value || 'MM/YY';
+
+                document.getElementById('ccDisplayName').textContent = name.toUpperCase();
+                document.getElementById('ccDisplay4').textContent = last4.padStart(4, '0');
+                document.getElementById('ccDisplayExp').textContent = exp || 'MM/YY';
+            } else {
+                const name = document.getElementById('pdDcName').value || 'YOUR NAME';
+                const last4 = document.getElementById('pdDcLast4').value || '0000';
+                const exp = document.getElementById('pdDcExp').value || 'MM/YY';
+
+                document.getElementById('dcDisplayName').textContent = name.toUpperCase();
+                document.getElementById('dcDisplay4').textContent = last4.padStart(4, '0');
+                document.getElementById('dcDisplayExp').textContent = exp || 'MM/YY';
+            }
+        }
+
+        function formatCardExpiry(input, cardType = 'credit') {
+            let value = input.value.replace(/\D/g, '');
+            if (value.length >= 2) {
+                value = value.slice(0, 2) + '/' + value.slice(2, 4);
+            }
+            input.value = value;
+        }
+
+        // ── COPY TO CLIPBOARD ─────────────────────────────────────
+        function copyToClipboard(text, button) {
+            navigator.clipboard.writeText(text).then(() => {
+                const originalClass = button.className;
+                button.classList.add('copied');
+                button.innerHTML = '<i class="ti ti-check"></i>';
+                setTimeout(() => {
+                    button.className = originalClass;
+                    button.innerHTML = '<i class="ti ti-copy"></i>';
+                }, 2000);
+            }).catch(() => {
+                console.error('Failed to copy');
+            });
+        }
+
+        // Initialise on page load
         (function() {
-            const sel = document.getElementById('regPayment');
-            if (sel) onPaymentChange(sel.value);
+            updateCardDisplay();
+            updateCardDisplay('debit');
         })();
+
 
         // ── FILE UPLOAD (UI-only) ─────────────────────────────────
         function handleFileSelect(input) {

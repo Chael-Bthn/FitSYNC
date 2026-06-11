@@ -37,6 +37,14 @@ function fitsyncCurrentStreak(array $attendanceDates, ?DateTimeImmutable $today 
 
     $set = array_fill_keys($attendanceDates, true);
     $today = $today ?: new DateTimeImmutable('today');
+    
+    // If the latest attendance date is ahead of PHP's "today" (due to timezone mismatch), 
+    // sync our "today" anchor to the latest recorded date.
+    $maxDateStr = max($attendanceDates);
+    if ($maxDateStr > $today->format('Y-m-d')) {
+        $today = new DateTimeImmutable($maxDateStr);
+    }
+
     $cursor = isset($set[$today->format('Y-m-d')])
         ? $today
         : $today->modify('-1 day');
