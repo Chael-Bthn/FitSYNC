@@ -668,6 +668,141 @@ $rememberedEmail = htmlspecialchars($_COOKIE['fs_email'] ?? '', ENT_QUOTES, 'UTF
                 display: none !important;
             }
         }
+
+        /* ── PAYMENT DETAILS PANEL ───────────────────────────── */
+        .pay-details-panel {
+            overflow: hidden;
+            max-height: 0;
+            opacity: 0;
+            transition: max-height .35s ease, opacity .25s ease, margin .25s ease;
+            margin-top: 0;
+        }
+
+        .pay-details-panel.open {
+            max-height: 420px;
+            opacity: 1;
+            margin-top: .75rem;
+        }
+
+        .pay-details-inner {
+            display: flex;
+            flex-direction: column;
+            gap: .75rem;
+            padding: 1rem;
+            border: 1.5px solid var(--bs-border-color);
+            border-radius: 14px;
+            background: rgba(var(--bs-secondary-bg-rgb, 30,30,30), .45);
+        }
+
+        [data-bs-theme="light"] .pay-details-inner {
+            background: rgba(0,0,0,.03);
+        }
+
+        /* ── CASH NOTE ───────────────────────────────────────── */
+        .cash-note {
+            display: flex;
+            align-items: flex-start;
+            gap: .65rem;
+            padding: .8rem 1rem;
+            border-radius: 12px;
+            background: rgba(204, 26, 26, .07);
+            border: 1px solid rgba(204, 26, 26, .18);
+            font-size: .82rem;
+            color: var(--bs-body-color);
+            line-height: 1.5;
+        }
+
+        .cash-note i {
+            color: var(--fs-red);
+            font-size: 1.1rem;
+            flex-shrink: 0;
+            margin-top: .05rem;
+        }
+
+        /* ── PROOF OF PAYMENT UPLOAD ─────────────────────────── */
+        .upload-zone {
+            border: 2px dashed var(--bs-border-color);
+            border-radius: 14px;
+            padding: 1.2rem 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color .2s, background .2s;
+            position: relative;
+        }
+
+        .upload-zone:hover,
+        .upload-zone.dragover {
+            border-color: var(--fs-red);
+            background: rgba(204, 26, 26, .04);
+        }
+
+        .upload-zone input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+
+        .upload-zone-icon {
+            font-size: 1.6rem;
+            color: var(--bs-secondary-color);
+            margin-bottom: .4rem;
+            transition: color .2s;
+        }
+
+        .upload-zone:hover .upload-zone-icon {
+            color: var(--fs-red);
+        }
+
+        .upload-zone-title {
+            font-size: .82rem;
+            font-weight: 700;
+            color: var(--bs-body-color);
+        }
+
+        .upload-zone-title span {
+            color: var(--fs-red);
+        }
+
+        .upload-zone-hint {
+            font-size: .7rem;
+            color: var(--bs-secondary-color);
+            margin-top: .2rem;
+        }
+
+        .upload-preview {
+            display: none;
+            align-items: center;
+            gap: .6rem;
+            padding: .55rem .85rem;
+            border-radius: 10px;
+            background: rgba(204, 26, 26, .07);
+            border: 1px solid rgba(204, 26, 26, .2);
+            font-size: .78rem;
+            font-weight: 600;
+            color: var(--bs-body-color);
+            margin-top: .6rem;
+        }
+
+        .upload-preview.show { display: flex; }
+
+        .upload-preview i { color: var(--fs-red); font-size: .95rem; }
+
+        .upload-remove {
+            margin-left: auto;
+            cursor: pointer;
+            color: var(--bs-secondary-color);
+            font-size: .9rem;
+            line-height: 1;
+            border: none;
+            background: none;
+            padding: 0;
+            transition: color .2s;
+        }
+
+        .upload-remove:hover { color: var(--fs-red); }
     </style>
 </head>
 
@@ -943,11 +1078,12 @@ $rememberedEmail = htmlspecialchars($_COOKIE['fs_email'] ?? '', ENT_QUOTES, 'UTF
                             </div>
 
                             <!-- Payment method -->
-                            <div class="mb-3">
+                            <div class="mb-1">
                                 <div class="auth-label">Payment Method</div>
                                 <div class="input-icon-wrap">
                                     <i class="ti ti-credit-card ii"></i>
-                                    <select class="auth-select" id="regPayment" style="padding-left:2.6rem">
+                                    <select class="auth-select" id="regPayment" style="padding-left:2.6rem"
+                                        onchange="onPaymentChange(this.value)">
                                         <option value="gcash">GCash</option>
                                         <option value="maya">Maya</option>
                                         <option value="credit_card">Credit Card</option>
@@ -956,6 +1092,193 @@ $rememberedEmail = htmlspecialchars($_COOKIE['fs_email'] ?? '', ENT_QUOTES, 'UTF
                                         <option value="cash" selected>Cash / Walk-in</option>
                                     </select>
                                 </div>
+                            </div>
+
+                            <!-- Payment Details (dynamic) -->
+                            <div class="pay-details-panel" id="payDetailsPanel">
+                                <div class="pay-details-inner">
+
+                                    <!-- GCash fields -->
+                                    <div id="pd-gcash" class="pay-fields" style="display:none">
+                                        <div class="mb-2">
+                                            <div class="auth-label">GCash Account Name</div>
+                                            <div class="input-icon-wrap">
+                                                <i class="ti ti-user ii"></i>
+                                                <input class="auth-input" type="text" id="pdGcashName"
+                                                    placeholder="Full name on GCash" />
+                                            </div>
+                                        </div>
+                                        <div class="mb-2">
+                                            <div class="auth-label">GCash Mobile Number</div>
+                                            <div class="input-icon-wrap">
+                                                <i class="ti ti-device-mobile ii"></i>
+                                                <input class="auth-input" type="tel" id="pdGcashNum"
+                                                    placeholder="09XX XXX XXXX" maxlength="11" />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="auth-label">Reference Number <span style="color:var(--bs-secondary-color);font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+                                            <div class="input-icon-wrap">
+                                                <i class="ti ti-hash ii"></i>
+                                                <input class="auth-input" type="text" id="pdGcashRef"
+                                                    placeholder="GCash reference no." />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Maya fields -->
+                                    <div id="pd-maya" class="pay-fields" style="display:none">
+                                        <div class="mb-2">
+                                            <div class="auth-label">Maya Account Name</div>
+                                            <div class="input-icon-wrap">
+                                                <i class="ti ti-user ii"></i>
+                                                <input class="auth-input" type="text" id="pdMayaName"
+                                                    placeholder="Full name on Maya" />
+                                            </div>
+                                        </div>
+                                        <div class="mb-2">
+                                            <div class="auth-label">Maya Mobile Number</div>
+                                            <div class="input-icon-wrap">
+                                                <i class="ti ti-device-mobile ii"></i>
+                                                <input class="auth-input" type="tel" id="pdMayaNum"
+                                                    placeholder="09XX XXX XXXX" maxlength="11" />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="auth-label">Reference Number <span style="color:var(--bs-secondary-color);font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+                                            <div class="input-icon-wrap">
+                                                <i class="ti ti-hash ii"></i>
+                                                <input class="auth-input" type="text" id="pdMayaRef"
+                                                    placeholder="Maya reference no." />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Credit Card fields -->
+                                    <div id="pd-credit_card" class="pay-fields" style="display:none">
+                                        <div class="mb-2">
+                                            <div class="auth-label">Cardholder Name</div>
+                                            <div class="input-icon-wrap">
+                                                <i class="ti ti-user ii"></i>
+                                                <input class="auth-input" type="text" id="pdCcName"
+                                                    placeholder="As printed on card" autocomplete="cc-name" />
+                                            </div>
+                                        </div>
+                                        <div class="row g-2">
+                                            <div class="col-6">
+                                                <div class="auth-label">Last 4 Digits</div>
+                                                <div class="input-icon-wrap">
+                                                    <i class="ti ti-credit-card ii"></i>
+                                                    <input class="auth-input" type="text" id="pdCcLast4"
+                                                        placeholder="•••• 1234" maxlength="4"
+                                                        oninput="this.value=this.value.replace(/\D/g,'')" />
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="auth-label">Card Type</div>
+                                                <select class="auth-select" id="pdCcType">
+                                                    <option value="">Select type</option>
+                                                    <option value="visa">Visa</option>
+                                                    <option value="mastercard">Mastercard</option>
+                                                    <option value="amex">Amex</option>
+                                                    <option value="jcb">JCB</option>
+                                                    <option value="other">Other</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Debit Card fields -->
+                                    <div id="pd-debit_card" class="pay-fields" style="display:none">
+                                        <div class="mb-2">
+                                            <div class="auth-label">Cardholder Name</div>
+                                            <div class="input-icon-wrap">
+                                                <i class="ti ti-user ii"></i>
+                                                <input class="auth-input" type="text" id="pdDcName"
+                                                    placeholder="As printed on card" />
+                                            </div>
+                                        </div>
+                                        <div class="row g-2">
+                                            <div class="col-6">
+                                                <div class="auth-label">Last 4 Digits</div>
+                                                <div class="input-icon-wrap">
+                                                    <i class="ti ti-credit-card ii"></i>
+                                                    <input class="auth-input" type="text" id="pdDcLast4"
+                                                        placeholder="•••• 5678" maxlength="4"
+                                                        oninput="this.value=this.value.replace(/\D/g,'')" />
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="auth-label">Bank Name</div>
+                                                <input class="auth-input" type="text" id="pdDcBank"
+                                                    placeholder="e.g. BDO, BPI" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Bank Transfer fields -->
+                                    <div id="pd-bank_transfer" class="pay-fields" style="display:none">
+                                        <div class="mb-2">
+                                            <div class="auth-label">Account Name</div>
+                                            <div class="input-icon-wrap">
+                                                <i class="ti ti-user ii"></i>
+                                                <input class="auth-input" type="text" id="pdBtAccName"
+                                                    placeholder="Account holder name" />
+                                            </div>
+                                        </div>
+                                        <div class="mb-2">
+                                            <div class="auth-label">Bank Name</div>
+                                            <div class="input-icon-wrap">
+                                                <i class="ti ti-building-bank ii"></i>
+                                                <input class="auth-input" type="text" id="pdBtBank"
+                                                    placeholder="e.g. Metrobank, UnionBank" />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="auth-label">Reference Number</div>
+                                            <div class="input-icon-wrap">
+                                                <i class="ti ti-hash ii"></i>
+                                                <input class="auth-input" type="text" id="pdBtRef"
+                                                    placeholder="Transfer reference no." />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Cash note -->
+                                    <div id="pd-cash" class="pay-fields" style="display:none">
+                                        <div class="cash-note">
+                                            <i class="ti ti-map-pin"></i>
+                                            <span>Payment will be completed at the gym branch. Please bring exact change or GCash as a backup.</span>
+                                        </div>
+                                    </div>
+
+                                </div><!-- /.pay-details-inner -->
+                            </div><!-- /#payDetailsPanel -->
+
+                            <!-- Proof of Payment Upload (Optional) -->
+                            <div class="mb-3" id="proofUploadSection" style="display:none">
+                                <div class="auth-label mb-2">Proof of Payment <span style="color:var(--bs-secondary-color);font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+                                <div class="upload-zone" id="uploadZone"
+                                    ondragover="event.preventDefault();this.classList.add('dragover')"
+                                    ondragleave="this.classList.remove('dragover')"
+                                    ondrop="handleFileDrop(event)">
+                                    <input type="file" id="proofFile" accept=".jpg,.jpeg,.png,.pdf"
+                                        onchange="handleFileSelect(this)" />
+                                    <div class="upload-zone-icon"><i class="ti ti-cloud-upload"></i></div>
+                                    <div class="upload-zone-title"><span>Upload File</span> or drag &amp; drop</div>
+                                    <div class="upload-zone-hint">JPG, PNG, or PDF accepted</div>
+                                </div>
+                                <div class="upload-preview" id="uploadPreview">
+                                    <i class="ti ti-file-check"></i>
+                                    <span id="uploadFileName">screenshot.jpg</span>
+                                    <button class="upload-remove" type="button" onclick="removeUpload()" title="Remove file">
+                                        <i class="ti ti-x"></i>
+                                    </button>
+                                </div>
+                                <p style="font-size:.68rem;color:var(--bs-secondary-color);margin-top:.45rem;margin-bottom:0;line-height:1.5">
+                                    <i class="ti ti-info-circle" style="font-size:.75rem"></i>
+                                    You may upload a screenshot or receipt to help staff verify your payment faster.
+                                </p>
                             </div>
 
                         </div><!-- /#memberSection -->
@@ -1265,6 +1588,63 @@ $rememberedEmail = htmlspecialchars($_COOKIE['fs_email'] ?? '', ENT_QUOTES, 'UTF
             } finally {
                 setLoading('regBtnText', 'regBtnSpinner', false);
             }
+        }
+
+        // ── PAYMENT DETAILS ───────────────────────────────────────
+        const CASH_FREE_METHODS = ['gcash', 'maya', 'credit_card', 'debit_card', 'bank_transfer'];
+
+        function onPaymentChange(method) {
+            const panel = document.getElementById('payDetailsPanel');
+            const uploadSection = document.getElementById('proofUploadSection');
+
+            // Hide all pay-fields
+            document.querySelectorAll('.pay-fields').forEach(el => el.style.display = 'none');
+
+            // Show the matching one
+            const target = document.getElementById('pd-' + method);
+            if (target) target.style.display = '';
+
+            // Open/close the panel
+            panel.classList.add('open');
+
+            // Show upload only for non-cash methods
+            uploadSection.style.display = (method !== 'cash') ? 'block' : 'none';
+        }
+
+        // Initialise on page load — show Cash note by default
+        (function() {
+            const sel = document.getElementById('regPayment');
+            if (sel) onPaymentChange(sel.value);
+        })();
+
+        // ── FILE UPLOAD (UI-only) ─────────────────────────────────
+        function handleFileSelect(input) {
+            if (input.files && input.files[0]) showUploadPreview(input.files[0]);
+        }
+
+        function handleFileDrop(e) {
+            e.preventDefault();
+            document.getElementById('uploadZone').classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (!file) return;
+            const allowed = ['image/jpeg', 'image/png', 'application/pdf'];
+            if (!allowed.includes(file.type)) {
+                showAlert('Proof of payment must be JPG, PNG, or PDF.');
+                return;
+            }
+            showUploadPreview(file);
+        }
+
+        function showUploadPreview(file) {
+            document.getElementById('uploadFileName').textContent = file.name;
+            document.getElementById('uploadPreview').classList.add('show');
+            document.getElementById('uploadZone').style.display = 'none';
+        }
+
+        function removeUpload() {
+            document.getElementById('proofFile').value = '';
+            document.getElementById('uploadPreview').classList.remove('show');
+            document.getElementById('uploadZone').style.display = '';
         }
 
         // ── ENTER KEY ─────────────────────────────────────────────
