@@ -1646,6 +1646,7 @@ $rememberedEmail = htmlspecialchars($_COOKIE['fs_email'] ?? '', ENT_QUOTES, 'UTF
             document.getElementById('uploadPreview').classList.remove('show');
             document.getElementById('uploadZone').style.display = '';
         }
+        
 
         // ── ENTER KEY ─────────────────────────────────────────────
         document.addEventListener('keydown', e => {
