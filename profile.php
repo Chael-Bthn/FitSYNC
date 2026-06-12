@@ -215,6 +215,24 @@ if ($isPending) {
 }
 
 $scheduleContext = memberScheduleContext($pdo, $mem, $userId);
+
+/* ── INJECT ANNOUNCEMENTS INTO NOTIFICATIONS ── */
+if (!$isPending) {
+    foreach (($scheduleContext['announcements'] ?? []) as $ann) {
+        $branchLabel = $ann['branch_name'] ? htmlspecialchars((string) $ann['branch_name']) : 'All Branches';
+        $notifications[] = [
+            'id'           => 'ann_' . (int) $ann['id'],
+            'type'         => 'info',
+            'icon'         => 'ti-speakerphone',
+            'title'        => htmlspecialchars((string) $ann['title']),
+            'body'         => htmlspecialchars((string) $ann['body']) . ' — ' . $branchLabel,
+            'action'       => null,
+            'action_label' => null,
+            'time'         => date('M j', strtotime((string) $ann['starts_at'])),
+        ];
+    }
+}
+
 $memberHub = memberDashboardData($mem, $allMems, $attendanceDates, $monthlyVisits, $daysRemaining, $hasActiveMembership, $scheduleContext);
 
 $initials = strtoupper(

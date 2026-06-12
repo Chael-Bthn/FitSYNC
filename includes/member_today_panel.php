@@ -46,10 +46,7 @@
             </div>
             <?php endif ?>
             <?php if (!empty($memberHub['operations']['announcement'])): ?>
-            <div class="d-flex justify-content-between gap-3">
-                <span><?= memberH($memberHub['operations']['announcement']['title']) ?></span>
-                <strong>Notice</strong>
-            </div>
+            <!-- Announcement moved to notification panel -->
             <?php endif ?>
             <?php if (!empty($memberHub['operations']['upcoming_bookings_this_week'])): ?>
             <div class="d-flex justify-content-between gap-3">

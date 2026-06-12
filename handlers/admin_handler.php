@@ -626,7 +626,9 @@ function deleteClassSchedule(array $data): void
 function saveAnnouncement(array $data): void
 {
     $id = (int) ($data['announcement_id'] ?? 0);
-    $branchId = (int) ($data['branch_id'] ?? 0);
+    // branch_id = 0 means "All Branches" → stored as NULL
+    $branchIdRaw = (int) ($data['branch_id'] ?? 0);
+    $branchId = $branchIdRaw > 0 ? $branchIdRaw : null;
     $title = trim((string) ($data['title'] ?? ''));
     $body = trim((string) ($data['body'] ?? ''));
     $startsAt = trim((string) ($data['starts_at'] ?? ''));
@@ -636,7 +638,7 @@ function saveAnnouncement(array $data): void
     $normalizedStartsAt = normalizeDateTime($startsAt);
     $normalizedEndsAt = $endsAt !== '' ? normalizeDateTime($endsAt) : null;
 
-    if ($branchId <= 0 || $title === '' || strlen($title) > 140 || $body === '' || strlen($body) > 4000 || $normalizedStartsAt === null) {
+    if ($title === '' || strlen($title) > 140 || $body === '' || strlen($body) > 4000 || $normalizedStartsAt === null) {
         respond(false, 'Enter a valid announcement.');
     }
     if ($endsAt !== '' && ($normalizedEndsAt === null || $normalizedEndsAt < $normalizedStartsAt)) {
@@ -644,7 +646,10 @@ function saveAnnouncement(array $data): void
     }
 
     $pdo = db();
-    ensureBranch($pdo, $branchId);
+    // Only validate branch when a specific branch is selected
+    if ($branchId !== null) {
+        ensureBranch($pdo, $branchId);
+    }
 
     if ($id > 0) {
         $stmt = $pdo->prepare(

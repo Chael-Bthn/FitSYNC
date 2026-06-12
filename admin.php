@@ -210,9 +210,9 @@ $announcements = adminRows(
     $pdo,
     'SELECT a.*, b.name AS branch_name
      FROM branch_announcements a
-     INNER JOIN branches b ON b.id = a.branch_id
+     LEFT JOIN branches b ON b.id = a.branch_id
      ORDER BY a.is_active DESC, a.starts_at DESC
-     LIMIT 20'
+     LIMIT 50'
 );
 $operatingHours = adminRows(
     $pdo,
@@ -2523,9 +2523,9 @@ $adminData = [
                                     <tr>
                                         <td>
                                             <div style="font-weight:600"><?= htmlspecialchars((string) $notice['title']) ?></div>
-                                            <div class="sched-show-sm" style="font-size:.7rem;color:var(--text-3)"><?= htmlspecialchars((string) $notice['branch_name']) ?></div>
+                                            <div class="sched-show-sm" style="font-size:.7rem;color:var(--text-3)"><?= htmlspecialchars($notice['branch_name'] !== null ? (string) $notice['branch_name'] : 'All Branches') ?></div>
                                         </td>
-                                        <td class="sched-hide-sm"><?= htmlspecialchars((string) $notice['branch_name']) ?></td>
+                                        <td class="sched-hide-sm"><?= htmlspecialchars($notice['branch_name'] !== null ? (string) $notice['branch_name'] : 'All Branches') ?></td>
                                         <td><span class="badge <?= (int) $notice['is_active'] === 1 ? 'active' : 'expired' ?>"><?= (int) $notice['is_active'] === 1 ? 'Active' : 'Inactive' ?></span></td>
                                         <td>
                                             <div class="actions">
@@ -3173,7 +3173,12 @@ $adminData = [
             openActionModal(id ? 'Edit Announcement' : 'Create Announcement', `
                 <div style="${rowStyle}">
                     <input id="an-title" style="${fieldStyle}" placeholder="Title" value="${h(a.title)}" />
-                    <select id="an-branch" style="${fieldStyle}">${optionList(adminBranches.filter(b => Number(b.is_active) === 1), a.branch_id, 'name')}</select>
+                    <select id="an-branch" style="${fieldStyle}">
+                        <option value="0" ${!a.branch_id || Number(a.branch_id) === 0 ? 'selected' : ''}>🌐 All Branches</option>
+                        ${adminBranches.filter(b => Number(b.is_active) === 1).map(b =>
+                            `<option value="${Number(b.id)}" ${Number(a.branch_id) === Number(b.id) ? 'selected' : ''}>${h(b.name)}</option>`
+                        ).join('')}
+                    </select>
                 </div>
                 <div style="${rowStyle}">
                     <input id="an-start" style="${fieldStyle}" type="datetime-local" value="${h(dtLocal(a.starts_at))}" />

@@ -35,7 +35,7 @@ function memberDashboardData(?array $membership, array $membershipHistory, array
             'city' => (string) ($membership['branch_city'] ?? ''),
             'address' => (string) ($membership['branch_address'] ?? ''),
             'schedule_status' => $hours ? 'Operating hours available' : 'Hours not configured yet',
-            'notice' => $firstAnnouncement['title'] ?? 'No operational notices right now.',
+            'notice' => 'Check notifications for branch notices.',
         ],
         'activity' => [
             [

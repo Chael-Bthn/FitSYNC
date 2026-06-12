@@ -79,7 +79,7 @@ INSERT INTO `branches` (`id`, `name`, `city`, `address`, `maps_embed`, `is_activ
 
 CREATE TABLE `branch_announcements` (
   `id` int(10) UNSIGNED NOT NULL,
-  `branch_id` smallint(5) UNSIGNED NOT NULL,
+  `branch_id` smallint(5) UNSIGNED DEFAULT NULL,
   `title` varchar(140) NOT NULL,
   `body` text NOT NULL,
   `starts_at` datetime NOT NULL,
@@ -716,7 +716,7 @@ ALTER TABLE `attendance_logs`
 -- Constraints for table `branch_announcements`
 --
 ALTER TABLE `branch_announcements`
-  ADD CONSTRAINT `fk_branch_announcements_branch` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`) ON DELETE CASCADE;
+  ADD CONSTRAINT `fk_branch_announcements_branch` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`) ON DELETE SET NULL;
 
 --
 -- Constraints for table `branch_operating_hours`

@@ -51,10 +51,14 @@ function scheduleAnnouncements(PDO $pdo, ?int $branchId = null, bool $activeOnly
 {
     $where = [];
     $params = [];
+
+    // When a branch is specified, include that branch's announcements AND all-branch (NULL) announcements
     if ($branchId !== null && $branchId > 0) {
-        $where[] = 'ba.branch_id = ?';
+        $where[] = '(ba.branch_id = ? OR ba.branch_id IS NULL)';
         $params[] = $branchId;
     }
+    // When no branch specified, return all announcements (including all-branch ones)
+
     if ($activeOnly) {
         $where[] = 'ba.is_active = 1';
         $where[] = 'ba.starts_at <= NOW()';
@@ -63,7 +67,7 @@ function scheduleAnnouncements(PDO $pdo, ?int $branchId = null, bool $activeOnly
 
     $sql = 'SELECT ba.*, b.name AS branch_name, b.city AS branch_city
             FROM branch_announcements ba
-            INNER JOIN branches b ON b.id = ba.branch_id';
+            LEFT JOIN branches b ON b.id = ba.branch_id';
     if ($where) {
         $sql .= ' WHERE ' . implode(' AND ', $where);
     }
