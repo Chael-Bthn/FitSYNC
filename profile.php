@@ -1972,15 +1972,16 @@ $workoutPrograms = [
             flex-direction: column;
             align-items: center;
             gap: .55rem;
-            flex-shrink: 0
+            flex-shrink: 0;
+            align-self: center;
         }
 
         .hero-qr-box {
-            width: 110px;
-            height: 110px;
+            width: 150px;
+            height: 150px;
             background: #fff;
-            border-radius: 16px;
-            padding: 8px;
+            border-radius: 20px;
+            padding: 12px;
             cursor: pointer;
             border: 2px solid rgba(204, 26, 26, .4);
             box-shadow: 0 8px 30px rgba(0, 0, 0, .4);
@@ -2307,17 +2308,19 @@ $workoutPrograms = [
         @media(max-width:575.98px) {
             .hero-qr-section {
                 flex-direction: row;
-                flex-wrap: wrap;
+                align-items: center;
                 justify-content: flex-start;
                 width: 100%;
-                gap: .75rem;
-                padding-top: .5rem
+                gap: .6rem;
+                padding-top: .35rem;
+                align-self: auto;
             }
 
             .hero-qr-box {
-                width: 80px;
-                height: 80px;
-                padding: 5px
+                width: 76px;
+                height: 76px;
+                padding: 5px;
+                border-radius: 12px;
             }
         }
 
@@ -2695,6 +2698,26 @@ $workoutPrograms = [
             .notif-panel {
                 width: 100vw;
                 border-left: none;
+            }
+
+            .dash-hero-stats {
+                flex-wrap: nowrap;
+                gap: .5rem;
+            }
+
+            .dash-mini-stat {
+                flex: 1;
+                min-width: 0;
+                padding-left: .55rem;
+            }
+
+            .dash-mini-stat-val {
+                font-size: 1.7rem;
+            }
+
+            .dash-mini-stat-lbl {
+                font-size: .7rem;
+                letter-spacing: .2px;
             }
         }
     </style>
