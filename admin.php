@@ -316,7 +316,8 @@ $adminData = [
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>FitSync Admin — Improved</title>
+    <title>FitSync Admin</title>
+    <link rel="icon" type="image/svg+xml" href="assets/FitSYNC%20Emblem%20Light.svg" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
     <style>
@@ -2001,7 +2002,9 @@ $adminData = [
                 <div class="sb-label">Management</div>
                 <button class="sb-link" onclick="showPage('members',this)">
                     <i class="ti ti-users"></i> Members
-                    <span class="sb-pill">7</span>
+                    <?php if ($dashboard['pending_approvals'] > 0): ?>
+                    <span class="sb-pill"><?= $dashboard['pending_approvals'] ?></span>
+                    <?php endif ?>
                 </button>
                 <button class="sb-link" onclick="showPage('branches',this)"><i class="ti ti-building-store"></i> Branches</button>
                 <button class="sb-link" onclick="showPage('schedules',this)"><i class="ti ti-calendar-event"></i> Schedules</button>

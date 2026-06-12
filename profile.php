@@ -433,6 +433,7 @@ $workoutPrograms = [
             z-index: 200;
             transition: transform .3s cubic-bezier(.25, .46, .45, .94), background .25s;
             overflow-y: auto;
+            pointer-events: auto;
         }
 
         .sb-header {
@@ -595,10 +596,19 @@ $workoutPrograms = [
             color: var(--fs-red)
         }
 
+        .sb-nav-item:disabled {
+            opacity: .35;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
         .sb-footer {
             padding: .85rem .75rem 1.25rem;
             border-top: 1px solid var(--sidebar-border);
-            flex-shrink: 0
+            flex-shrink: 0;
+            position: relative;
+            z-index: 201;
+            pointer-events: auto;
         }
 
         .sb-theme-row {
@@ -629,6 +639,12 @@ $workoutPrograms = [
             transition: background .3s;
             padding: 0;
             flex-shrink: 0
+        }
+
+        .theme-pill:disabled {
+            opacity: .35;
+            cursor: not-allowed;
+            pointer-events: none;
         }
 
         .theme-pill-knob {
@@ -679,12 +695,22 @@ $workoutPrograms = [
 
         /* ── PENDING OVERLAY (blurry backdrop) ── */
         .pending-overlay {
-            position: absolute;
-            inset: 0;
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: var(--sidebar-w);
             z-index: 150;
             background: rgba(10, 10, 10, .55);
             backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             pointer-events: auto;
+        }
+
+        @media (max-width: 991.98px) {
+            .pending-overlay {
+                left: 0;
+            }
         }
 
         /* ── PENDING NOTICE (fixed top-center, above overlay) ── */
@@ -2768,22 +2794,22 @@ $workoutPrograms = [
 
         <nav class="sb-nav">
             <div class="sb-nav-label">Menu</div>
-            <button class="sb-nav-item active" onclick="showTab('dashboard', this)">
+            <button class="sb-nav-item active" <?= $isPending ? 'disabled' : '' ?> onclick="showTab('dashboard', this)">
                 <i class="ti ti-layout-dashboard"></i> Dashboard
             </button>
-            <button class="sb-nav-item" onclick="showTab('programs', this)">
+            <button class="sb-nav-item" <?= $isPending ? 'disabled' : '' ?> onclick="showTab('programs', this)">
                 <i class="ti ti-barbell"></i> Programs
             </button>
-            <button class="sb-nav-item" onclick="showTab('billing', this)">
+            <button class="sb-nav-item" <?= $isPending ? 'disabled' : '' ?> onclick="showTab('billing', this)">
                 <i class="ti ti-receipt"></i> Plans & Billing
             </button>
-            <button class="sb-nav-item" onclick="showTab('schedule', this)">
+            <button class="sb-nav-item" <?= $isPending ? 'disabled' : '' ?> onclick="showTab('schedule', this)">
                 <i class="ti ti-calendar-event"></i> Schedule
             </button>
-            <button class="sb-nav-item" onclick="showTab('feedback', this)">
+            <button class="sb-nav-item" <?= $isPending ? 'disabled' : '' ?> onclick="showTab('feedback', this)">
                 <i class="ti ti-message-star"></i> Feedback
             </button>
-            <button class="sb-nav-item" onclick="showTab('settings', this)">
+            <button class="sb-nav-item" <?= $isPending ? 'disabled' : '' ?> onclick="showTab('settings', this)">
                 <i class="ti ti-settings"></i> Settings
             </button>
         </nav>
