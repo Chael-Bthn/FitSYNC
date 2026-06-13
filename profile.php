@@ -45,6 +45,7 @@ if ($isPending) {
     $scheduleContext = [];
     $memberHub = [];
     $membershipPlans = [];
+    $notifications = [];
 } else {
     $mem = getLatestMembership($pdo, $userId);
     $activeMembership = getActiveMembership($pdo, $userId);
@@ -704,7 +705,8 @@ $workoutPrograms = [
             background: rgba(10, 10, 10, .55);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
-            pointer-events: auto;
+            pointer-events: none;
+            /* ← CHANGE THIS */
         }
 
         @media (max-width: 991.98px) {
