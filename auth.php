@@ -1822,9 +1822,9 @@ $rememberedEmail = htmlspecialchars($_COOKIE['fs_email'] ?? '', ENT_QUOTES, 'UTF
 
                             </div><!-- /#paymentInfoContainer -->
 
-                            <!-- Proof of Payment Upload (Optional) -->
+                            <!-- Proof of Payment Upload (Required) -->
                             <div class="mb-3" id="proofUploadSection">
-                                <div class="auth-label mb-2">Proof of Payment <span style="color:var(--bs-secondary-color);font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+                                <div class="auth-label mb-2">Proof of Payment <span style="color:var(--fs-red);font-weight:700">*</span></div>
                                 <div class="upload-zone" id="uploadZone"
                                     ondragover="event.preventDefault();this.classList.add('dragover')"
                                     ondragleave="this.classList.remove('dragover')"
@@ -1844,7 +1844,7 @@ $rememberedEmail = htmlspecialchars($_COOKIE['fs_email'] ?? '', ENT_QUOTES, 'UTF
                                 </div>
                                 <p style="font-size:.68rem;color:var(--bs-secondary-color);margin-top:.45rem;margin-bottom:0;line-height:1.5">
                                     <i class="ti ti-info-circle" style="font-size:.75rem"></i>
-                                    You may upload a screenshot or receipt to help staff verify your payment faster.
+                                    You must upload a screenshot or receipt so staff can verify your payment.
                                 </p>
                             </div>
 
@@ -2127,6 +2127,15 @@ $rememberedEmail = htmlspecialchars($_COOKIE['fs_email'] ?? '', ENT_QUOTES, 'UTF
             if (!gender) {
                 showAlert('Please select your gender.');
                 return;
+            }
+
+            const payment_method = document.getElementById('regPayment').value;
+            if (payment_method !== 'cash') {
+                const proofCheck = document.getElementById('proofFile').files[0];
+                if (!proofCheck) {
+                    showAlert('Proof of payment is required. Please upload a screenshot or receipt.');
+                    return;
+                }
             }
 
             const payload = new FormData();
