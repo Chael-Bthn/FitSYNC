@@ -4870,12 +4870,12 @@ $workoutPrograms = [
             chevron.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)';
         }
 
-        let _orderReviewRating = 5;
+        let _orderReviewRating = 0;
         function openOrderReviewModal(id) {
             const existing = document.getElementById('orderReviewOverlay');
             if (existing) existing.remove();
 
-            _orderReviewRating = 5;
+            _orderReviewRating = 0;
             const overlay = document.createElement('div');
             overlay.id = 'orderReviewOverlay';
             overlay.style.cssText = 'position:fixed;inset:0;z-index:10500;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(3px)';
@@ -4905,6 +4905,7 @@ $workoutPrograms = [
                 </div>`;
 
             document.body.appendChild(overlay);
+            setOrderReviewRating(0);
             overlay.addEventListener('click', e => { if (e.target === overlay) closeOrderReviewModal(); });
         }
 
@@ -4921,6 +4922,7 @@ $workoutPrograms = [
 
         async function submitOrderReview(id) {
             const body = document.getElementById('orderReviewText')?.value.trim() || '';
+            if (!_orderReviewRating) return shopToast('error', 'Please select a star rating.');
             if (!body) return shopToast('error', 'Please write your review before submitting.');
             const btn = document.getElementById('orderReviewSubmit');
             btn.disabled = true;

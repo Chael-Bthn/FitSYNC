@@ -37,7 +37,9 @@ $adminId = (int) $_SESSION['user_id'];
 match ($action) {
     'create_member' => createMember($data),
     'change_member_plan' => changeMemberPlan($data),
-    'delete_feedback' => deleteFeedback($data),
+    'delete_feedback'       => deleteFeedback($data),
+    'delete_order_review'   => deleteOrderReview($data),
+
     'approve_payment' => approvePayment($data, $adminId),
     'reject_payment' => rejectPayment($data, $adminId),
     'approve_account' => approveAccount($data),
@@ -226,6 +228,20 @@ function deleteFeedback(array $data): void
 
     respond($stmt->rowCount() > 0, $stmt->rowCount() > 0 ? 'Feedback deleted.' : 'Feedback was already deleted.', ['reload' => true]);
 }
+
+function deleteOrderReview(array $data): void
+{
+    $reviewId = (int) ($data['review_id'] ?? 0);
+    if ($reviewId <= 0) {
+        respond(false, 'Invalid review.');
+    }
+
+    $stmt = db()->prepare('UPDATE order_reviews SET is_visible = 0 WHERE id = ? AND is_visible = 1');
+    $stmt->execute([$reviewId]);
+
+    respond($stmt->rowCount() > 0, $stmt->rowCount() > 0 ? 'Review deleted.' : 'Review was already deleted.', ['reload' => true]);
+}
+
 
 function approvePayment(array $data, int $adminId): void
 {

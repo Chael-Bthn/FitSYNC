@@ -189,6 +189,20 @@ $feedbacks = adminRows(
      ORDER BY f.created_at DESC'
 );
 
+// Order / product reviews (separate table)
+$orderReviews = [];
+try {
+    $orderReviews = adminRows(
+        $pdo,
+        'SELECT r.id, r.order_id, r.rating, r.body AS text, r.created_at AS date,
+                CONCAT(u.first_name, " ", u.last_name) AS name, u.email
+         FROM order_reviews r
+         LEFT JOIN users u ON u.id = r.user_id
+         WHERE r.is_visible = 1
+         ORDER BY r.created_at DESC'
+    );
+} catch (Throwable) { /* table may not exist yet on first run */ }
+
 $classes = adminRows(
     $pdo,
     'SELECT c.*, b.name AS branch_name
@@ -310,7 +324,9 @@ $adminData = [
     'branches' => $branches,
     'membershipPlans' => $membershipPlans,
     'memberNotes' => $memberNotes,
-    'feedbacks' => $feedbacks,
+    'feedbacks'       => $feedbacks,
+    'orderReviews'    => $orderReviews,
+
     'classes' => $classes,
     'classSchedules' => $classSchedules,
     'announcements' => $announcements,
@@ -2605,45 +2621,51 @@ $adminData = [
         <!-- ─── FEEDBACKS ─────────────────────────── -->
         <div class="page" id="page-feedbacks">
             <div class="sec-head">
-                <div class="sec-title">Feedbacks</div>
+                <div class="sec-title">Feedbacks &amp; Reviews</div>
             </div>
+            <?php
+                $allRatings = array_merge(
+                    array_column($feedbacks, 'rating'),
+                    array_column($orderReviews, 'rating')
+                );
+                $totalReviews = count($allRatings);
+                $avgRating    = $totalReviews > 0 ? array_sum($allRatings) / $totalReviews : 0;
+                $ratingCounts = array_count_values($allRatings);
+            ?>
             <div class="grid g-2-1">
-                <div id="fb-list"></div>
+                <div>
+                    <div class="dash-tabs" style="margin-bottom:1rem">
+                        <button class="dash-tab active" onclick="switchFbTab('gym',this)">Gym Feedback <span class="badge" style="margin-left:.35rem"><?= number_format(count($feedbacks)) ?></span></button>
+                        <button class="dash-tab" onclick="switchFbTab('orders',this)">Product Reviews <span class="badge" style="margin-left:.35rem"><?= number_format(count($orderReviews)) ?></span></button>
+                    </div>
+                    <div id="fb-star-filter" style="display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:1rem">
+                        <button class="btn sm active" id="fsf-0" onclick="setFbStarFilter(0,this)">All</button>
+                        <button class="btn sm" id="fsf-5" onclick="setFbStarFilter(5,this)">5 ★</button>
+                        <button class="btn sm" id="fsf-4" onclick="setFbStarFilter(4,this)">4 ★</button>
+                        <button class="btn sm" id="fsf-3" onclick="setFbStarFilter(3,this)">3 ★</button>
+                        <button class="btn sm" id="fsf-2" onclick="setFbStarFilter(2,this)">2 ★</button>
+                        <button class="btn sm" id="fsf-1" onclick="setFbStarFilter(1,this)">1 ★</button>
+                    </div>
+                    <div id="fb-list"></div>
+                    <div id="or-list" style="display:none"></div>
+                </div>
                 <div class="card">
                     <div class="card-head">
                         <div class="card-title">Rating breakdown</div>
                     </div>
                     <div class="card-body" style="text-align:center;margin-bottom:1rem">
-                        <div style="font-size:3.5rem;font-weight:900;line-height:1"><?= $feedbacks ? number_format(array_sum(array_column($feedbacks, 'rating')) / max(1, count($feedbacks)), 1) : '0.0' ?></div>
+                        <div style="font-size:3.5rem;font-weight:900;line-height:1"><?= number_format($avgRating, 1) ?></div>
                         <div style="color:var(--red);font-size:.9rem;letter-spacing:2px;margin:.3rem 0">★★★★★</div>
-                        <div style="font-size:.72rem;color:var(--text-3)">Based on <?= number_format($dashboard['visible_feedbacks']) ?> reviews</div>
+                        <div style="font-size:.72rem;color:var(--text-3)">Based on <?= number_format($totalReviews) ?> reviews (all sources)</div>
                     </div>
                     <div class="card-body" style="padding-top:0">
-                        <div class="rb-row"><span class="rb-lbl">5★</span>
-                            <div class="rb-track">
-                                <div class="rb-fill" style="width:72%"></div>
-                            </div><span class="rb-pct">72%</span>
+                        <?php for ($star = 5; $star >= 1; $star--): ?>
+                        <?php $cnt = $ratingCounts[$star] ?? 0; $pct = $totalReviews > 0 ? round($cnt / $totalReviews * 100) : 0; ?>
+                        <div class="rb-row"><span class="rb-lbl"><?= $star ?>★</span>
+                            <div class="rb-track"><div class="rb-fill" style="width:<?= $pct ?>%"></div></div>
+                            <span class="rb-pct"><?= $pct ?>%</span>
                         </div>
-                        <div class="rb-row"><span class="rb-lbl">4★</span>
-                            <div class="rb-track">
-                                <div class="rb-fill" style="width:18%"></div>
-                            </div><span class="rb-pct">18%</span>
-                        </div>
-                        <div class="rb-row"><span class="rb-lbl">3★</span>
-                            <div class="rb-track">
-                                <div class="rb-fill" style="width:6%"></div>
-                            </div><span class="rb-pct">6%</span>
-                        </div>
-                        <div class="rb-row"><span class="rb-lbl">2★</span>
-                            <div class="rb-track">
-                                <div class="rb-fill" style="width:3%"></div>
-                            </div><span class="rb-pct">3%</span>
-                        </div>
-                        <div class="rb-row"><span class="rb-lbl">1★</span>
-                            <div class="rb-track">
-                                <div class="rb-fill" style="width:1%"></div>
-                            </div><span class="rb-pct">1%</span>
-                        </div>
+                        <?php endfor ?>
                     </div>
                 </div>
             </div>
@@ -3165,7 +3187,9 @@ $adminData = [
         const CSRF_TOKEN = ADMIN_DATA.csrf;
         const adminMembers = ADMIN_DATA.members;
         const adminBranches = ADMIN_DATA.branches;
-        const adminFeedbacks = ADMIN_DATA.feedbacks;
+        const adminFeedbacks    = ADMIN_DATA.feedbacks;
+        const adminOrderReviews = ADMIN_DATA.orderReviews || [];
+
         const signupData = ADMIN_DATA.signupData;
         const revenueData = ADMIN_DATA.revenueData;
         const months = ADMIN_DATA.months;
@@ -3186,6 +3210,8 @@ $adminData = [
             renderAttendanceTables();
             renderBranches();
             renderFeedbacks();
+            renderOrderReviews();
+
             restoreAdminPage();
         }
 
@@ -3780,10 +3806,27 @@ $adminData = [
   `).join('');
         }
 
+        let _fbStarFilter = 0;
+
+        function setFbStarFilter(star, btn) {
+            _fbStarFilter = star;
+            document.querySelectorAll('#fb-star-filter .btn').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            renderFeedbacks();
+            renderOrderReviews();
+        }
+
         function renderFeedbacks() {
             const el = document.getElementById('fb-list');
             if (!el) return;
-            el.innerHTML = adminFeedbacks.map(f => `
+            const data = _fbStarFilter ? adminFeedbacks.filter(f => Number(f.rating) === _fbStarFilter) : adminFeedbacks;
+            if (!data.length) {
+                el.innerHTML = adminFeedbacks.length
+                    ? '<div class="empty"><i class="ti ti-filter-off"></i>No ' + _fbStarFilter + '★ gym feedback</div>'
+                    : '<div class="empty"><i class="ti ti-message-off"></i>No gym feedback yet</div>';
+                return;
+            }
+            el.innerHTML = data.map(f => `
     <div class="fb-card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
         <div>
@@ -3796,6 +3839,52 @@ $adminData = [
       <div class="fb-meta"><i class="ti ti-map-pin" style="font-size:.75rem"></i> ${f.branch} · ${fmtDate(f.date)}</div>
     </div>
   `).join('');
+        }
+
+        function renderOrderReviews() {
+            const el = document.getElementById('or-list');
+            if (!el) return;
+            const data = _fbStarFilter ? adminOrderReviews.filter(r => Number(r.rating) === _fbStarFilter) : adminOrderReviews;
+            if (!data.length) {
+                el.innerHTML = adminOrderReviews.length
+                    ? '<div class="empty"><i class="ti ti-filter-off"></i>No ' + _fbStarFilter + '★ product reviews</div>'
+                    : '<div class="empty"><i class="ti ti-star-off"></i>No product reviews yet</div>';
+                return;
+            }
+            el.innerHTML = data.map(r => `
+    <div class="fb-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div style="font-weight:700;font-size:.88rem">${h(r.name)}</div>
+          <div style="font-size:.72rem;color:var(--text-3);margin-bottom:.2rem">${h(r.email)} &middot; Order #${r.order_id}</div>
+          <div class="fb-stars">${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</div>
+        </div>
+        <button class="tbtn danger" onclick="deleteOrderReviewAction(${r.id})"><i class="ti ti-trash"></i></button>
+      </div>
+      <div class="fb-text">"${h(r.text)}"</div>
+      <div class="fb-meta"><i class="ti ti-shopping-cart" style="font-size:.75rem"></i> ${fmtDate(r.date)}</div>
+    </div>
+  `).join('');
+        }
+
+        function switchFbTab(tab, btn) {
+            document.querySelectorAll('#page-feedbacks .dash-tab').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            // Reset star filter when switching source tab
+            _fbStarFilter = 0;
+            document.querySelectorAll('#fb-star-filter .btn').forEach(b => b.classList.remove('active'));
+            const allBtn = document.getElementById('fsf-0');
+            if (allBtn) allBtn.classList.add('active');
+            document.getElementById('fb-list').style.display = tab === 'gym'    ? '' : 'none';
+            document.getElementById('or-list').style.display = tab === 'orders' ? '' : 'none';
+            renderFeedbacks();
+            renderOrderReviews();
+        }
+
+        function deleteOrderReviewAction(reviewId) {
+            confirmAction('Delete review?', 'This product review will be hidden from all views.', () =>
+                runAdminAction({ action: 'delete_order_review', review_id: reviewId }, 'Review deleted')
+            );
         }
 
         /* ── MEMBER DETAIL MODAL ─────────────────── */
