@@ -59,12 +59,47 @@ $action = trim((string)($_POST['action'] ?? $_GET['action'] ?? ''));
 $pdo    = db();
 $uid    = (int)($_SESSION['user_id'] ?? 0);
 
-// ── Auto-migration: ensure orders columns exist ────────────
+// ── Auto-migration: optimize database & setup branch stocks ──
 (function(PDO $pdo): void {
     static $done = false;
     if ($done) return;
     $done = true;
     try {
+        // 1. Create product_stocks table if not exists
+        $pdo->exec("CREATE TABLE IF NOT EXISTS `product_stocks` (
+            `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            `product_id` INT UNSIGNED NOT NULL,
+            `branch_id` SMALLINT UNSIGNED NOT NULL,
+            `stock` INT NOT NULL DEFAULT 0,
+            PRIMARY KEY (`id`),
+            UNIQUE KEY `uq_product_branch` (`product_id`, `branch_id`),
+            CONSTRAINT `fk_prod_stock_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
+            CONSTRAINT `fk_prod_stock_branch` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+        // 2. Migrate existing stocks if products.stock still exists
+        $prodCols = $pdo->query('DESCRIBE products')->fetchAll(PDO::FETCH_COLUMN);
+        if (in_array('stock', $prodCols, true)) {
+            // Migrate stocks to Main Branch (branch_id = 1)
+            $prods = $pdo->query('SELECT id, stock FROM products')->fetchAll();
+            $stmtMigrate = $pdo->prepare('INSERT IGNORE INTO product_stocks (product_id, branch_id, stock) VALUES (?, 1, ?)');
+            foreach ($prods as $p) {
+                $stmtMigrate->execute([(int)$p['id'], (int)$p['stock']]);
+            }
+            // Drop stock column from products
+            $pdo->exec('ALTER TABLE products DROP COLUMN stock');
+        }
+
+        // 3. Drop password_resets table if exists
+        $pdo->exec('DROP TABLE IF EXISTS `password_resets`');
+
+        // 4. Drop remember_token column from users if exists
+        $userCols = $pdo->query('DESCRIBE users')->fetchAll(PDO::FETCH_COLUMN);
+        if (in_array('remember_token', $userCols, true)) {
+            $pdo->exec('ALTER TABLE users DROP COLUMN remember_token');
+        }
+
+        // 5. Ensure orders columns exist
         $existing = $pdo->query('DESCRIBE orders')->fetchAll(PDO::FETCH_COLUMN);
         $alters = [];
         $map = [
@@ -81,6 +116,7 @@ $uid    = (int)($_SESSION['user_id'] ?? 0);
             'recipient_name'     => "ADD COLUMN recipient_name VARCHAR(120) NOT NULL DEFAULT '' AFTER order_notes",
             'recipient_contact'  => "ADD COLUMN recipient_contact VARCHAR(30) NOT NULL DEFAULT '' AFTER recipient_name",
             'recipient_email'    => "ADD COLUMN recipient_email VARCHAR(120) NOT NULL DEFAULT '' AFTER recipient_contact",
+            'cancel_reason'      => "ADD COLUMN cancel_reason TEXT NULL AFTER recipient_email",
         ];
         foreach ($map as $col => $ddl) {
             if (!in_array($col, $existing, true)) {
@@ -90,7 +126,9 @@ $uid    = (int)($_SESSION['user_id'] ?? 0);
         if ($alters) {
             $pdo->exec('ALTER TABLE orders ' . implode(', ', $alters));
         }
-    } catch (Throwable) { /* non-fatal */ }
+    } catch (Throwable $e) {
+        // Fail silently or log error
+    }
 })($pdo);
 
 
@@ -105,6 +143,8 @@ match ($action) {
     'upload_proof'       => actionUploadProof($pdo, $uid),
     'checkout'           => actionCheckout($pdo, $uid),
     'get_orders'         => actionGetOrders($pdo, $uid),
+    'mark_order_received'=> actionMarkOrderReceived($pdo, $uid),
+    'cancel_order'       => actionCancelOrder($pdo, $uid),
     // Admin
     'admin_get_products'   => adminGetProducts($pdo),
     'admin_save_product'   => adminSaveProduct($pdo),
@@ -130,7 +170,9 @@ function actionGetProducts(PDO $pdo): never {
         $where[] = '(p.name LIKE ? OR p.description LIKE ? OR p.category LIKE ?)';
         $params  = array_merge($params, ["%$search%", "%$search%", "%$search%"]);
     }
-    $stmt = $pdo->prepare('SELECT id,name,description,category,price,stock,image FROM products p WHERE ' . implode(' AND ', $where) . ' ORDER BY id');
+    $stmt = $pdo->prepare('SELECT p.id,p.name,p.description,p.category,p.price,
+                                 COALESCE((SELECT SUM(stock) FROM product_stocks WHERE product_id = p.id), 0) AS stock,
+                                 p.image FROM products p WHERE ' . implode(' AND ', $where) . ' ORDER BY p.id');
     $stmt->execute($params);
     $cats = $pdo->query('SELECT DISTINCT category FROM products WHERE is_active=1 ORDER BY category')->fetchAll(PDO::FETCH_COLUMN);
     jsonOk(['products' => $stmt->fetchAll(), 'categories' => $cats]);
@@ -139,7 +181,8 @@ function actionGetProducts(PDO $pdo): never {
 function actionGetCart(PDO $pdo, int $uid): never {
     requireMember();
     $stmt = $pdo->prepare(
-        'SELECT c.id, c.quantity, p.id AS product_id, p.name, p.price, p.stock, p.image
+        'SELECT c.id, c.quantity, p.id AS product_id, p.name, p.price,
+                COALESCE((SELECT SUM(stock) FROM product_stocks WHERE product_id = p.id), 0) AS stock, p.image
          FROM cart c JOIN products p ON p.id=c.product_id
          WHERE c.user_id=? AND p.is_active=1 ORDER BY c.added_at'
     );
@@ -154,7 +197,7 @@ function actionAddToCart(PDO $pdo, int $uid): never {
     $pid = (int)($_POST['product_id'] ?? 0);
     $qty = max(1, (int)($_POST['quantity'] ?? 1));
     if ($pid <= 0) jsonErr('Invalid product.');
-    $p = $pdo->prepare('SELECT id, stock FROM products WHERE id=? AND is_active=1');
+    $p = $pdo->prepare('SELECT id, COALESCE((SELECT SUM(stock) FROM product_stocks WHERE product_id = products.id), 0) AS stock FROM products WHERE id=? AND is_active=1');
     $p->execute([$pid]);
     $prod = $p->fetch();
     if (!$prod) jsonErr('Product not found.');
@@ -178,7 +221,7 @@ function actionUpdateCart(PDO $pdo, int $uid): never {
         $pdo->prepare('DELETE FROM cart WHERE id=? AND user_id=?')->execute([$cartId, $uid]);
         jsonOk(['message' => 'Item removed.']);
     }
-    $s = $pdo->prepare('SELECT p.stock FROM cart c JOIN products p ON p.id=c.product_id WHERE c.id=? AND c.user_id=?');
+    $s = $pdo->prepare('SELECT COALESCE((SELECT SUM(stock) FROM product_stocks WHERE product_id = p.id), 0) AS stock FROM cart c JOIN products p ON p.id=c.product_id WHERE c.id=? AND c.user_id=?');
     $s->execute([$cartId, $uid]);
     $row = $s->fetch();
     if (!$row) jsonErr('Cart item not found.');
@@ -198,7 +241,8 @@ function actionGetCheckoutData(PDO $pdo, int $uid): never {
     requireMember();
     // Cart
     $stmt = $pdo->prepare(
-        'SELECT c.id, c.quantity, p.id AS product_id, p.name, p.price, p.stock, p.image
+        'SELECT c.id, c.quantity, p.id AS product_id, p.name, p.price,
+                COALESCE((SELECT SUM(stock) FROM product_stocks WHERE product_id = p.id), 0) AS stock, p.image
          FROM cart c JOIN products p ON p.id=c.product_id
          WHERE c.user_id=? AND p.is_active=1 ORDER BY c.added_at'
     );
@@ -251,9 +295,10 @@ function actionCheckout(PDO $pdo, int $uid): never {
     if (!in_array($fulfillment, ['delivery', 'pickup'], true)) jsonErr('Invalid fulfillment method.');
 
     $payMethod = clean($_POST['payment_method'] ?? '');
-    $validPay  = ['gcash','maya','bank_transfer','cash_on_pickup'];
+    $validPay  = ['gcash','maya','bank_transfer','cash_on_pickup','cash_on_delivery'];
     if (!in_array($payMethod, $validPay, true)) jsonErr('Invalid payment method.');
     if ($payMethod === 'cash_on_pickup' && $fulfillment !== 'pickup') jsonErr('Cash on Pickup is only available for Branch Pick-Up orders.');
+    if ($payMethod === 'cash_on_delivery' && $fulfillment !== 'delivery') jsonErr('Cash on Delivery is only available for Delivery orders.');
 
     // ─ Delivery or pickup details
     $deliveryAddr  = null;
@@ -292,17 +337,24 @@ function actionCheckout(PDO $pdo, int $uid): never {
 
     $proofPath = clean($_POST['proof_path'] ?? '');
 
-    // ─ Load cart
+    // Determine target branch
+    $targetBranchId = ($fulfillment === 'pickup') ? $pickupBranch : 1; // 1 = Main Branch
+
+    // ─ Load cart with branch stock
     $cartStmt = $pdo->prepare(
-        'SELECT c.id AS cart_id, c.quantity, p.id AS product_id, p.name, p.price, p.stock
+        'SELECT c.id AS cart_id, c.quantity, p.id AS product_id, p.name, p.price,
+                COALESCE((SELECT stock FROM product_stocks WHERE product_id = p.id AND branch_id = ?), 0) AS stock
          FROM cart c JOIN products p ON p.id=c.product_id WHERE c.user_id=? AND p.is_active=1'
     );
-    $cartStmt->execute([$uid]);
+    $cartStmt->execute([$targetBranchId, $uid]);
     $items = $cartStmt->fetchAll();
     if (empty($items)) jsonErr('Your cart is empty.');
 
     foreach ($items as $item) {
-        if ($item['quantity'] > $item['stock']) jsonErr("'{$item['name']}' only has {$item['stock']} units left.");
+        if ($item['quantity'] > $item['stock']) {
+            $branchWord = ($fulfillment === 'pickup') ? 'at the selected branch' : 'at the main branch';
+            jsonErr("'{$item['name']}' only has {$item['stock']} units left {$branchWord}.");
+        }
     }
 
     $subtotal    = array_sum(array_map(fn($i) => $i['price'] * $i['quantity'], $items));
@@ -328,10 +380,10 @@ function actionCheckout(PDO $pdo, int $uid): never {
         $orderId = (int)$pdo->lastInsertId();
 
         $insItem   = $pdo->prepare('INSERT INTO order_items (order_id,product_id,quantity,price) VALUES (?,?,?,?)');
-        $deduStock = $pdo->prepare('UPDATE products SET stock=stock-? WHERE id=? AND stock>=?');
+        $deduStock = $pdo->prepare('UPDATE product_stocks SET stock=stock-? WHERE product_id=? AND branch_id=? AND stock>=?');
         foreach ($items as $item) {
             $insItem->execute([$orderId, $item['product_id'], $item['quantity'], $item['price']]);
-            $deduStock->execute([$item['quantity'], $item['product_id'], $item['quantity']]);
+            $deduStock->execute([$item['quantity'], $item['product_id'], $targetBranchId, $item['quantity']]);
             if ($deduStock->rowCount() === 0) throw new RuntimeException("Insufficient stock for '{$item['name']}'.");
         }
 
@@ -352,7 +404,7 @@ function actionGetOrders(PDO $pdo, int $uid): never {
         'SELECT o.id, o.total_amount, o.delivery_fee, o.status, o.fulfillment_method,
                 o.payment_method, o.payment_status,
                 o.pickup_date, o.pickup_time, o.delivery_address,
-                o.recipient_name, o.created_at,
+                o.recipient_name, o.cancel_reason, o.created_at,
                 b.name AS branch_name, b.address AS branch_address,
                 COUNT(oi.id) AS item_count
          FROM orders o
@@ -375,9 +427,87 @@ function actionGetOrders(PDO $pdo, int $uid): never {
 //  ADMIN ACTIONS
 // ══════════════════════════════════════════════════════════
 
+function actionMarkOrderReceived(PDO $pdo, int $uid): never {
+    $orderId = (int)($_POST['order_id'] ?? 0);
+    if ($orderId <= 0) jsonErr('Invalid order ID.');
+
+    // Verify the order belongs to this user and is in a receivable state
+    $stmt = $pdo->prepare(
+        "SELECT id, status FROM orders WHERE id = ? AND user_id = ?"
+    );
+    $stmt->execute([$orderId, $uid]);
+    $order = $stmt->fetch();
+
+    if (!$order) jsonErr('Order not found.');
+
+    $receivable = ['processing','out_for_delivery','ready_for_pickup','delivered','picked_up'];
+    if (!in_array($order['status'], $receivable, true)) {
+        jsonErr('This order cannot be marked as received in its current state.');
+    }
+
+    $pdo->prepare("UPDATE orders SET status = 'completed', updated_at = NOW() WHERE id = ?")
+        ->execute([$orderId]);
+
+    jsonOk(['message' => 'Order #' . $orderId . ' marked as completed. Thank you!']);
+}
+
+// ── cancel_order ──────────────────────────────────────────
+function actionCancelOrder(PDO $pdo, int $uid): never {
+    requireMember(); verifyCsrf();
+    $orderId = (int)($_POST['order_id'] ?? 0);
+    if ($orderId <= 0) jsonErr('Invalid order ID.');
+
+    // Verify the order belongs to this user and is still pending
+    $stmt = $pdo->prepare('SELECT id, status, fulfillment_method, pickup_branch_id FROM orders WHERE id = ? AND user_id = ?');
+    $stmt->execute([$orderId, $uid]);
+    $order = $stmt->fetch();
+
+    if (!$order) jsonErr('Order not found.');
+    if ($order['status'] !== 'pending') jsonErr('Only pending orders can be cancelled.');
+
+    $targetBranchId = ($order['fulfillment_method'] === 'pickup') ? (int)$order['pickup_branch_id'] : 1;
+
+    $pdo->beginTransaction();
+    try {
+        // Restore stock for each item
+        $items = $pdo->prepare('SELECT product_id, quantity FROM order_items WHERE order_id = ?');
+        $items->execute([$orderId]);
+        $restoreStmt = $pdo->prepare('INSERT INTO product_stocks (product_id, branch_id, stock) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE stock = stock + VALUES(stock)');
+        foreach ($items->fetchAll() as $item) {
+            $restoreStmt->execute([$item['product_id'], $targetBranchId, $item['quantity']]);
+        }
+
+        // Mark as cancelled and store the reason
+        $reason = trim((string)($_POST['cancel_reason'] ?? ''));
+        $pdo->prepare("UPDATE orders SET status = 'cancelled', cancel_reason = ?, updated_at = NOW() WHERE id = ?")
+            ->execute([$reason ?: null, $orderId]);
+
+        $pdo->commit();
+        jsonOk(['message' => 'Order #' . $orderId . ' has been cancelled.']);
+    } catch (Throwable $e) {
+        $pdo->rollBack();
+        jsonErr($e->getMessage() ?: 'Failed to cancel order.');
+    }
+}
+
 function adminGetProducts(PDO $pdo): never {
     requireAdmin();
-    $products = $pdo->query('SELECT id,name,description,category,price,stock,image,is_active,created_at FROM products ORDER BY id DESC')->fetchAll();
+    $products = $pdo->query('SELECT id,name,description,category,price,image,is_active,created_at FROM products ORDER BY id DESC')->fetchAll();
+    
+    // Fetch branch stocks
+    $stocksRaw = $pdo->query('SELECT product_id, branch_id, stock FROM product_stocks')->fetchAll();
+    $stocks = [];
+    foreach ($stocksRaw as $row) {
+        $stocks[(int)$row['product_id']][(int)$row['branch_id']] = (int)$row['stock'];
+    }
+    
+    // Attach branch stocks to each product
+    foreach ($products as &$p) {
+        $p['stocks'] = $stocks[(int)$p['id']] ?? [];
+        $p['stock'] = array_sum($p['stocks']);
+    }
+    unset($p);
+
     $cats = $pdo->query('SELECT DISTINCT category FROM products ORDER BY category')->fetchAll(PDO::FETCH_COLUMN);
     jsonOk(['products' => $products, 'categories' => $cats]);
 }
@@ -389,7 +519,7 @@ function adminSaveProduct(PDO $pdo): never {
     $desc  = clean($_POST['description'] ?? '');
     $cat   = clean($_POST['category'] ?? 'Supplement');
     $price = max(0, (float)($_POST['price'] ?? 0));
-    $stock = max(0, (int)($_POST['stock'] ?? 0));
+    $stocks = $_POST['stocks'] ?? []; // Array of branch_id => stock
     $active = isset($_POST['is_active']) ? 1 : 0;
     if ($name === '') jsonErr('Product name is required.');
     if ($price <= 0)  jsonErr('Price must be greater than 0.');
@@ -407,14 +537,31 @@ function adminSaveProduct(PDO $pdo): never {
         if (!move_uploaded_file($file['tmp_name'], $dir . $fname)) jsonErr('Image upload failed.');
         $imagePath = 'uploads/products/' . $fname;
     }
-    if ($id > 0) {
-        $pdo->prepare('UPDATE products SET name=?,description=?,category=?,price=?,stock=?,image=?,is_active=? WHERE id=?')
-            ->execute([$name,$desc,$cat,$price,$stock,$imagePath,$active,$id]);
-        jsonOk(['message' => 'Product updated.', 'product_id' => $id]);
-    } else {
-        $pdo->prepare('INSERT INTO products (name,description,category,price,stock,image,is_active) VALUES (?,?,?,?,?,?,?)')
-            ->execute([$name,$desc,$cat,$price,$stock,$imagePath,$active]);
-        jsonOk(['message' => 'Product added.', 'product_id' => (int)$pdo->lastInsertId()]);
+    
+    $pdo->beginTransaction();
+    try {
+        if ($id > 0) {
+            $pdo->prepare('UPDATE products SET name=?,description=?,category=?,price=?,image=?,is_active=? WHERE id=?')
+                ->execute([$name,$desc,$cat,$price,$imagePath,$active,$id]);
+        } else {
+            $pdo->prepare('INSERT INTO products (name,description,category,price,image,is_active) VALUES (?,?,?,?,?,?)')
+                ->execute([$name,$desc,$cat,$price,$imagePath,$active]);
+            $id = (int)$pdo->lastInsertId();
+        }
+
+        // Save branch stocks
+        $stmtStock = $pdo->prepare('INSERT INTO product_stocks (product_id, branch_id, stock) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE stock = VALUES(stock)');
+        $activeBranches = $pdo->query('SELECT id FROM branches WHERE is_active=1')->fetchAll(PDO::FETCH_COLUMN);
+        foreach ($activeBranches as $bid) {
+            $stk = max(0, (int)($stocks[$bid] ?? 0));
+            $stmtStock->execute([$id, $bid, $stk]);
+        }
+
+        $pdo->commit();
+        jsonOk(['message' => $id > 0 ? 'Product updated.' : 'Product added.', 'product_id' => $id]);
+    } catch (Throwable $e) {
+        $pdo->rollBack();
+        jsonErr($e->getMessage() ?: 'Save failed.');
     }
 }
 
@@ -433,7 +580,7 @@ function adminGetOrders(PDO $pdo): never {
                 o.payment_method, o.payment_status, o.proof_of_payment,
                 o.delivery_address, o.pickup_date, o.pickup_time,
                 o.recipient_name, o.recipient_contact, o.recipient_email,
-                o.created_at,
+                o.cancel_reason, o.created_at,
                 CONCAT(u.first_name," ",u.last_name) AS customer_name,
                 u.email AS customer_email,
                 b.name AS branch_name, b.address AS branch_address,
@@ -458,7 +605,7 @@ function adminUpdateOrder(PDO $pdo): never {
     requireAdmin(); verifyCsrf();
     $id     = (int)($_POST['order_id'] ?? 0);
     $status = clean($_POST['status'] ?? '');
-    $allowed = ['pending','processing','out_for_delivery','delivered','ready_for_pickup','picked_up','cancelled'];
+    $allowed = ['pending','processing','out_for_delivery','delivered','ready_for_pickup','picked_up','cancelled','completed'];
     if ($id <= 0 || !in_array($status, $allowed, true)) jsonErr('Invalid request.');
     $pdo->prepare('UPDATE orders SET status=? WHERE id=?')->execute([$status, $id]);
     jsonOk(['message' => 'Order status updated to ' . str_replace('_', ' ', ucfirst($status)) . '.']);

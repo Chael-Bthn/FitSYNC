@@ -3255,10 +3255,6 @@ $workoutPrograms = [
             <button class="sb-nav-item" <?= $isPending ? 'disabled' : '' ?> onclick="showTab('shop', this)">
                 <i class="ti ti-shopping-bag"></i> Shop
             </button>
-            <button class="sb-nav-item" <?= $isPending ? 'disabled' : '' ?> onclick="showTab('cart', this)" id="sbCartBtn">
-                <i class="ti ti-shopping-cart"></i> Cart
-                <span class="sb-cart-badge" id="sbCartBadge" style="<?= $shopCartCount > 0 ? '' : 'display:none' ?>"><?= $shopCartCount ?></span>
-            </button>
             <button class="sb-nav-item" <?= $isPending ? 'disabled' : '' ?> onclick="showTab('orders', this)">
                 <i class="ti ti-package"></i> Orders
             </button>
@@ -4179,10 +4175,30 @@ $workoutPrograms = [
             </div>
         </div>
 
-        <!-- ══ CART TAB ══ -->
-        <div class="page-section" id="tab-cart">
-            <div id="cartContent"></div>
+        <!-- ══ CART MODAL ══ -->
+        <div class="modal fade" id="cartModal" tabindex="-1" aria-labelledby="cartModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content" style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:18px">
+                    <div class="modal-header" style="border-color:var(--card-border)">
+                        <h5 class="modal-title" id="cartModalLabel" style="font-weight:800;color:var(--text-primary);display:flex;align-items:center;gap:0.5rem">
+                            <i class="ti ti-shopping-cart" style="color:var(--fs-red)"></i> Shopping Cart
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" id="cartContent" style="padding:0">
+                        <!-- Cart items will be loaded here dynamically -->
+                    </div>
+                </div>
+            </div>
         </div>
+
+        <?php if (!$isPending): ?>
+            <!-- Cart Floating Action Button -->
+            <button class="cart-fab" id="cartFabBtn" data-bs-toggle="modal" data-bs-target="#cartModal" aria-label="View Cart" onclick="loadCart()">
+                <i class="ti ti-shopping-cart"></i>
+                <span class="cart-fab-badge" id="cartFabBadge" style="<?= $shopCartCount > 0 ? '' : 'display:none' ?>"><?= $shopCartCount ?></span>
+            </button>
+        <?php endif; ?>
 
 
         <!-- ══ ORDERS TAB ══ -->
@@ -4190,325 +4206,32 @@ $workoutPrograms = [
             <div id="ordersContent"></div>
         </div>
 
-
-        <!-- ══ CHECKOUT MODAL ══ -->
-        <div id="checkoutOverlay" class="co-modal-overlay" style="display:none" onclick="if(event.target===this)closeCheckoutModal()">
-          <div class="co-modal" onclick="event.stopPropagation()">
-
-            <!-- Header -->
-            <div class="co-header">
-              <div>
-                <div style="font-size:1rem;font-weight:800;letter-spacing:-.2px">Checkout</div>
-                <div style="font-size:.75rem;color:var(--text-muted)" id="co-step-subtitle">Review your cart</div>
-              </div>
-              <button class="co-close-btn" onclick="closeCheckoutModal()"><i class="ti ti-x"></i></button>
-            </div>
-
-            <!-- Stepper -->
-            <div class="co-stepper" id="co-stepper">
-              <div class="co-step active" id="co-s1"><div class="co-step-dot">1</div><span class="co-step-label">Review</span></div>
-              <div class="co-step-line" id="co-l1"></div>
-              <div class="co-step" id="co-s2"><div class="co-step-dot">2</div><span class="co-step-label">Fulfillment</span></div>
-              <div class="co-step-line" id="co-l2"></div>
-              <div class="co-step" id="co-s3"><div class="co-step-dot">3</div><span class="co-step-label">Payment</span></div>
-              <div class="co-step-line" id="co-l3"></div>
-              <div class="co-step" id="co-s4"><div class="co-step-dot">4</div><span class="co-step-label">Confirm</span></div>
-            </div>
-
-            <!-- Body -->
-            <div class="co-body">
-
-              <!-- ── STEP 1: ORDER REVIEW ── -->
-              <div class="co-panel active" id="co-panel-1">
-                <div id="co-review-items"></div>
-                <div class="co-sum-block" style="margin-top:.75rem">
-                  <div class="co-sum-row"><span>Subtotal</span><span id="co-review-subtotal" style="font-weight:700"></span></div>
-                  <div class="co-sum-row" style="color:var(--text-muted);font-size:.78rem"><span>Delivery fee calculated in next step</span><span>—</span></div>
-                </div>
-              </div>
-
-              <!-- ── STEP 2: FULFILLMENT ── -->
-              <div class="co-panel" id="co-panel-2">
-                <div class="fulfill-grid">
-                  <div class="fulfill-card selected" id="fc-delivery" onclick="coSelectFulfill('delivery')">
-                    <i class="ti ti-truck"></i>
-                    <div class="fulfill-card-title">Delivery</div>
-                    <div class="fulfill-card-sub">Shipped to your address</div>
-                  </div>
-                  <div class="fulfill-card" id="fc-pickup" onclick="coSelectFulfill('pickup')">
-                    <i class="ti ti-building-store"></i>
-                    <div class="fulfill-card-title">Branch Pick-Up</div>
-                    <div class="fulfill-card-sub">Collect at your preferred branch</div>
-                  </div>
-                </div>
-
-                <!-- Delivery Form -->
-                <div id="co-delivery-form">
-                  <div class="co-sec-title">Recipient Information</div>
-                  <div class="co-row">
-                    <div class="co-field"><label class="co-label">Full Name <span class="req">*</span></label><input class="co-input" id="co-fullname" placeholder="Juan Dela Cruz"></div>
-                    <div class="co-field"><label class="co-label">Contact Number <span class="req">*</span></label><input class="co-input" id="co-contact" placeholder="09XX XXX XXXX"></div>
-                  </div>
-                  <div class="co-field"><label class="co-label">Email Address <span class="req">*</span></label><input class="co-input" id="co-email" type="email" placeholder="you@email.com"></div>
-
-                  <div class="co-sec-title">Delivery Address</div>
-                  <div class="co-row">
-                    <div class="co-field"><label class="co-label">Region <span class="req">*</span></label>
-                      <select class="co-select" id="co-region" onchange="coUpdateDeliveryFee()">
-                        <option value="">Select Region</option>
-                        <option value="NCR">NCR – Metro Manila</option>
-                        <option value="Region I">Region I – Ilocos</option>
-                        <option value="Region II">Region II – Cagayan Valley</option>
-                        <option value="Region III">Region III – Central Luzon</option>
-                        <option value="Region IV-A">Region IV-A – CALABARZON</option>
-                        <option value="Region IV-B">Region IV-B – MIMAROPA</option>
-                        <option value="Region V">Region V – Bicol</option>
-                        <option value="Region VI">Region VI – Western Visayas</option>
-                        <option value="Region VII">Region VII – Central Visayas</option>
-                        <option value="Region VIII">Region VIII – Eastern Visayas</option>
-                        <option value="Region IX">Region IX – Zamboanga Peninsula</option>
-                        <option value="Region X">Region X – Northern Mindanao</option>
-                        <option value="Region XI">Region XI – Davao</option>
-                        <option value="Region XII">Region XII – SOCCSKSARGEN</option>
-                        <option value="Region XIII">Region XIII – Caraga</option>
-                        <option value="CAR">CAR – Cordillera</option>
-                        <option value="BARMM">BARMM – Bangsamoro</option>
-                      </select>
+        <!-- Custom Confirm Modal -->
+        <div class="modal fade" id="fsConfirmModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" style="max-width:380px">
+                <div class="modal-content" style="border-radius:16px;border:1px solid var(--card-border);background:var(--card-bg)">
+                    <div class="modal-body" style="padding:1.75rem 1.5rem 1rem">
+                        <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem">
+                            <div id="fsConfirmIcon" style="width:40px;height:40px;border-radius:50%;background:rgba(46,204,113,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                                <i class="ti ti-circle-check" style="font-size:1.3rem;color:#2ecc71"></i>
+                            </div>
+                            <div>
+                                <div id="fsConfirmTitle" style="font-weight:700;font-size:.95rem;color:var(--text-primary)"></div>
+                                <div id="fsConfirmMsg" style="font-size:.82rem;color:var(--text-muted);margin-top:.15rem"></div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="co-field"><label class="co-label">Province</label><input class="co-input" id="co-province" placeholder="e.g. Bulacan"></div>
-                  </div>
-                  <div class="co-row">
-                    <div class="co-field"><label class="co-label">City / Municipality <span class="req">*</span></label><input class="co-input" id="co-city" placeholder="e.g. Caloocan"></div>
-                    <div class="co-field"><label class="co-label">Barangay <span class="req">*</span></label><input class="co-input" id="co-barangay" placeholder="e.g. Brgy. 1"></div>
-                  </div>
-                  <div class="co-row">
-                    <div class="co-field" style="grid-column:1/-1"><label class="co-label">Street Address <span class="req">*</span></label><input class="co-input" id="co-street" placeholder="House No., Street, Subdivision"></div>
-                  </div>
-                  <div class="co-row">
-                    <div class="co-field"><label class="co-label">Zip Code <span class="req">*</span></label><input class="co-input" id="co-zip" placeholder="1000"></div>
-                    <div class="co-field"><label class="co-label">Landmark <span style="color:var(--text-muted);font-weight:400">(optional)</span></label><input class="co-input" id="co-landmark" placeholder="Near SM, beside 7/11…"></div>
-                  </div>
-                  <div class="co-field"><label class="co-label">Delivery Notes <span style="color:var(--text-muted);font-weight:400">(optional)</span></label>
-                    <input class="co-input" id="co-notes" placeholder="Leave at door, call on arrival…">
-                  </div>
-                  <!-- Fee estimate -->
-                  <div id="co-fee-box" style="display:none;background:rgba(204,26,26,.07);border:1px solid rgba(204,26,26,.2);border-radius:10px;padding:.75rem 1rem;margin-top:.5rem;display:flex;align-items:center;justify-content:space-between">
-                    <span style="font-size:.83rem;color:var(--text-muted)"><i class="ti ti-truck me-1"></i>Estimated Delivery Fee</span>
-                    <span id="co-fee-val" style="font-weight:800;color:var(--fs-red)">₱80</span>
-                  </div>
-                  <div style="font-size:.75rem;color:var(--text-muted);margin-top:.5rem;text-align:right"><i class="ti ti-clock"></i> Estimated delivery: 3–5 business days after payment confirmation</div>
-                </div>
-
-                <!-- Pickup Form -->
-                <div id="co-pickup-form" style="display:none">
-                  <div class="co-sec-title">Select Branch</div>
-                  <div id="co-branch-list"></div>
-
-                  <div class="co-sec-title">Schedule</div>
-                  <div class="co-row">
-                    <div class="co-field"><label class="co-label">Preferred Pickup Date <span class="req">*</span></label><input class="co-input" id="co-pickup-date" type="date"></div>
-                    <div class="co-field"><label class="co-label">Preferred Pickup Time <span class="req">*</span></label>
-                      <select class="co-select" id="co-pickup-time">
-                        <option value="">Select time</option>
-                        <option>8:00 AM</option><option>9:00 AM</option><option>10:00 AM</option>
-                        <option>11:00 AM</option><option>12:00 PM</option><option>1:00 PM</option>
-                        <option>2:00 PM</option><option>3:00 PM</option><option>4:00 PM</option>
-                        <option>5:00 PM</option><option>6:00 PM</option><option>7:00 PM</option>
-                        <option>8:00 PM</option>
-                      </select>
+                    <div class="modal-footer" style="padding:.85rem 1.5rem;border-top:1px solid var(--card-border);gap:.5rem;justify-content:flex-end">
+                        <button class="btn btn-outline-secondary rounded-pill px-4" style="font-size:.82rem" data-bs-dismiss="modal">Cancel</button>
+                        <button id="fsConfirmOkBtn" class="btn rounded-pill px-4" style="font-size:.82rem;font-weight:700;background:var(--fs-red);border:none;color:#fff">Confirm</button>
                     </div>
-                  </div>
-                  <div style="background:rgba(74,158,255,.07);border:1px solid rgba(74,158,255,.2);border-radius:10px;padding:.75rem 1rem;font-size:.8rem;color:#4a9eff;margin-top:.5rem">
-                    <i class="ti ti-info-circle"></i> Your order will be ready for pick-up within 1–2 business days after payment confirmation. Please bring a valid ID and your order number.
-                  </div>
                 </div>
-              </div>
-
-              <!-- ── STEP 3: PAYMENT ── -->
-              <div class="co-panel" id="co-panel-3">
-                <div class="co-sec-title">Select Payment Method</div>
-                <div class="co-pay-grid" id="co-pay-grid">
-                  <button class="co-pay-btn" onclick="coSelectPayment('gcash',this)"><i class="ti ti-wallet"></i><span>GCash</span></button>
-                  <button class="co-pay-btn" onclick="coSelectPayment('maya',this)"><i class="ti ti-wallet"></i><span>Maya</span></button>
-                  <button class="co-pay-btn" onclick="coSelectPayment('bank_transfer',this)"><i class="ti ti-building-bank"></i><span>Bank Transfer</span></button>
-                  <button class="co-pay-btn" id="co-cop-btn" onclick="coSelectPayment('cash_on_pickup',this)" style="display:none"><i class="ti ti-cash"></i><span>Cash on Pickup</span></button>
-                </div>
-
-                <!-- GCash -->
-                <div class="co-pay-info" id="co-pay-gcash">
-                  <div style="font-size:.85rem;font-weight:700;margin-bottom:.75rem"><i class="ti ti-wallet me-1" style="color:var(--fs-red)"></i>GCash Payment</div>
-                  <div style="text-align:center;margin-bottom:.75rem">
-                    <div style="width:130px;height:130px;background:rgba(255,255,255,.08);border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:.75rem;color:var(--text-muted)"><i class="ti ti-qrcode" style="font-size:3rem"></i></div>
-                    <div style="font-size:.72rem;color:var(--text-muted);margin-top:.4rem">Scan QR code using GCash app</div>
-                  </div>
-                  <div class="co-pay-detail-row"><span style="color:var(--text-muted)">Account Name</span><div style="display:flex;align-items:center;gap:.4rem"><span style="font-weight:600">FitSync Gym</span><button class="co-copy-btn" onclick="coCopy('FitSync Gym',this)"><i class="ti ti-copy"></i> Copy</button></div></div>
-                  <div class="co-pay-detail-row"><span style="color:var(--text-muted)">Mobile Number</span><div style="display:flex;align-items:center;gap:.4rem"><span style="font-weight:600">0917 123 4567</span><button class="co-copy-btn" onclick="coCopy('09171234567',this)"><i class="ti ti-copy"></i> Copy</button></div></div>
-                  <div class="co-pay-detail-row"><span style="color:var(--text-muted)">Amount</span><span id="gcash-amount" style="font-weight:800;color:var(--fs-red)"></span></div>
-                </div>
-
-                <!-- Maya -->
-                <div class="co-pay-info" id="co-pay-maya">
-                  <div style="font-size:.85rem;font-weight:700;margin-bottom:.75rem"><i class="ti ti-wallet me-1" style="color:var(--fs-red)"></i>Maya Payment</div>
-                  <div style="text-align:center;margin-bottom:.75rem">
-                    <div style="width:130px;height:130px;background:rgba(255,255,255,.08);border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:.75rem;color:var(--text-muted)"><i class="ti ti-qrcode" style="font-size:3rem"></i></div>
-                    <div style="font-size:.72rem;color:var(--text-muted);margin-top:.4rem">Scan QR code using Maya app</div>
-                  </div>
-                  <div class="co-pay-detail-row"><span style="color:var(--text-muted)">Account Name</span><div style="display:flex;align-items:center;gap:.4rem"><span style="font-weight:600">FitSync Gym</span><button class="co-copy-btn" onclick="coCopy('FitSync Gym',this)"><i class="ti ti-copy"></i> Copy</button></div></div>
-                  <div class="co-pay-detail-row"><span style="color:var(--text-muted)">Mobile Number</span><div style="display:flex;align-items:center;gap:.4rem"><span style="font-weight:600">0917 765 4321</span><button class="co-copy-btn" onclick="coCopy('09177654321',this)"><i class="ti ti-copy"></i> Copy</button></div></div>
-                  <div class="co-pay-detail-row"><span style="color:var(--text-muted)">Amount</span><span id="maya-amount" style="font-weight:800;color:var(--fs-red)"></span></div>
-                </div>
-
-                <!-- Bank Transfer -->
-                <div class="co-pay-info" id="co-pay-bank_transfer">
-                  <div style="font-size:.85rem;font-weight:700;margin-bottom:.75rem"><i class="ti ti-building-bank me-1" style="color:var(--fs-red)"></i>Bank Transfer</div>
-                  <div class="co-pay-detail-row"><span style="color:var(--text-muted)">Bank</span><span style="font-weight:600">Metrobank</span></div>
-                  <div class="co-pay-detail-row"><span style="color:var(--text-muted)">Account Name</span><div style="display:flex;align-items:center;gap:.4rem"><span style="font-weight:600">FitSync Corp</span><button class="co-copy-btn" onclick="coCopy('FitSync Corp',this)"><i class="ti ti-copy"></i> Copy</button></div></div>
-                  <div class="co-pay-detail-row"><span style="color:var(--text-muted)">Account Number</span><div style="display:flex;align-items:center;gap:.4rem"><span style="font-weight:600">123 456 789 0</span><button class="co-copy-btn" onclick="coCopy('1234567890',this)"><i class="ti ti-copy"></i> Copy</button></div></div>
-                  <div class="co-pay-detail-row"><span style="color:var(--text-muted)">Amount</span><span id="bank-amount" style="font-weight:800;color:var(--fs-red)"></span></div>
-                </div>
-
-                <!-- Cash on Pickup -->
-                <div class="co-pay-info" id="co-pay-cash_on_pickup">
-                  <div style="font-size:.85rem;font-weight:700;margin-bottom:.5rem"><i class="ti ti-cash me-1" style="color:var(--fs-red)"></i>Cash on Pickup</div>
-                  <div style="background:rgba(46,204,113,.07);border:1px solid rgba(46,204,113,.2);border-radius:10px;padding:.75rem 1rem;font-size:.82rem;color:#2ecc71">
-                    <i class="ti ti-circle-check"></i> Pay at the branch when you collect your order. Please bring exact amount or card.
-                  </div>
-                  <div class="co-pay-detail-row" style="margin-top:.65rem"><span style="color:var(--text-muted)">Amount Due</span><span id="cop-amount" style="font-weight:800;color:var(--fs-red)"></span></div>
-                </div>
-
-                <!-- Proof upload (for non-cash) -->
-                <div id="co-proof-section" style="margin-top:1rem;display:none">
-                  <div class="co-sec-title">Upload Proof of Payment</div>
-                  <div class="proof-zone" id="co-proof-zone" onclick="document.getElementById('co-proof-input').click()"
-                       ondragover="event.preventDefault();this.classList.add('drag')"
-                       ondragleave="this.classList.remove('drag')"
-                       ondrop="coHandleProofDrop(event)">
-                    <input type="file" id="co-proof-input" accept="image/*" onchange="coPreviewProof(this)">
-                    <div id="co-proof-placeholder">
-                      <i class="ti ti-cloud-upload" style="font-size:2rem;color:var(--text-muted);display:block;margin-bottom:.5rem"></i>
-                      <div style="font-size:.85rem;font-weight:600">Click or drag to upload proof</div>
-                      <div style="font-size:.72rem;color:var(--text-muted);margin-top:.25rem">JPG, PNG, WEBP — max 8MB</div>
-                    </div>
-                    <img id="co-proof-preview" style="max-height:160px;border-radius:8px;display:none;margin:auto" alt="proof">
-                  </div>
-                  <div id="co-proof-name" style="font-size:.75rem;color:var(--text-muted);margin-top:.35rem;text-align:center"></div>
-                </div>
-              </div>
-
-              <!-- ── STEP 4: CONFIRMATION ── -->
-              <div class="co-panel" id="co-panel-4">
-                <div id="co-confirm-body"></div>
-              </div>
-
-              <!-- ── SUCCESS ── -->
-              <div class="co-panel" id="co-panel-success">
-                <div class="co-success">
-                  <div class="co-success-icon"><i class="ti ti-circle-check"></i></div>
-                  <h3 style="font-weight:800;margin-bottom:.4rem">Order Placed!</h3>
-                  <div id="co-success-order-id" style="font-size:.88rem;color:var(--text-muted);margin-bottom:1.5rem"></div>
-                  <div style="font-size:.83rem;color:var(--text-muted);max-width:340px;margin:auto;line-height:1.7">
-                    Your order has been received. We'll notify you once your payment is verified and your order is processed.
-                  </div>
-                  <div style="display:flex;gap:.75rem;justify-content:center;margin-top:1.75rem;flex-wrap:wrap">
-                    <button class="btn-fs" style="border-radius:10px;padding:.55rem 1.4rem;font-size:.85rem" onclick="closeCheckoutModal();showTab('orders',null)">
-                      <i class="ti ti-package"></i> View My Orders
-                    </button>
-                    <button class="btn-fs" style="border-radius:10px;padding:.55rem 1.4rem;font-size:.85rem;background:rgba(255,255,255,.08);border:1px solid var(--card-border)" onclick="closeCheckoutModal();showTab('shop',null)">
-                      <i class="ti ti-shopping-bag"></i> Continue Shopping
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-            </div><!-- /co-body -->
-
-            <!-- Footer -->
-            <div class="co-footer" id="co-footer">
-              <button class="btn-fs" id="co-back-btn" style="background:rgba(255,255,255,.08);border:1px solid var(--card-border);border-radius:10px;padding:.52rem 1.2rem;font-size:.85rem" onclick="coStepBack()">
-                <i class="ti ti-arrow-left"></i> Back
-              </button>
-              <div style="font-size:.8rem;color:var(--text-muted)" id="co-step-indicator">Step 1 of 4</div>
-              <button class="btn-fs" id="co-next-btn" style="border-radius:10px;padding:.52rem 1.4rem;font-size:.88rem;background:linear-gradient(135deg,#cc1a1a,#ff3333)" onclick="coStepNext()">
-                Continue <i class="ti ti-arrow-right"></i>
-              </button>
             </div>
+        </div>
 
-          </div><!-- /co-modal -->
-        </div><!-- /checkoutOverlay -->
 
         <style>
-        /* ── CHECKOUT MODAL ── */
-        .co-modal-overlay{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.75);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;padding:1rem;animation:fadeIn .2s}
-        .co-modal{background:var(--card-bg);border:1px solid var(--card-border);border-radius:22px;width:100%;max-width:700px;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,.6);animation:slideUp .25s}
-        @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:none;opacity:1}}
-        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-        .co-header{padding:1.1rem 1.4rem .9rem;border-bottom:1px solid var(--card-border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-        .co-close-btn{width:32px;height:32px;border-radius:8px;border:1px solid var(--card-border);background:transparent;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:background .15s}
-        .co-close-btn:hover{background:rgba(255,255,255,.08)}
-        .co-stepper{display:flex;align-items:center;padding:.8rem 1.4rem;border-bottom:1px solid var(--card-border);flex-shrink:0;overflow-x:auto;gap:0}
-        .co-step{display:flex;align-items:center;gap:.35rem;flex-shrink:0}
-        .co-step-dot{width:26px;height:26px;border-radius:50%;border:2px solid var(--card-border);display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800;color:var(--text-muted);transition:all .25s;flex-shrink:0}
-        .co-step.active .co-step-dot{border-color:var(--fs-red);background:var(--fs-red);color:#fff}
-        .co-step.done   .co-step-dot{border-color:#2ecc71;background:#2ecc71;color:#fff}
-        .co-step-label{font-size:.7rem;font-weight:600;color:var(--text-muted);white-space:nowrap}
-        .co-step.active .co-step-label,.co-step.done .co-step-label{color:var(--fs-red)}
-        .co-step.done .co-step-label{color:#2ecc71}
-        .co-step-line{flex:1;height:2px;background:var(--card-border);min-width:18px;margin:0 .3rem;transition:background .25s}
-        .co-step-line.done{background:#2ecc71}
-        .co-body{flex:1;overflow-y:auto;padding:1.25rem 1.4rem;scroll-behavior:smooth}
-        .co-footer{padding:.85rem 1.4rem;border-top:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;gap:.75rem;background:var(--card-bg)}
-        .co-panel{display:none}.co-panel.active{display:block}
-        .co-sec-title{font-size:.82rem;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);margin:1.1rem 0 .55rem}
-        /* Fulfillment */
-        .fulfill-grid{display:grid;grid-template-columns:1fr 1fr;gap:.85rem;margin-bottom:1.1rem}
-        .fulfill-card{border:2px solid var(--card-border);border-radius:14px;padding:1.25rem 1rem 1rem;cursor:pointer;transition:border-color .2s,background .2s,transform .15s;text-align:center}
-        .fulfill-card:hover{border-color:rgba(204,26,26,.45);background:rgba(204,26,26,.04);transform:translateY(-2px)}
-        .fulfill-card.selected{border-color:var(--fs-red);background:rgba(204,26,26,.08)}
-        .fulfill-card i{font-size:2rem;color:var(--text-muted);display:block;margin-bottom:.55rem;transition:color .2s}
-        .fulfill-card.selected i{color:var(--fs-red)}
-        .fulfill-card-title{font-size:.9rem;font-weight:700}
-        .fulfill-card-sub{font-size:.71rem;color:var(--text-muted);margin-top:.2rem}
-        /* Branch */
-        .branch-card{border:1.5px solid var(--card-border);border-radius:11px;padding:.75rem 1rem;cursor:pointer;transition:border-color .2s,background .2s;display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem}
-        .branch-card:hover{border-color:rgba(204,26,26,.4)}
-        .branch-card.selected{border-color:var(--fs-red);background:rgba(204,26,26,.06)}
-        .branch-radio{width:18px;height:18px;border-radius:50%;border:2px solid var(--card-border);flex-shrink:0;transition:all .2s;position:relative}
-        .branch-card.selected .branch-radio{border-color:var(--fs-red)}
-        .branch-card.selected .branch-radio::after{content:'';position:absolute;inset:3px;border-radius:50%;background:var(--fs-red)}
-        /* Forms */
-        .co-field{margin-bottom:.75rem}
-        .co-label{font-size:.77rem;font-weight:600;color:var(--text-muted);display:block;margin-bottom:.28rem}
-        .co-label .req{color:var(--fs-red)}
-        .co-input,.co-select{width:100%;padding:.52rem .8rem;background:var(--input-bg);border:1.5px solid var(--input-border);border-radius:9px;color:var(--input-color);font-size:.875rem;outline:none;transition:border-color .2s}
-        .co-input:focus,.co-select:focus{border-color:var(--fs-red)}
-        .co-input.invalid,.co-select.invalid{border-color:#ff6b6b!important}
-        .co-row{display:grid;grid-template-columns:1fr 1fr;gap:.65rem}
-        /* Payment */
-        .co-pay-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:.6rem;margin-bottom:.85rem}
-        .co-pay-btn{border:2px solid var(--card-border);border-radius:11px;padding:.7rem .5rem;cursor:pointer;text-align:center;background:transparent;color:var(--text-muted);transition:border-color .2s,background .2s,color .2s}
-        .co-pay-btn:hover{border-color:rgba(204,26,26,.4);color:var(--text-primary)}
-        .co-pay-btn.active{border-color:var(--fs-red);background:rgba(204,26,26,.08);color:var(--text-primary)}
-        .co-pay-btn i{font-size:1.5rem;display:block;margin-bottom:.3rem}
-        .co-pay-btn span{font-size:.72rem;font-weight:700}
-        .co-pay-info{border:1.5px solid var(--card-border);border-radius:12px;padding:1rem;background:rgba(255,255,255,.02);display:none}
-        .co-pay-info.active{display:block}
-        .co-pay-detail-row{display:flex;align-items:center;justify-content:space-between;padding:.45rem 0;border-bottom:1px solid var(--card-border);font-size:.83rem}
-        .co-pay-detail-row:last-child{border:none}
-        .co-copy-btn{background:rgba(255,255,255,.08);border:none;border-radius:6px;padding:.2rem .55rem;color:var(--text-muted);cursor:pointer;font-size:.72rem;transition:background .15s}
-        .co-copy-btn:hover{background:rgba(204,26,26,.15);color:var(--fs-red)}
-        /* Proof upload */
-        .proof-zone{border:2px dashed var(--card-border);border-radius:12px;padding:1.4rem;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;margin-top:.65rem}
-        .proof-zone:hover,.proof-zone.drag{border-color:var(--fs-red);background:rgba(204,26,26,.04)}
-        .proof-zone input[type=file]{display:none}
-        /* Summary */
-        .co-sum-block{background:rgba(255,255,255,.025);border:1px solid var(--card-border);border-radius:12px;padding:.9rem 1rem;margin-bottom:.85rem}
-        .co-sum-title{font-size:.73rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:.55rem}
-        .co-sum-row{display:flex;justify-content:space-between;font-size:.83rem;padding:.28rem 0}
-        .co-sum-row.total{font-size:1rem;font-weight:900;color:var(--fs-red);padding-top:.65rem;border-top:1px solid var(--card-border);margin-top:.4rem}
-        /* Success */
-        .co-success{text-align:center;padding:2.5rem 1rem}
-        .co-success-icon{width:76px;height:76px;border-radius:50%;background:rgba(46,204,113,.15);display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-size:2.2rem;color:#2ecc71}
-        @media(max-width:520px){.co-row{grid-template-columns:1fr}.co-body{padding:1rem}.co-stepper{padding:.6rem 1rem}.co-header{padding:.9rem 1rem}.co-footer{padding:.75rem 1rem}}
+
 
         /* ── SHOP STYLES ── */
 
@@ -4536,6 +4259,57 @@ $workoutPrograms = [
         .status-shipped{background:rgba(111,66,193,.15);color:#a066f5}
         .status-delivered{background:rgba(25,135,84,.15);color:#2ecc71}
         .status-cancelled{background:rgba(220,53,69,.15);color:#ff6b6b}
+        .status-completed{background:rgba(46,204,113,.15);color:#2ecc71}
+        .status-out_for_delivery,.status-out-for-delivery{background:rgba(111,66,193,.15);color:#a066f5}
+        .status-ready_for_pickup,.status-ready-for-pickup{background:rgba(255,193,7,.15);color:#ffc107}
+        .status-picked_up,.status-picked-up{background:rgba(46,204,113,.12);color:#58d68d}
+
+        /* ── CART FAB ── */
+        .cart-fab {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #cc1a1a, #ff4040);
+            color: #fff;
+            box-shadow: 0 4px 16px rgba(204, 26, 26, 0.4);
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .cart-fab:hover {
+            transform: scale(1.08) translateY(-2px);
+            box-shadow: 0 6px 20px rgba(204, 26, 26, 0.6);
+        }
+        .cart-fab:active {
+            transform: scale(0.95);
+        }
+        .cart-fab i {
+            font-size: 1.6rem;
+        }
+        .cart-fab-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #fff;
+            color: #cc1a1a;
+            font-size: 0.75rem;
+            font-weight: 800;
+            min-width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            border: 2px solid #cc1a1a;
+        }
         </style>
     </main>
 
@@ -4701,6 +4475,23 @@ $workoutPrograms = [
 
         /* ── TAB NAV ── */
         function showTab(id, btn) {
+            // Hide the cart modal if it's open when moving to another tab
+            const cartModalEl = document.getElementById('cartModal');
+            if (cartModalEl) {
+                const modalInstance = bootstrap.Modal.getInstance(cartModalEl);
+                if (modalInstance) {
+                    modalInstance.hide();
+                }
+            }
+
+            if (id === 'cart') {
+                if (cartModalEl) {
+                    loadCart();
+                    bootstrap.Modal.getOrCreateInstance(cartModalEl).show();
+                }
+                return;
+            }
+
             const section = document.getElementById('tab-' + id);
             if (!section) return;
 
@@ -4717,7 +4508,6 @@ $workoutPrograms = [
             if (id === 'settings') syncSettingsFields();
             // Lazy-load shop tabs
             if (id === 'shop')   { window._modalQty = 1; loadShopProducts(); }
-            if (id === 'cart')   loadCart();
             if (id === 'orders') loadOrders();
         }
         document.querySelectorAll('.page-tab').forEach(tab => {
@@ -4727,7 +4517,16 @@ $workoutPrograms = [
         /* ── SIDEBAR ── */
         const initialTab = location.hash.replace('#', '');
         if (['dashboard', 'programs', 'billing', 'schedule', 'feedback', 'settings', 'shop', 'cart', 'orders'].includes(initialTab)) {
-            showTab(initialTab, null);
+            if (initialTab === 'cart') {
+                showTab('shop', null);
+                setTimeout(() => {
+                    loadCart();
+                    const cartModalEl = document.getElementById('cartModal');
+                    if (cartModalEl) bootstrap.Modal.getOrCreateInstance(cartModalEl).show();
+                }, 100);
+            } else {
+                showTab(initialTab, null);
+            }
         }
 
         /* ══════════════════════════════════════════════
@@ -4868,7 +4667,7 @@ $workoutPrograms = [
         }
 
         function updateCartBadge(count) {
-            ['sbCartBadge','shopHeaderCartBadge'].forEach(id => {
+            ['sbCartBadge','shopHeaderCartBadge','cartFabBadge'].forEach(id => {
                 const b = document.getElementById(id);
                 if (!b) return;
                 b.textContent = count;
@@ -4899,7 +4698,7 @@ $workoutPrograms = [
                 return;
             }
             const token = 'chk_' + Date.now();
-            el.innerHTML = `<div style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px;overflow:hidden">
+            el.innerHTML = `<div style="overflow:hidden">
                 ${items.map(item => `
                 <div class="cart-row">
                     ${ item.image ? `<img src="${item.image}" class="cart-thumb" alt="">` : `<div class="cart-thumb-ph"><i class="ti ti-package"></i></div>` }
@@ -4919,12 +4718,12 @@ $workoutPrograms = [
                         </button>
                     </div>
                 </div>`).join('')}
-                <div style="padding:1rem;border-top:1px solid var(--card-border);display:flex;align-items:center;justify-content:space-between">
+                <div style="padding:1.25rem 1rem;border-top:1px solid var(--card-border);display:flex;align-items:center;justify-content:space-between;background:var(--input-bg)">
                     <div>
                         <div style="font-size:.8rem;color:var(--text-muted)">Subtotal</div>
                         <div style="font-size:1.4rem;font-weight:900;color:var(--fs-red)">&#8369;${parseFloat(total).toLocaleString('en-PH',{minimumFractionDigits:2})}</div>
                     </div>
-                    <button class="btn-fs" style="border-radius:12px;padding:.6rem 1.5rem;font-size:.9rem;background:linear-gradient(135deg,#cc1a1a,#ff4040)" onclick="openCheckoutModal()">
+                    <button class="btn-fs" style="border-radius:12px;padding:.6rem 1.5rem;font-size:.9rem;background:linear-gradient(135deg,#cc1a1a,#ff4040)" onclick="window.location.href='checkout.php'">
                         <i class="ti ti-credit-card"></i> Checkout
                     </button>
                 </div>
@@ -4944,6 +4743,7 @@ $workoutPrograms = [
         async function loadOrders() {
             try {
                 const data = await (await fetch('handlers/shop_handler.php?action=get_orders')).json();
+                window._ordersData = data;
                 const el = document.getElementById('ordersContent');
                 if (!el) return;
                 if (!data.success || !data.orders.length) {
@@ -4958,437 +4758,363 @@ $workoutPrograms = [
                 const statusIcons = {
                     pending:'ti-clock',processing:'ti-loader-2',out_for_delivery:'ti-truck',
                     delivered:'ti-circle-check',ready_for_pickup:'ti-building-store',
-                    picked_up:'ti-checks',cancelled:'ti-ban'
+                    picked_up:'ti-checks',cancelled:'ti-ban',completed:'ti-rosette-discount-check'
                 };
                 const payColors = {pending:'#ffc107',paid:'#2ecc71',rejected:'#ff6b6b'};
-                el.innerHTML = `<div style="display:flex;flex-direction:column;gap:1rem">` + data.orders.map(o => {
+                el.innerHTML = `<div style="display:flex;flex-direction:column;gap:.75rem">` + data.orders.map(o => {
                     const items = (data.details[o.id] || []);
                     const d = new Date(o.created_at).toLocaleDateString('en-PH',{year:'numeric',month:'short',day:'numeric'});
                     let addr = null; try { if(o.delivery_address) addr = JSON.parse(o.delivery_address); } catch(e){}
-                    const fulfillLabel = o.fulfillment_method==='pickup'
-                        ? `<i class="ti ti-building-store"></i> Branch Pick-Up${o.branch_name?` · ${shEsc(o.branch_name)}`:''}`
-                        : `<i class="ti ti-truck"></i> Delivery${addr?` · ${shEsc(addr.city||'')}, ${shEsc(addr.region||'')}`:'' }`;
-                    return `<div style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;overflow:hidden">
-                        <div style="display:flex;align-items:center;justify-content:space-between;padding:.9rem 1.1rem;border-bottom:1px solid var(--card-border);flex-wrap:wrap;gap:.5rem">
-                            <div>
-                                <span style="font-weight:700;font-size:.92rem">Order #${o.id}</span>
-                                <span style="font-size:.75rem;color:var(--text-muted);margin-left:.6rem">${d}</span>
-                                <div style="font-size:.72rem;color:var(--text-muted);margin-top:.15rem">${fulfillLabel}</div>
+                    const isPickup = o.fulfillment_method === 'pickup';
+                    const fulfillLabel = isPickup
+                        ? `Branch Pick-Up${o.branch_name ? ' · ' + shEsc(o.branch_name) : ''}`
+                        : `Delivery${addr ? ' · ' + shEsc(addr.city||'') + ', ' + shEsc(addr.region||'') : ''}`;
+                    const fulfillIcon = isPickup ? 'ti-building-store' : 'ti-truck';
+                    const statusLabel = o.status.replace(/_/g,' ');
+                    const payLabel = o.payment_method.replace(/_/g,' ') + ' · ' + o.payment_status;
+                    const payColor = payColors[o.payment_status] || '#aaa';
+                    const isCompleted = o.status === 'completed';
+                    const canReceive = ['processing','out_for_delivery','ready_for_pickup','delivered','picked_up'].includes(o.status);
+
+                    // Items summary line shown in collapsed header
+                    const itemSummary = items.slice(0,2).map(it => `${shEsc(it.name)} ×${it.quantity}`).join(', ')
+                        + (items.length > 2 ? ` +${items.length - 2} more` : '');
+
+                    // Full items list (inside collapsible body)
+                    const itemsHtml = items.map(it => `
+                        <div style="display:flex;align-items:center;gap:.7rem;padding:.4rem 0;border-bottom:1px solid var(--card-border)">
+                            ${ it.image
+                                ? `<img src="${it.image}" style="width:38px;height:38px;border-radius:8px;object-fit:cover;flex-shrink:0" alt="">`
+                                : `<div style="width:38px;height:38px;border-radius:8px;background:rgba(204,26,26,.08);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-package" style="font-size:1.1rem;color:var(--text-muted)"></i></div>`
+                            }
+                            <div style="flex:1;min-width:0">
+                                <div style="font-size:.85rem;font-weight:600;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${shEsc(it.name)}</div>
+                                <div style="font-size:.75rem;color:var(--text-muted)">×${it.quantity} &nbsp;·&nbsp; &#8369;${parseFloat(it.price).toLocaleString('en-PH',{minimumFractionDigits:2})}/ea</div>
                             </div>
-                            <div style="display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;justify-content:flex-end">
-                                <span style="font-size:.95rem;font-weight:800;color:var(--fs-red)">&#8369;${parseFloat(o.total_amount).toLocaleString('en-PH',{minimumFractionDigits:2})}</span>
-                                <span class="order-status-badge status-${o.status.replace(/_/g,'-')}"><i class="ti ${statusIcons[o.status]||'ti-circle'}"></i> ${o.status.replace(/_/g,' ')}</span>
-                                <span style="font-size:.68rem;font-weight:700;padding:.18rem .55rem;border-radius:6px;background:rgba(0,0,0,.2);color:${payColors[o.payment_status]||'#aaa'}">
-                                    ${o.payment_method.replace(/_/g,' ')} · ${o.payment_status}
-                                </span>
+                            <div style="font-size:.85rem;font-weight:700;color:var(--text-primary);white-space:nowrap">&#8369;${(parseFloat(it.price)*it.quantity).toLocaleString('en-PH',{minimumFractionDigits:2})}</div>
+                        </div>`).join('');
+
+                    const btnStyle = `padding:.32rem .8rem;font-size:.75rem;border-radius:8px;font-weight:600;display:inline-flex;align-items:center;gap:.3rem;cursor:pointer;border:1px solid var(--card-border);background:var(--input-bg);color:var(--text-primary);transition:all .15s;text-decoration:none`;
+                    const receiveBtn = canReceive ? `
+                        <button onclick="markOrderReceived(${o.id}, this)" style="${btnStyle};border-color:rgba(46,204,113,.5);background:rgba(46,204,113,.08);color:#2ecc71"
+                            onmouseover="this.style.background='rgba(46,204,113,.18)'" onmouseout="this.style.background='rgba(46,204,113,.08)'">
+                            <i class="ti ti-circle-check"></i> Order Received
+                        </button>` : '';
+                    const cancelBtn = o.status === 'pending' ? `
+                        <button onclick="cancelOrder(${o.id}, this)" style="${btnStyle};border-color:rgba(255,107,107,.4);background:rgba(255,107,107,.07);color:#ff6b6b"
+                            onmouseover="this.style.background='rgba(255,107,107,.18)'" onmouseout="this.style.background='rgba(255,107,107,.07)'">
+                            <i class="ti ti-x"></i> Cancel Order
+                        </button>` : '';
+
+                    return `<div style="background:var(--card-bg);border:1px solid ${isCompleted?'rgba(46,204,113,.25)':'var(--card-border)'};border-radius:14px;overflow:hidden">
+                        <div onclick="toggleOrderItems(${o.id})" style="padding:.85rem 1.1rem;cursor:pointer;display:flex;align-items:flex-start;gap:.75rem;justify-content:space-between">
+                            <div style="flex:1;min-width:0">
+                                <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.3rem">
+                                    <span style="font-weight:800;font-size:.9rem;color:var(--text-primary)">Order #${o.id}</span>
+                                    <span style="font-size:.72rem;color:var(--text-muted)">${d}</span>
+                                    <span class="order-status-badge status-${o.status.replace(/_/g,'-')}">
+                                        <i class="ti ${statusIcons[o.status]||'ti-circle'}"></i> ${statusLabel}
+                                    </span>
+                                </div>
+                                <div style="font-size:.78rem;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:.2rem">${itemSummary}</div>
+                                ${o.status === 'cancelled' && o.cancel_reason ? `<div style="font-size:.72rem;color:#ff6b6b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:.2rem"><i class="ti ti-message-x" style="font-size:.75rem"></i> Reason: ${shEsc(o.cancel_reason)}</div>` : ''}
+                                <div style="font-size:.72rem;color:var(--text-muted);display:flex;align-items:center;gap:.3rem;flex-wrap:wrap">
+                                    <i class="ti ${fulfillIcon}" style="font-size:.8rem"></i>${fulfillLabel}
+                                    <span>&nbsp;·&nbsp;</span>
+                                    <span style="color:${payColor}">${payLabel}</span>
+                                </div>
+                            </div>
+                            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.3rem;flex-shrink:0">
+                                <span style="font-size:1rem;font-weight:800;color:var(--fs-red)">&#8369;${parseFloat(o.total_amount).toLocaleString('en-PH',{minimumFractionDigits:2})}</span>
+                                <i class="ti ti-chevron-down" id="chevron-${o.id}" style="font-size:.85rem;color:var(--text-muted);transition:transform .25s"></i>
                             </div>
                         </div>
-                        <div style="padding:.85rem 1.1rem">
-                        ${ items.map(it => `<div style="display:flex;align-items:center;gap:.75rem;padding:.35rem 0">
-                            ${ it.image ? `<img src="${it.image}" style="width:40px;height:40px;border-radius:8px;object-fit:cover" alt="">` : `<div style="width:40px;height:40px;border-radius:8px;background:rgba(204,26,26,.08);display:flex;align-items:center;justify-content:center;color:var(--text-muted)"><i class="ti ti-package" style="font-size:1.2rem"></i></div>` }
-                            <div style="flex:1"><div style="font-size:.85rem;font-weight:600">${shEsc(it.name)}</div><div style="font-size:.75rem;color:var(--text-muted)">&times;${it.quantity} &nbsp;&middot;&nbsp; &#8369;${parseFloat(it.price).toLocaleString('en-PH',{minimumFractionDigits:2})}/ea</div></div>
-                        </div>`).join('') }
+                        <div id="order-body-${o.id}" style="display:none;border-top:1px solid var(--card-border)">
+                            <div style="padding:.6rem 1.1rem">${itemsHtml}</div>
+                            <div style="padding:.65rem 1.1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;background:rgba(0,0,0,.04)">
+                                <div style="display:flex;gap:.4rem;flex-wrap:wrap">
+                                    <a href="checkout.php?order_id=${o.id}" style="${btnStyle}"
+                                        onmouseover="this.style.borderColor='var(--fs-red)';this.style.color='var(--fs-red)'"
+                                        onmouseout="this.style.borderColor='var(--card-border)';this.style.color='var(--text-primary)'">
+                                        <i class="ti ti-eye"></i> Details
+                                    </a>
+                                    <button onclick="printOrderReceipt(${o.id})" style="${btnStyle}"
+                                        onmouseover="this.style.borderColor='#4a9eff';this.style.color='#4a9eff'"
+                                        onmouseout="this.style.borderColor='var(--card-border)';this.style.color='var(--text-primary)'">
+                                        <i class="ti ti-printer"></i> Receipt
+                                    </button>
+                                    ${receiveBtn}
+                                    ${cancelBtn}
+                                </div>
+                                <span style="font-size:.75rem;font-weight:800;color:var(--fs-red)">Total: &#8369;${parseFloat(o.total_amount).toLocaleString('en-PH',{minimumFractionDigits:2})}</span>
+                            </div>
                         </div>
                     </div>`;
                 }).join('') + '</div>';
             } catch { }
         }
 
-        /* ══════════════════════════════════════════════════
-           CHECKOUT MODULE
-        ══════════════════════════════════════════════════ */
-        let coState = {
-            step: 1,
-            fulfillment: 'delivery',
-            payMethod: '',
-            proofPath: '',
-            cartItems: [],
-            subtotal: 0,
-            deliveryFee: 0,
-            branches: [],
-            selectedBranch: null,
-            userInfo: {},
-        };
-        const PH_FMT = v => '₱' + parseFloat(v).toLocaleString('en-PH',{minimumFractionDigits:2});
-        const coEl   = id => document.getElementById(id);
+        function toggleOrderItems(id) {
+            const body    = document.getElementById('order-body-' + id);
+            const chevron = document.getElementById('chevron-' + id);
+            if (!body) return;
+            const open = body.style.display === 'none';
+            body.style.display      = open ? 'block' : 'none';
+            chevron.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
 
-        async function openCheckoutModal() {
-            // Show the overlay immediately so DOM elements exist and are accessible
-            const overlay = document.getElementById('checkoutOverlay');
-            if (!overlay) { console.error('checkoutOverlay element not found'); return; }
-            overlay.style.display = 'flex';
-            document.body.style.overflow = 'hidden';
+        function cancelOrder(id, triggerBtn) {
+            // Build a lightweight overlay modal to collect the cancellation reason
+            const existing = document.getElementById('cancelReasonOverlay');
+            if (existing) existing.remove();
 
-            // Reset state and go to step 1
-            coState = {...coState, step:1, fulfillment:'delivery', payMethod:'', proofPath:'', selectedBranch:null};
-            try { coGoToStep(1); } catch(e) { console.error('coGoToStep error:', e); }
+            const overlay = document.createElement('div');
+            overlay.id = 'cancelReasonOverlay';
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:10500;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(3px)';
+            overlay.innerHTML = `
+                <div style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:18px;width:100%;max-width:420px;padding:1.5rem;box-shadow:0 24px 60px rgba(0,0,0,.4)">
+                    <div style="display:flex;align-items:center;gap:.65rem;margin-bottom:1rem">
+                        <div style="width:38px;height:38px;border-radius:50%;background:rgba(255,107,107,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                            <i class="ti ti-circle-x" style="color:#ff6b6b;font-size:1.2rem"></i>
+                        </div>
+                        <div>
+                            <div style="font-weight:800;font-size:.95rem;color:var(--text-primary)">Cancel Order #${id}</div>
+                            <div style="font-size:.75rem;color:var(--text-muted);margin-top:.1rem">This action cannot be undone.</div>
+                        </div>
+                    </div>
+                    <label style="font-size:.78rem;font-weight:700;color:var(--text-muted);display:block;margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.4px">Reason for cancellation</label>
+                    <textarea id="cancelReasonText" rows="3" placeholder="e.g. Changed my mind, ordered wrong item…"
+                        style="width:100%;box-sizing:border-box;padding:.6rem .85rem;background:var(--input-bg);border:1px solid var(--input-border);border-radius:10px;color:var(--input-color);font-size:.875rem;resize:vertical;min-height:80px;outline:none;font-family:inherit"></textarea>
+                    <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:1rem">
+                        <button id="cancelReasonDismiss" style="padding:.42rem 1rem;font-size:.82rem;font-weight:600;border-radius:8px;border:1px solid var(--card-border);background:var(--input-bg);color:var(--text-primary);cursor:pointer">Never mind</button>
+                        <button id="cancelReasonConfirm" style="padding:.42rem 1rem;font-size:.82rem;font-weight:700;border-radius:8px;border:none;background:linear-gradient(135deg,#cc1a1a,#ff4040);color:#fff;cursor:pointer">
+                            <i class="ti ti-circle-x"></i> Confirm Cancel
+                        </button>
+                    </div>
+                </div>`;
 
-            // Load data
-            try {
-                const res  = await fetch('handlers/shop_handler.php?action=get_checkout_data');
-                const data = await res.json();
-                if (!data.success || !data.items || !data.items.length) {
-                    overlay.style.display = 'none';
-                    document.body.style.overflow = '';
-                    shopToast('error', data.message || 'Your cart is empty.');
+            document.body.appendChild(overlay);
+
+            const close = () => overlay.remove();
+
+            document.getElementById('cancelReasonDismiss').addEventListener('click', close);
+            overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+
+            document.getElementById('cancelReasonConfirm').addEventListener('click', async () => {
+                const reason = document.getElementById('cancelReasonText').value.trim();
+                if (!reason) {
+                    document.getElementById('cancelReasonText').style.borderColor = '#ff6b6b';
+                    document.getElementById('cancelReasonText').placeholder = 'Please enter a reason before cancelling.';
                     return;
                 }
-                coState.cartItems   = data.items;
-                coState.subtotal    = parseFloat(data.subtotal);
-                coState.branches    = data.branches || [];
-                coState.userInfo    = data.user || {};
-                coState.deliveryFee = 80;
-
-                // Pre-fill user info
-                const fn = coEl('co-fullname');
-                const em = coEl('co-email');
-                const ph = coEl('co-contact');
-                if (fn && coState.userInfo.first_name) fn.value = ((coState.userInfo.first_name||'') + ' ' + (coState.userInfo.last_name||'')).trim();
-                if (em && coState.userInfo.email)      em.value = coState.userInfo.email;
-                if (ph && coState.userInfo.phone)      ph.value = coState.userInfo.phone;
-
-                // Set min pickup date (tomorrow)
-                const pd = coEl('co-pickup-date');
-                if (pd) { const tm = new Date(); tm.setDate(tm.getDate()+1); pd.min = tm.toISOString().split('T')[0]; }
-
-                // Render review items, branches, fulfillment
-                coRenderReview();
-                coRenderBranches();
-                coSelectFulfill('delivery', false);
-                coUpdateDeliveryFee();
-
-            } catch(e) {
-                console.error('openCheckoutModal fetch error:', e);
-                overlay.style.display = 'none';
-                document.body.style.overflow = '';
-                shopToast('error', 'Failed to load checkout data. Please try again.');
-            }
-        }
-
-        function closeCheckoutModal() {
-            const overlay = document.getElementById('checkoutOverlay');
-            if (overlay) overlay.style.display = 'none';
-            document.body.style.overflow = '';
-        }
-
-        function coRenderReview() {
-            coEl('co-review-items').innerHTML = `
-            <div style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;overflow:hidden">
-              <div style="padding:.65rem 1rem;border-bottom:1px solid var(--card-border);font-size:.78rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">Order Items</div>
-              ${coState.cartItems.map(item => `
-              <div style="display:flex;align-items:center;gap:.85rem;padding:.75rem 1rem;border-bottom:1px solid var(--card-border)">
-                ${item.image?`<img src="${item.image}" style="width:52px;height:52px;border-radius:9px;object-fit:cover;flex-shrink:0" alt="">`:`<div style="width:52px;height:52px;border-radius:9px;background:rgba(204,26,26,.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--text-muted)"><i class="ti ti-package" style="font-size:1.4rem"></i></div>`}
-                <div style="flex:1;min-width:0">
-                  <div style="font-size:.88rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${shEsc(item.name)}</div>
-                  <div style="font-size:.75rem;color:var(--text-muted)">${PH_FMT(item.price)} &times; ${item.quantity}</div>
-                </div>
-                <div style="font-size:.92rem;font-weight:800;color:var(--fs-red);flex-shrink:0">${PH_FMT(item.price * item.quantity)}</div>
-              </div>`).join('')}
-            </div>`;
-            coEl('co-review-subtotal').textContent = PH_FMT(coState.subtotal);
-        }
-
-        function coRenderBranches() {
-            const list = coEl('co-branch-list');
-            if (!list) return;
-            list.innerHTML = coState.branches.map(b => `
-            <div class="branch-card${coState.selectedBranch===b.id?' selected':''}" onclick="coSelectBranch(${b.id},this)">
-              <div class="branch-radio"></div>
-              <div>
-                <div style="font-size:.88rem;font-weight:700">${shEsc(b.name)}</div>
-                <div style="font-size:.74rem;color:var(--text-muted)">${shEsc(b.address||'')} ${shEsc(b.city||'')}</div>
-              </div>
-            </div>`).join('');
-        }
-
-        function coSelectBranch(id, el) {
-            coState.selectedBranch = id;
-            document.querySelectorAll('.branch-card').forEach(c => c.classList.remove('selected'));
-            el.classList.add('selected');
-        }
-
-        function coSelectFulfill(type, render=true) {
-            coState.fulfillment = type;
-            coEl('fc-delivery').classList.toggle('selected', type==='delivery');
-            coEl('fc-pickup').classList.toggle('selected',   type==='pickup');
-            coEl('co-delivery-form').style.display = type==='delivery' ? '' : 'none';
-            coEl('co-pickup-form').style.display   = type==='pickup'   ? '' : 'none';
-            // Cash on pickup button
-            const copBtn = coEl('co-cop-btn');
-            if (copBtn) copBtn.style.display = type==='pickup' ? '' : 'none';
-            // If switching away from pickup + cash_on_pickup selected, clear payment
-            if (type==='delivery' && coState.payMethod==='cash_on_pickup') {
-                coState.payMethod='';
-                document.querySelectorAll('.co-pay-btn').forEach(b=>b.classList.remove('active'));
-                document.querySelectorAll('.co-pay-info').forEach(i=>i.classList.remove('active'));
-            }
-            if (type==='delivery') { coState.deliveryFee=80; coUpdateDeliveryFee(); }
-            else coState.deliveryFee = 0;
-        }
-
-        function coUpdateDeliveryFee() {
-            const region = (coEl('co-region')?.value||'').toLowerCase();
-            const ncr = ['ncr','ncr – metro manila'];
-            coState.deliveryFee = ncr.includes(region)||region==='' ? 80 : 150;
-            const box = coEl('co-fee-box');
-            const val = coEl('co-fee-val');
-            if (box) box.style.display = region ? 'flex' : 'none';
-            if (val) val.textContent = PH_FMT(coState.deliveryFee);
-        }
-
-        function coSelectPayment(method, btn) {
-            coState.payMethod = method;
-            document.querySelectorAll('.co-pay-btn').forEach(b=>b.classList.remove('active'));
-            btn.classList.add('active');
-            document.querySelectorAll('.co-pay-info').forEach(i=>i.classList.remove('active'));
-            const info = coEl('co-pay-' + method);
-            if (info) info.classList.add('active');
-            // Update amount labels
-            const total = coState.subtotal + coState.deliveryFee;
-            ['gcash-amount','maya-amount','bank-amount','cop-amount'].forEach(id => {
-                const el = coEl(id); if(el) el.textContent = PH_FMT(total);
+                const confirmBtn = document.getElementById('cancelReasonConfirm');
+                confirmBtn.disabled = true;
+                confirmBtn.innerHTML = '<i class="ti ti-loader-2"></i> Cancelling…';
+                try {
+                    const f = new FormData();
+                    f.append('action',        'cancel_order');
+                    f.append('csrf_token',    CSRF);
+                    f.append('order_id',      id);
+                    f.append('cancel_reason', reason);
+                    const data = await (await fetch('handlers/shop_handler.php', { method: 'POST', body: f })).json();
+                    close();
+                    if (data.success) {
+                        shopToast('info', 'Order #' + id + ' cancelled.');
+                        setTimeout(() => loadOrders(), 600);
+                    } else {
+                        shopToast('error', data.message || 'Could not cancel order.');
+                    }
+                } catch(e) {
+                    close();
+                    shopToast('error', 'Network error. Please try again.');
+                }
             });
-            // Proof section: show for non-cash
-            const needProof = ['gcash','maya','bank_transfer'].includes(method);
-            coEl('co-proof-section').style.display = needProof ? '' : 'none';
         }
 
-        function coPreviewProof(input) {
-            const file = input.files[0]; if(!file) return;
-            const reader = new FileReader();
-            reader.onload = e => {
-                coEl('co-proof-preview').src = e.target.result;
-                coEl('co-proof-preview').style.display = 'block';
-                coEl('co-proof-placeholder').style.display = 'none';
-                coEl('co-proof-name').textContent = file.name;
-            };
-            reader.readAsDataURL(file);
-        }
-        function coHandleProofDrop(e) {
-            e.preventDefault();
-            coEl('co-proof-zone').classList.remove('drag');
-            const file = e.dataTransfer.files[0];
-            if (!file) return;
-            const dt = new DataTransfer(); dt.items.add(file);
-            coEl('co-proof-input').files = dt.files;
-            coPreviewProof(coEl('co-proof-input'));
-        }
-        async function coUploadProof() {
-            const input = coEl('co-proof-input');
-            if (!input.files.length) return '';
-            const form = new FormData();
-            form.append('action','upload_proof');
-            form.append('csrf_token', SHOP_CSRF);
-            form.append('proof', input.files[0]);
-            const res  = await fetch('handlers/shop_handler.php',{method:'POST',body:form});
-            const data = await res.json();
-            if (!data.success) throw new Error(data.message||'Proof upload failed.');
-            return data.path;
-        }
-
-        // ── Validation ──────────────────────────────────────
-        function coValidate(step) {
-            const mark = (id, ok) => { coEl(id)?.classList.toggle('invalid',!ok); return ok; };
-            if (step===1) return coState.cartItems.length > 0;
-            if (step===2) {
-                if (coState.fulfillment==='delivery') {
-                    const ok = [
-                        mark('co-fullname', coEl('co-fullname').value.trim()!==''),
-                        mark('co-contact',  coEl('co-contact').value.trim()!==''),
-                        mark('co-email',    /\S+@\S+\.\S+/.test(coEl('co-email').value)),
-                        mark('co-region',   coEl('co-region').value!==''),
-                        mark('co-city',     coEl('co-city').value.trim()!==''),
-                        mark('co-barangay', coEl('co-barangay').value.trim()!==''),
-                        mark('co-street',   coEl('co-street').value.trim()!==''),
-                        mark('co-zip',      coEl('co-zip').value.trim()!==''),
-                    ];
-                    return ok.every(Boolean);
-                } else {
-                    const bOk = coState.selectedBranch!==null;
-                    const dOk = coEl('co-pickup-date').value!=='';
-                    const tOk = coEl('co-pickup-time').value!=='';
-                    if(!bOk) shopToast('error','Please select a branch.');
-                    if(!dOk) coEl('co-pickup-date').classList.add('invalid');
-                    if(!tOk) coEl('co-pickup-time').classList.add('invalid');
-                    return bOk && dOk && tOk;
-                }
-            }
-            if (step===3) {
-                if (!coState.payMethod) { shopToast('error','Please select a payment method.'); return false; }
-                const needProof = ['gcash','maya','bank_transfer'].includes(coState.payMethod);
-                if (needProof && !coEl('co-proof-input').files.length && !coState.proofPath) {
-                    shopToast('error','Please upload proof of payment.'); return false;
-                }
-                return true;
-            }
-            return true;
-        }
-
-        // ── Step navigation ─────────────────────────────────
-        async function coStepNext() {
-            if (!coValidate(coState.step)) return;
-            if (coState.step===3) {
-                // Upload proof before moving to confirm
-                const needProof = ['gcash','maya','bank_transfer'].includes(coState.payMethod);
-                if (needProof && !coState.proofPath && coEl('co-proof-input').files.length) {
-                    const btn = coEl('co-next-btn');
-                    btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Uploading…';
-                    try { coState.proofPath = await coUploadProof(); }
-                    catch(e) { shopToast('error',e.message); btn.disabled=false; btn.innerHTML='Continue <i class="ti ti-arrow-right"></i>'; return; }
-                    btn.disabled=false; btn.innerHTML='Continue <i class="ti ti-arrow-right"></i>';
-                }
-                coBuildConfirm();
-            }
-            if (coState.step < 4) coGoToStep(coState.step+1);
-        }
-        function coStepBack() {
-            if (coState.step > 1) coGoToStep(coState.step-1);
-        }
-        function coGoToStep(n) {
-            coState.step = n;
-            document.querySelectorAll('.co-panel').forEach(p => p.classList.remove('active'));
-            const panel = n === 5 ? coEl('co-panel-success') : coEl('co-panel-' + n);
-            if (panel) panel.classList.add('active');
-            // Stepper dots
-            [1,2,3,4].forEach(i => {
-                const s = coEl('co-s'+i), l = coEl('co-l'+i);
-                if (!s) return;
-                s.classList.toggle('active', i===n);
-                s.classList.toggle('done',   i<n);
-                if (l) l.classList.toggle('done', i<n);
-            });
-            // Footer state — fully null-safe
-            const subtitles = {1:'Review your cart',2:'Fulfillment method',3:'Payment details',4:'Confirm & place order'};
-            const subtitle  = coEl('co-step-subtitle');
-            const indicator = coEl('co-step-indicator');
-            const backBtn   = coEl('co-back-btn');
-            const footer    = coEl('co-footer');
-            const nextBtn   = coEl('co-next-btn');
-            const body      = coEl('co-body');
-            if (subtitle)  subtitle.textContent  = subtitles[n] || '';
-            if (indicator) indicator.textContent  = n <= 4 ? `Step ${n} of 4` : '';
-            if (backBtn)   backBtn.style.display  = (n===1||n===5) ? 'none' : '';
-            if (footer)    footer.style.display   = n===5 ? 'none' : '';
-            if (nextBtn) {
-                if (n === 4) {
-                    nextBtn.innerHTML = '<i class="ti ti-check"></i> Place Order';
-                    nextBtn.onclick   = coPlaceOrder;
-                } else if (n < 4) {
-                    nextBtn.innerHTML = 'Continue <i class="ti ti-arrow-right"></i>';
-                    nextBtn.onclick   = coStepNext;
-                }
-            }
-            if (body) body.scrollTop = 0;
-        }
-
-
-        // ── Build confirm summary ────────────────────────────
-        function coBuildConfirm() {
-            const total = coState.subtotal + coState.deliveryFee;
-            const payLabel = {gcash:'GCash',maya:'Maya',bank_transfer:'Bank Transfer',cash_on_pickup:'Cash on Pickup'}[coState.payMethod]||coState.payMethod;
-            let fulfillHtml = '';
-            if (coState.fulfillment==='delivery') {
-                fulfillHtml = `
-                <div class="co-sum-row"><span style="color:var(--text-muted)">Method</span><span><i class="ti ti-truck"></i> Delivery</span></div>
-                <div class="co-sum-row"><span style="color:var(--text-muted)">Recipient</span><span style="font-weight:600">${shEsc(coEl('co-fullname').value)}</span></div>
-                <div class="co-sum-row"><span style="color:var(--text-muted)">Contact</span><span>${shEsc(coEl('co-contact').value)}</span></div>
-                <div class="co-sum-row"><span style="color:var(--text-muted)">Address</span><span style="text-align:right;max-width:220px">${shEsc(coEl('co-street').value)}, ${shEsc(coEl('co-barangay').value)}, ${shEsc(coEl('co-city').value)}, ${shEsc(coEl('co-region').value)}</span></div>`;
-            } else {
-                const branch = coState.branches.find(b=>b.id==coState.selectedBranch)||{};
-                fulfillHtml = `
-                <div class="co-sum-row"><span style="color:var(--text-muted)">Method</span><span><i class="ti ti-building-store"></i> Branch Pick-Up</span></div>
-                <div class="co-sum-row"><span style="color:var(--text-muted)">Branch</span><span style="font-weight:600">${shEsc(branch.name||'')}</span></div>
-                <div class="co-sum-row"><span style="color:var(--text-muted)">Date</span><span>${shEsc(coEl('co-pickup-date').value)}</span></div>
-                <div class="co-sum-row"><span style="color:var(--text-muted)">Time</span><span>${shEsc(coEl('co-pickup-time').value)}</span></div>`;
-            }
-            coEl('co-confirm-body').innerHTML = `
-            <div class="co-sum-block">
-                <div class="co-sum-title">Fulfillment</div>
-                ${fulfillHtml}
-            </div>
-            <div class="co-sum-block">
-                <div class="co-sum-title">Order Summary</div>
-                ${coState.cartItems.map(i=>`<div class="co-sum-row"><span>${shEsc(i.name)} &times;${i.quantity}</span><span>${PH_FMT(i.price*i.quantity)}</span></div>`).join('')}
-                <div class="co-sum-row" style="margin-top:.4rem"><span style="color:var(--text-muted)">Subtotal</span><span>${PH_FMT(coState.subtotal)}</span></div>
-                <div class="co-sum-row"><span style="color:var(--text-muted)">Delivery Fee</span><span>${coState.deliveryFee>0?PH_FMT(coState.deliveryFee):'FREE'}</span></div>
-                <div class="co-sum-row total"><span>Total</span><span>${PH_FMT(total)}</span></div>
-            </div>
-            <div class="co-sum-block">
-                <div class="co-sum-title">Payment</div>
-                <div class="co-sum-row"><span style="color:var(--text-muted)">Method</span><span style="font-weight:700">${payLabel}</span></div>
-                <div class="co-sum-row"><span style="color:var(--text-muted)">Status</span><span style="color:#ffc107;font-weight:600"><i class="ti ti-clock"></i> Pending Verification</span></div>
-                ${coState.proofPath?`<div class="co-sum-row"><span style="color:var(--text-muted)">Proof</span><img src="${coState.proofPath}" style="height:48px;border-radius:7px;border:1px solid var(--card-border)" alt="proof"></div>`:''}
-            </div>
-            <div style="background:rgba(74,158,255,.07);border:1px solid rgba(74,158,255,.2);border-radius:10px;padding:.75rem 1rem;font-size:.8rem;color:#4a9eff;margin-bottom:.5rem">
-                <i class="ti ti-info-circle"></i> By placing your order, you confirm that the details above are correct. Orders cannot be modified after placement.
-            </div>`;
-        }
-
-        // ── Place order ─────────────────────────────────────
-        async function coPlaceOrder() {
-            const btn = coEl('co-next-btn');
-            btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Placing Order…';
+        async function markOrderReceived(id, btn) {
+            fsConfirm(
+                'Confirm Order Received',
+                'Mark Order #' + id + ' as received/completed?',
+                async () => {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="ti ti-loader-2"></i> Updating…';
             try {
                 const f = new FormData();
-                f.append('action','checkout');
-                f.append('csrf_token', SHOP_CSRF);
-                f.append('checkout_token','co_'+Date.now());
-                f.append('fulfillment_method', coState.fulfillment);
-                f.append('payment_method', coState.payMethod);
-                f.append('proof_path', coState.proofPath);
-                if (coState.fulfillment==='delivery') {
-                    f.append('recipient_name',    coEl('co-fullname').value);
-                    f.append('recipient_contact', coEl('co-contact').value);
-                    f.append('recipient_email',   coEl('co-email').value);
-                    f.append('region',    coEl('co-region').value);
-                    f.append('province',  coEl('co-province').value);
-                    f.append('city',      coEl('co-city').value);
-                    f.append('barangay',  coEl('co-barangay').value);
-                    f.append('street',    coEl('co-street').value);
-                    f.append('zip',       coEl('co-zip').value);
-                    f.append('landmark',  coEl('co-landmark').value);
-                    f.append('order_notes', coEl('co-notes').value);
-                } else {
-                    f.append('pickup_branch_id', coState.selectedBranch);
-                    f.append('pickup_date', coEl('co-pickup-date').value);
-                    f.append('pickup_time', coEl('co-pickup-time').value);
-                    f.append('recipient_name',    coEl('co-fullname')?.value||'');
-                    f.append('recipient_contact', coEl('co-contact')?.value||'');
-                    f.append('recipient_email',   coEl('co-email')?.value||'');
-                }
-                const data = await (await fetch('handlers/shop_handler.php',{method:'POST',body:f})).json();
+                f.append('action',   'mark_order_received');
+                f.append('order_id', id);
+                const data = await (await fetch('handlers/shop_handler.php', { method: 'POST', body: f })).json();
                 if (data.success) {
-                    updateCartBadge(0);
-                    loadCart();
-                    coEl('co-success-order-id').textContent = 'Order #' + data.order_id + ' — Thank you!';
-                    coGoToStep(5);
+                    shopToast('success', 'Order #' + id + ' marked as completed!');
+                    setTimeout(() => loadOrders(), 800);
                 } else {
-                    shopToast('error', data.message||'Order failed. Please try again.');
-                    btn.disabled=false; btn.innerHTML='<i class="ti ti-check"></i> Place Order';
+                    shopToast('error', data.message || 'Failed to update order.');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="ti ti-circle-check" style="font-size:.85rem"></i> Order Received';
                 }
             } catch(e) {
-                shopToast('error','Network error. Please try again.');
-                btn.disabled=false; btn.innerHTML='<i class="ti ti-check"></i> Place Order';
+                shopToast('error', 'Network error. Please try again.');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ti ti-circle-check" style="font-size:.85rem"></i> Order Received';
             }
+                }
+            );
         }
 
-        function coCopy(text, btn) {
-            navigator.clipboard?.writeText(text).then(()=>{
-                const orig = btn.innerHTML; btn.innerHTML='<i class="ti ti-check"></i> Copied!';
-                setTimeout(()=>btn.innerHTML=orig, 1800);
-            });
+        // Custom confirm helper
+        function fsConfirm(title, msg, onOk) {
+            document.getElementById('fsConfirmTitle').textContent = title;
+            document.getElementById('fsConfirmMsg').textContent   = msg;
+            const okBtn = document.getElementById('fsConfirmOkBtn');
+            const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('fsConfirmModal'));
+            const handler = () => { modal.hide(); onOk(); okBtn.removeEventListener('click', handler); };
+            okBtn.removeEventListener('click', handler); // clear any stale listener
+            okBtn.addEventListener('click', handler);
+            modal.show();
         }
 
-        // Toast helper
-
-        function shopToast(type, msg) {
-            const colors = {success:'#2ecc71',error:'#ff6b6b',info:'#4a9eff'};
-            const t = document.createElement('div');
-            t.style.cssText = `position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;background:${colors[type]||colors.info};color:#fff;padding:.7rem 1.2rem;border-radius:10px;font-size:.88rem;font-weight:600;box-shadow:0 6px 24px rgba(0,0,0,.3);transition:opacity .3s`;
-            t.textContent = msg;
-            document.body.appendChild(t);
-            setTimeout(() => { t.style.opacity='0'; setTimeout(()=>t.remove(),300); }, 3200);
+        function printOrderReceipt(id) {
+            const allOrders = window._ordersData;
+            if (!allOrders) { window.open('checkout.php?order_id=' + id + '&print=1'); return; }
+            const o = allOrders.orders.find(x => parseInt(x.id) === id);
+            const items = (allOrders.details[id] || []);
+            if (!o) { window.open('checkout.php?order_id=' + id + '&print=1'); return; }
+            const d = new Date(o.created_at).toLocaleDateString('en-PH',{year:'numeric',month:'long',day:'numeric'});
+            let addrBlock = '';
+            if (o.fulfillment_method === 'pickup') {
+                addrBlock = `<p><strong>Pickup Branch:</strong> ${o.branch_name || ''}<br>${o.branch_address || ''}</p>
+                             <p><strong>Pickup Date/Time:</strong> ${o.pickup_date || ''} ${o.pickup_time || ''}</p>`;
+            } else if (o.delivery_address) {
+                let addr = {}; try { addr = JSON.parse(o.delivery_address); } catch(e) {}
+                addrBlock = `<p><strong>Deliver to:</strong> ${o.recipient_name || ''} &middot; ${o.recipient_contact || ''}<br>
+                              ${[addr.street,addr.barangay,addr.city,addr.region,addr.zip].filter(Boolean).join(', ')}</p>`;
+            }
+            const rows = items.map(it =>
+                `<tr><td>${it.name}</td><td style="text-align:center">${it.quantity}</td><td style="text-align:right">&#8369;${parseFloat(it.price).toLocaleString('en-PH',{minimumFractionDigits:2})}</td><td style="text-align:right">&#8369;${(parseFloat(it.price)*parseInt(it.quantity)).toLocaleString('en-PH',{minimumFractionDigits:2})}</td></tr>`
+            ).join('');
+            const deliveryRow = parseFloat(o.delivery_fee) > 0
+                ? `<tr><td colspan="3" style="text-align:right">Delivery Fee</td><td style="text-align:right">&#8369;${parseFloat(o.delivery_fee).toLocaleString('en-PH',{minimumFractionDigits:2})}</td></tr>` : '';
+            const win = window.open('', '_blank', 'width=700,height=900');
+            win.document.write(`<!DOCTYPE html><html><head><title>Receipt — Order #${id}</title>
+            <style>
+                body{font-family:Arial,sans-serif;font-size:13px;color:#111;margin:0;padding:2rem}
+                h1{font-size:1.3rem;margin:0 0 .25rem}
+                h2{font-size:1rem;margin:0 0 1.5rem;color:#555}
+                table{width:100%;border-collapse:collapse;margin:1rem 0}
+                th{background:#f2f2f2;padding:.45rem .6rem;text-align:left;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px}
+                td{padding:.4rem .6rem;border-bottom:1px solid #eee}
+                .total-row td{font-weight:700;font-size:1rem;border-top:2px solid #111;border-bottom:none}
+                .meta{display:flex;gap:2rem;flex-wrap:wrap;margin-bottom:1rem;font-size:.85rem}
+                .meta span{color:#555}
+                .footer{margin-top:2rem;font-size:.8rem;color:#888;text-align:center}
+                @media print{body{padding:.5rem}button{display:none}}
+            </style></head><body>
+            <h1>FitSync — Order Receipt</h1>
+            <h2>Order #${id} &nbsp;&middot;&nbsp; ${d}</h2>
+            <div class="meta">
+                <div><span>Customer:</span><br><strong>${o.customer_name}</strong></div>
+                <div><span>Payment:</span><br><strong>${o.payment_method.replace(/_/g,' ')} &middot; ${o.payment_status}</strong></div>
+                <div><span>Status:</span><br><strong>${o.status.replace(/_/g,' ')}</strong></div>
+            </div>
+            ${addrBlock}
+            <table>
+                <thead><tr><th>Item</th><th style="text-align:center">Qty</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Subtotal</th></tr></thead>
+                <tbody>${rows}${deliveryRow}</tbody>
+                <tfoot><tr class="total-row"><td colspan="3" style="text-align:right">TOTAL</td><td style="text-align:right">&#8369;${parseFloat(o.total_amount).toLocaleString('en-PH',{minimumFractionDigits:2})}</td></tr></tfoot>
+            </table>
+            <div class="footer">Thank you for your purchase! &mdash; FitSync</div>
+            <br><button onclick="window.print()" style="padding:.5rem 1.5rem;font-size:.85rem;cursor:pointer">🖨 Print</button>
+            </body></html>`);
+            win.document.close();
         }
+
+        // Toast helper — floats above the cart FAB
+
+        (function () {
+            // Track active toasts so we can stack them
+            const _toasts = [];
+            const FAB_BOTTOM   = 96;  // px from bottom (FAB is 60px + 2rem ≈ 92px; add 4px gap)
+            const FAB_RIGHT    = 32;  // px from right  (matches FAB right: 2rem)
+            const TOAST_GAP    = 10;  // px gap between stacked toasts
+            const TOAST_HEIGHT = 52;  // approximate height of one toast pill
+
+            const ICONS = {
+                success: 'ti-circle-check',
+                error:   'ti-circle-x',
+                info:    'ti-info-circle',
+            };
+            const COLORS = {
+                success: { bg: 'linear-gradient(135deg,#1db954,#2ecc71)', border: 'rgba(46,204,113,.35)' },
+                error:   { bg: 'linear-gradient(135deg,#cc1a1a,#ff4040)', border: 'rgba(255,64,64,.35)' },
+                info:    { bg: 'linear-gradient(135deg,#1565c0,#4a9eff)', border: 'rgba(74,158,255,.35)' },
+            };
+
+            function reflow() {
+                // Reposition all toasts from bottom so they stack correctly
+                let offset = FAB_BOTTOM;
+                for (let i = _toasts.length - 1; i >= 0; i--) {
+                    const el = _toasts[i];
+                    el.style.bottom = offset + 'px';
+                    offset += (el.offsetHeight || TOAST_HEIGHT) + TOAST_GAP;
+                }
+            }
+
+            window.shopToast = function shopToast(type, msg) {
+                const cfg  = COLORS[type] || COLORS.info;
+                const icon = ICONS[type]  || ICONS.info;
+
+                const t = document.createElement('div');
+                t.style.cssText = [
+                    'position:fixed',
+                    `right:${FAB_RIGHT}px`,
+                    `bottom:${FAB_BOTTOM}px`,
+                    'z-index:10000',
+                    `background:${cfg.bg}`,
+                    `border:1px solid ${cfg.border}`,
+                    'color:#fff',
+                    'padding:.55rem 1rem .55rem .75rem',
+                    'border-radius:50px',
+                    'font-size:.84rem',
+                    'font-weight:700',
+                    'box-shadow:0 8px 28px rgba(0,0,0,.35)',
+                    'display:flex',
+                    'align-items:center',
+                    'gap:.5rem',
+                    'max-width:260px',
+                    'opacity:0',
+                    'transform:translateY(14px) scale(.94)',
+                    'transition:opacity .28s ease,transform .28s cubic-bezier(.175,.885,.32,1.275)',
+                    'pointer-events:none',
+                    'white-space:nowrap',
+                    'overflow:hidden',
+                    'text-overflow:ellipsis',
+                ].join(';');
+                t.innerHTML = `<i class="ti ${icon}" style="font-size:1.1rem;flex-shrink:0"></i><span style="overflow:hidden;text-overflow:ellipsis">${msg}</span>`;
+
+                document.body.appendChild(t);
+                _toasts.push(t);
+                reflow();
+
+                // Animate in
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        t.style.opacity = '1';
+                        t.style.transform = 'translateY(0) scale(1)';
+                    });
+                });
+
+                // Auto-dismiss after 3 s
+                setTimeout(() => {
+                    t.style.opacity = '0';
+                    t.style.transform = 'translateY(8px) scale(.94)';
+                    setTimeout(() => {
+                        t.remove();
+                        const idx = _toasts.indexOf(t);
+                        if (idx !== -1) _toasts.splice(idx, 1);
+                        reflow();
+                    }, 280);
+                }, 3000);
+            };
+        })();
 
         // XSS helpers
         function shEsc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }

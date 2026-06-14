@@ -292,11 +292,11 @@ $revenueByPlan = adminRows(
 try {
     $shopStats = [
         'total_products'  => (int) adminScalar($pdo, 'SELECT COUNT(*) FROM products WHERE is_active=1'),
-        'total_inventory' => (int) adminScalar($pdo, 'SELECT COALESCE(SUM(stock),0) FROM products WHERE is_active=1'),
+        'total_inventory' => (int) adminScalar($pdo, 'SELECT COALESCE(SUM(ps.stock),0) FROM product_stocks ps JOIN products p ON p.id = ps.product_id WHERE p.is_active=1'),
         'total_orders'    => (int) adminScalar($pdo, 'SELECT COUNT(*) FROM orders'),
         'pending_orders'  => (int) adminScalar($pdo, 'SELECT COUNT(*) FROM orders WHERE status="pending"'),
-        'low_stock'       => (int) adminScalar($pdo, 'SELECT COUNT(*) FROM products WHERE is_active=1 AND stock>0 AND stock<=5'),
-        'out_of_stock'    => (int) adminScalar($pdo, 'SELECT COUNT(*) FROM products WHERE is_active=1 AND stock=0'),
+        'low_stock'       => (int) adminScalar($pdo, 'SELECT COUNT(*) FROM (SELECT p.id, COALESCE(SUM(ps.stock), 0) AS total_stock FROM products p LEFT JOIN product_stocks ps ON ps.product_id = p.id WHERE p.is_active=1 GROUP BY p.id) t WHERE total_stock > 0 AND total_stock <= 5'),
+        'out_of_stock'    => (int) adminScalar($pdo, 'SELECT COUNT(*) FROM (SELECT p.id, COALESCE(SUM(ps.stock), 0) AS total_stock FROM products p LEFT JOIN product_stocks ps ON ps.product_id = p.id WHERE p.is_active=1 GROUP BY p.id) t WHERE total_stock = 0'),
         'shop_revenue'    => (float) adminScalar($pdo, 'SELECT COALESCE(SUM(total_amount),0) FROM orders WHERE status!="cancelled"'),
     ];
 } catch (Throwable) {
@@ -2860,80 +2860,80 @@ $adminData = [
 
         <!-- ─── SHOP ORDERS ────────────────────────── -->
         <div class="page" id="page-shop-orders">
-            <div class="sec-head">
+            <div class="sec-head" style="margin-bottom:1.1rem">
                 <div class="sec-title">Shop Orders</div>
-                <select id="ordStatusFilter" onchange="filterShopOrders()"
-                    style="padding:.38rem .8rem;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.8rem;outline:none">
-                    <option value="">All Statuses</option>
-                    <option value="pending">Pending</option>
-                    <option value="processing">Processing</option>
-                    <option value="shipped">Shipped</option>
-                    <option value="delivered">Delivered</option>
-                    <option value="cancelled">Cancelled</option>
-                </select>
+                <button class="btn sm" onclick="loadShopOrders()" style="display:inline-flex;align-items:center;gap:.35rem">
+                    <i class="ti ti-refresh"></i> Refresh
+                </button>
             </div>
 
-            <div class="grid g-3" style="margin-bottom:1.25rem">
-                <div class="stat" style="padding:.75rem 1rem">
-                    <div class="stat-val" style="font-size:1.4rem"><?= number_format($shopStats['total_orders']) ?></div>
-                    <div class="stat-lbl">Total Orders</div>
+            <!-- Stats row -->
+            <div class="so-stats-row">
+                <div class="so-stat-card">
+                    <div class="so-stat-icon" style="background:rgba(74,158,255,.12);color:#4a9eff"><i class="ti ti-shopping-bag"></i></div>
+                    <div>
+                        <div class="so-stat-val"><?= number_format($shopStats['total_orders']) ?></div>
+                        <div class="so-stat-lbl">Total Orders</div>
+                    </div>
                 </div>
-                <div class="stat <?= $shopStats['pending_orders'] > 0 ? 'urgent' : '' ?>" style="padding:.75rem 1rem">
-                    <div class="stat-val" style="font-size:1.4rem;color:<?= $shopStats['pending_orders'] > 0 ? 'var(--red)' : 'inherit' ?>"><?= number_format($shopStats['pending_orders']) ?></div>
-                    <div class="stat-lbl">Pending</div>
+                <div class="so-stat-card <?= $shopStats['pending_orders'] > 0 ? 'so-urgent' : '' ?>">
+                    <div class="so-stat-icon" style="background:rgba(255,193,7,.12);color:#ffc107"><i class="ti ti-clock"></i></div>
+                    <div>
+                        <div class="so-stat-val" style="color:<?= $shopStats['pending_orders'] > 0 ? '#ffc107' : 'inherit' ?>"><?= number_format($shopStats['pending_orders']) ?></div>
+                        <div class="so-stat-lbl">Pending</div>
+                    </div>
                 </div>
-                <div class="stat" style="padding:.75rem 1rem">
-                    <div class="stat-val" style="font-size:1.4rem">&#8369;<?= number_format($shopStats['shop_revenue']) ?></div>
-                    <div class="stat-lbl">Revenue</div>
+                <div class="so-stat-card">
+                    <div class="so-stat-icon" style="background:rgba(46,204,113,.12);color:#2ecc71"><i class="ti ti-rosette-discount-check"></i></div>
+                    <div>
+                        <div class="so-stat-val" style="color:#2ecc71"><?= number_format(adminScalar($pdo, 'SELECT COUNT(*) FROM orders WHERE status="completed"')) ?></div>
+                        <div class="so-stat-lbl">Completed</div>
+                    </div>
                 </div>
-            </div>
-
-            <div class="card">
-                <div style="overflow-x:auto">
-                    <table style="width:100%;border-collapse:collapse;font-size:.82rem">
-                        <thead>
-                            <tr style="background:var(--th-bg)">
-                                <th style="padding:.65rem 1rem;text-align:left;font-weight:600;color:var(--text-2)">#</th>
-                                <th style="padding:.65rem .75rem;text-align:left;font-weight:600;color:var(--text-2)">Customer</th>
-                                <th style="padding:.65rem .75rem;text-align:center;font-weight:600;color:var(--text-2)">Method</th>
-                                <th style="padding:.65rem .75rem;text-align:right;font-weight:600;color:var(--text-2)">Total</th>
-                                <th style="padding:.65rem .75rem;text-align:center;font-weight:600;color:var(--text-2)">Status</th>
-                                <th style="padding:.65rem .75rem;text-align:center;font-weight:600;color:var(--text-2)">Payment</th>
-                                <th style="padding:.65rem .75rem;text-align:center;font-weight:600;color:var(--text-2)">Date</th>
-                                <th style="padding:.65rem .75rem;text-align:right;font-weight:600;color:var(--text-2)">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="shopOrdersBody"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Payment Verification Panel -->
-            <div style="margin-top:1.5rem">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem;flex-wrap:wrap;gap:.5rem">
-                    <div style="font-size:.95rem;font-weight:700"><i class="ti ti-shield-check me-1" style="color:var(--red)"></i>Payment Verification</div>
-                    <button class="btn primary sm" onclick="loadShopOrders()"><i class="ti ti-refresh"></i> Refresh</button>
-                </div>
-                <div class="card">
-                    <div style="overflow-x:auto">
-                        <table style="width:100%;border-collapse:collapse;font-size:.82rem">
-                            <thead><tr style="background:var(--th-bg)">
-                                <th style="padding:.65rem 1rem;text-align:left;font-weight:600;color:var(--text-2)">#</th>
-                                <th style="padding:.65rem .75rem;font-weight:600;color:var(--text-2)">Customer</th>
-                                <th style="padding:.65rem .75rem;font-weight:600;color:var(--text-2)">Method</th>
-                                <th style="padding:.65rem .75rem;text-align:right;font-weight:600;color:var(--text-2)">Amount</th>
-                                <th style="padding:.65rem .75rem;text-align:center;font-weight:600;color:var(--text-2)">Proof</th>
-                                <th style="padding:.65rem .75rem;text-align:center;font-weight:600;color:var(--text-2)">Actions</th>
-                            </tr></thead>
-                            <tbody id="payVerifyBody"><tr><td colspan="6" style="text-align:center;padding:1.5rem;color:var(--text-3)">Loading…</td></tr></tbody>
-                        </table>
+                <div class="so-stat-card">
+                    <div class="so-stat-icon" style="background:rgba(204,26,26,.12);color:var(--red)"><i class="ti ti-currency-peso"></i></div>
+                    <div>
+                        <div class="so-stat-val">&#8369;<?= number_format($shopStats['shop_revenue']) ?></div>
+                        <div class="so-stat-lbl">Revenue</div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Add/Edit Product Modal -->
-        <div class="modal-backdrop" id="product-modal-backdrop" style="display:none" onclick="if(event.target===this)closeProductModal()">
+            <!-- Filter pill tabs + search -->
+            <div class="so-toolbar">
+                <div class="so-filter-tabs" id="soFilterTabs">
+                    <button class="so-tab active" data-val="" onclick="soSetFilter(this)">All</button>
+                    <button class="so-tab" data-val="pending" onclick="soSetFilter(this)">Pending</button>
+                    <button class="so-tab" data-val="processing" onclick="soSetFilter(this)">Processing</button>
+                    <button class="so-tab" data-val="completed" onclick="soSetFilter(this)">Completed</button>
+                    <button class="so-tab" data-val="cancelled" onclick="soSetFilter(this)">Cancelled / Rejected</button>
+                </div>
+                <div class="so-search-wrap">
+                    <i class="ti ti-search"></i>
+                    <input id="soSearch" type="text" placeholder="Search order # or customer…" oninput="filterShopOrders()">
+                </div>
+            </div>
+
+            <!-- Orders table -->
+            <div class="so-table-wrap">
+                <table class="so-table">
+                    <thead>
+                        <tr>
+                            <th style="width:52px">#</th>
+                            <th>Customer</th>
+                            <th style="text-align:center">Fulfillment</th>
+                            <th style="text-align:right">Total</th>
+                            <th style="text-align:center">Order Status</th>
+                            <th style="text-align:center">Payment</th>
+                            <th style="text-align:center">Proof</th>
+                            <th style="text-align:center">Date</th>
+                            <th style="text-align:right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="shopOrdersBody"></tbody>
+                </table>
+            </div>
+        </div>
 
         <!-- Order Detail Modal -->
         <div class="modal-backdrop" id="order-detail-modal" style="display:none" onclick="if(event.target===this)closeOrderDetailModal()">
@@ -2942,9 +2942,13 @@ $adminData = [
                     <h2 id="order-detail-title">Order Details</h2>
                     <button class="modal-close" onclick="closeOrderDetailModal()"><i class="ti ti-x"></i></button>
                 </div>
-                <div class="modal-body" id="order-detail-body" style="max-height:70vh;overflow-y:auto"></div>
-                <div class="modal-foot" style="display:flex;justify-content:flex-end;gap:.5rem;padding:.85rem 1.25rem;border-top:1px solid var(--border)">
-                    <button class="btn" onclick="closeOrderDetailModal()">Close</button>
+                <div class="modal-body" id="order-detail-body" style="max-height:65vh;overflow-y:auto"></div>
+                <div class="modal-foot" style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;padding:.85rem 1.25rem;border-top:1px solid var(--border)">
+                    <div id="order-detail-verify-btns" style="display:flex;gap:.5rem"></div>
+                    <div style="display:flex;gap:.5rem">
+                        <button class="btn sm" id="order-detail-print-btn" onclick="printAdminOrderReceipt()"><i class="ti ti-printer"></i> Receipt</button>
+                        <button class="btn" onclick="closeOrderDetailModal()">Close</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2995,10 +2999,19 @@ $adminData = [
                                     <input type="number" name="price" id="pf-price" required min="1" step="0.01"
                                         style="width:100%;padding:.55rem .8rem;background:var(--input-bg);border:1px solid var(--border2);border-radius:9px;color:var(--text);font-size:.875rem;outline:none">
                                 </div>
-                                <div style="flex:1">
-                                    <label style="font-size:.78rem;font-weight:600;color:var(--text-2);display:block;margin-bottom:.3rem">Stock *</label>
-                                    <input type="number" name="stock" id="pf-stock" required min="0"
-                                        style="width:100%;padding:.55rem .8rem;background:var(--input-bg);border:1px solid var(--border2);border-radius:9px;color:var(--text);font-size:.875rem;outline:none">
+                            </div>
+                            <div style="grid-column: 1/-1;">
+                                <label style="font-size:.82rem;font-weight:700;color:var(--text-1);display:block;margin-bottom:.4rem">Branch Inventory Stocks</label>
+                                <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:.75rem;" id="pf-branch-stocks-container">
+                                    <?php foreach ($branches as $br): ?>
+                                        <div style="background:var(--input-bg);border:1px solid var(--border2);border-radius:9px;padding:.5rem .75rem">
+                                            <label style="font-size:.72rem;font-weight:600;color:var(--text-2);display:block;margin-bottom:.25rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="<?= htmlspecialchars($br['name']) ?>">
+                                                <?= htmlspecialchars($br['name']) ?>
+                                            </label>
+                                            <input type="number" name="stocks[<?= $br['id'] ?>]" id="pf-stock-<?= $br['id'] ?>" required min="0" value="0"
+                                                style="width:100%;padding:.35rem .6rem;background:var(--surface);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:.8rem;outline:none">
+                                        </div>
+                                    <?php endforeach; ?>
                                 </div>
                             </div>
                             <div style="grid-column:1/-1">
@@ -3028,30 +3041,66 @@ $adminData = [
             </div>
         </div>
 
-        <!-- Order Details Modal -->
-        <div class="modal-backdrop" id="order-detail-modal" style="display:none" onclick="if(event.target===this)closeOrderDetailModal()">
-            <div class="modal-box" style="max-width:540px;width:95%">
-                <div class="modal-head">
-                    <h2 id="order-detail-title">Order Details</h2>
-                    <button class="modal-close" onclick="closeOrderDetailModal()"><i class="ti ti-x"></i></button>
-                </div>
-                <div class="modal-body" id="order-detail-body"></div>
-                <div class="modal-foot">
-                    <button class="btn" onclick="closeOrderDetailModal()">Close</button>
-                </div>
-            </div>
-        </div>
+        <!-- Order Details Modal (removed duplicate) -->
 
         <style>
         /* ─── SHOP ADMIN STYLES ── */
         .inv-img { width:44px;height:44px;border-radius:9px;object-fit:cover; }
         .inv-img-ph { width:44px;height:44px;border-radius:9px;background:var(--input-bg);display:flex;align-items:center;justify-content:center;color:var(--text-3);font-size:1.2rem; }
-        .ord-s { display:inline-flex;align-items:center;gap:.25rem;font-size:.68rem;font-weight:700;padding:.2rem .55rem;border-radius:7px;text-transform:uppercase;letter-spacing:.3px; }
-        .ord-pending    { background:rgba(255,193,7,.15);color:#ffc107; }
-        .ord-processing { background:rgba(13,110,253,.15);color:#4a9eff; }
-        .ord-shipped    { background:rgba(111,66,193,.15);color:#a066f5; }
-        .ord-delivered  { background:rgba(25,135,84,.15);color:#2ecc71; }
-        .ord-cancelled  { background:rgba(220,53,69,.15);color:#ff6b6b; }
+
+        /* Order status badges */
+        .ord-s { display:inline-flex;align-items:center;gap:.3rem;font-size:.68rem;font-weight:700;padding:.22rem .6rem;border-radius:20px;text-transform:capitalize;letter-spacing:.2px;white-space:nowrap; }
+        .ord-pending         { background:rgba(255,193,7,.15);color:#ffc107;border:1px solid rgba(255,193,7,.3); }
+        .ord-processing      { background:rgba(74,158,255,.15);color:#4a9eff;border:1px solid rgba(74,158,255,.3); }
+        .ord-shipped         { background:rgba(111,66,193,.15);color:#a066f5;border:1px solid rgba(111,66,193,.3); }
+        .ord-delivered       { background:rgba(46,204,113,.15);color:#2ecc71;border:1px solid rgba(46,204,113,.3); }
+        .ord-cancelled       { background:rgba(255,107,107,.15);color:#ff6b6b;border:1px solid rgba(255,107,107,.3); }
+        .ord-completed       { background:rgba(46,204,113,.15);color:#2ecc71;border:1px solid rgba(46,204,113,.4); }
+        .ord-ready_for_pickup{ background:rgba(255,193,7,.15);color:#ffc107;border:1px solid rgba(255,193,7,.3); }
+        .ord-out_for_delivery{ background:rgba(111,66,193,.15);color:#a066f5;border:1px solid rgba(111,66,193,.3); }
+        .ord-picked_up       { background:rgba(88,214,141,.12);color:#58d68d;border:1px solid rgba(88,214,141,.3); }
+
+        /* Stats row */
+        .so-stats-row { display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.25rem; }
+        @media(max-width:700px){.so-stats-row{grid-template-columns:repeat(2,1fr);}}
+        .so-stat-card { display:flex;align-items:center;gap:.85rem;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:.9rem 1.1rem;transition:border-color .2s; }
+        .so-stat-card:hover { border-color:var(--red); }
+        .so-stat-card.so-urgent { border-color:rgba(255,193,7,.45);background:rgba(255,193,7,.04); }
+        .so-stat-icon { width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.15rem;flex-shrink:0; }
+        .so-stat-val { font-size:1.35rem;font-weight:800;line-height:1.1; }
+        .so-stat-lbl { font-size:.72rem;color:var(--text-3);margin-top:.1rem;font-weight:500; }
+
+        /* Toolbar */
+        .so-toolbar { display:flex;align-items:center;gap:.85rem;flex-wrap:wrap;margin-bottom:.85rem; }
+        .so-filter-tabs { display:flex;gap:.35rem;flex-wrap:wrap; }
+        .so-tab { padding:.35rem .85rem;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text-2);font-size:.78rem;font-weight:600;cursor:pointer;transition:all .18s; }
+        .so-tab:hover { border-color:var(--red);color:var(--text); }
+        .so-tab.active { background:var(--red);border-color:var(--red);color:#fff; }
+        .so-search-wrap { display:flex;align-items:center;gap:.5rem;background:var(--input-bg);border:1px solid var(--border);border-radius:9px;padding:.35rem .8rem;flex:1;min-width:200px;max-width:280px; }
+        .so-search-wrap i { color:var(--text-3);font-size:.9rem;flex-shrink:0; }
+        .so-search-wrap input { border:none;background:transparent;outline:none;color:var(--text);font-size:.82rem;width:100%; }
+
+        /* Orders table */
+        .so-table-wrap { background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden; }
+        .so-table { width:100%;border-collapse:collapse;font-size:.82rem; }
+        .so-table thead tr { background:var(--th-bg); }
+        .so-table th { padding:.65rem 1rem;text-align:left;font-weight:600;color:var(--text-3);font-size:.74rem;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--border);white-space:nowrap; }
+        .so-table td { padding:.75rem 1rem;border-bottom:1px solid var(--border);vertical-align:middle; }
+        .so-table tbody tr:last-child td { border-bottom:none; }
+        .so-table tbody tr { transition:background .13s; }
+        .so-table tbody tr:hover { background:var(--row-hover); }
+        .so-proof-thumb { width:36px;height:36px;border-radius:7px;object-fit:cover;cursor:pointer;border:1px solid var(--border);transition:transform .15s; }
+        .so-proof-thumb:hover { transform:scale(1.1);border-color:var(--red); }
+        .so-pay-badge { font-size:.68rem;font-weight:700;padding:.2rem .55rem;border-radius:20px; }
+        .so-pay-pending  { background:rgba(255,193,7,.15);color:#ffc107;border:1px solid rgba(255,193,7,.3); }
+        .so-pay-paid     { background:rgba(46,204,113,.15);color:#2ecc71;border:1px solid rgba(46,204,113,.3); }
+        .so-pay-rejected { background:rgba(255,107,107,.15);color:#ff6b6b;border:1px solid rgba(255,107,107,.3); }
+        .so-action-btn { display:inline-flex;align-items:center;justify-content:center;gap:.3rem;padding:.3rem .6rem;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-2);font-size:.75rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap; }
+        .so-action-btn:hover { border-color:var(--red);color:var(--red); }
+        .so-action-btn.approve { border-color:rgba(46,204,113,.5);color:#2ecc71; }
+        .so-action-btn.approve:hover { background:rgba(46,204,113,.1); }
+        .so-action-btn.reject { border-color:rgba(255,107,107,.5);color:#ff6b6b; }
+        .so-action-btn.reject:hover { background:rgba(255,107,107,.1); }
         </style>
 
     </main><!-- /main -->
@@ -3974,7 +4023,14 @@ $adminData = [
             document.getElementById('pf-name').value      = '';
             document.getElementById('pf-category').value  = '';
             document.getElementById('pf-price').value     = '';
-            document.getElementById('pf-stock').value     = '';
+            
+            // Reset branch stocks
+            const branches = <?php echo json_encode(array_map(fn($b) => (int)$b['id'], $branches)); ?>;
+            branches.forEach(bid => {
+                const input = document.getElementById('pf-stock-' + bid);
+                if (input) input.value = 0;
+            });
+            
             document.getElementById('pf-desc').value      = '';
             document.getElementById('pf-active').checked  = true;
             document.getElementById('pf-existing-image').value = '';
@@ -3991,7 +4047,16 @@ $adminData = [
             document.getElementById('pf-name').value      = p.name;
             document.getElementById('pf-category').value  = p.category;
             document.getElementById('pf-price').value     = p.price;
-            document.getElementById('pf-stock').value     = p.stock;
+            
+            // Populate branch stocks
+            const branches = <?php echo json_encode(array_map(fn($b) => (int)$b['id'], $branches)); ?>;
+            branches.forEach(bid => {
+                const input = document.getElementById('pf-stock-' + bid);
+                if (input) {
+                    input.value = p.stocks && p.stocks[bid] !== undefined ? p.stocks[bid] : 0;
+                }
+            });
+            
             document.getElementById('pf-desc').value      = p.description;
             document.getElementById('pf-active').checked  = parseInt(p.is_active) === 1;
             document.getElementById('pf-existing-image').value = p.image || '';
@@ -4027,7 +4092,7 @@ $adminData = [
         }
 
         async function deleteProduct(id, name) {
-            openConfirm(`Delete "${name}" from the shop?`, async () => {
+            confirmAction('Confirm', `Delete "${name}" from the shop?`, async () => {
                 const f = new FormData();
                 f.append('action',     'admin_delete_product');
                 f.append('csrf_token', ADMIN_DATA.csrf);
@@ -4050,95 +4115,103 @@ $adminData = [
             } catch(e) { console.error('Orders load', e); }
         }
 
+        let _soActiveFilter = '';
+
+        function soSetFilter(btn) {
+            document.querySelectorAll('.so-tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            _soActiveFilter = btn.dataset.val;
+            filterShopOrders();
+        }
+
         function filterShopOrders() {
-            const status = document.getElementById('ordStatusFilter')?.value || '';
-            renderShopOrdersTable(status ? adminOrders.filter(o => o.status === status) : adminOrders);
+            const q = (document.getElementById('soSearch')?.value || '').toLowerCase();
+            let list = adminOrders;
+            if (_soActiveFilter) list = list.filter(o => {
+                if (_soActiveFilter === 'cancelled') return o.status === 'cancelled';
+                return o.status === _soActiveFilter;
+            });
+            if (q) list = list.filter(o =>
+                String(o.id).includes(q) ||
+                (o.customer_name || '').toLowerCase().includes(q) ||
+                (o.customer_email || '').toLowerCase().includes(q)
+            );
+            renderShopOrdersTable(list);
         }
 
         function renderShopOrdersTable(orders) {
             const tbody = document.getElementById('shopOrdersBody');
             if (!tbody) return;
             if (!orders.length) {
-                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-3)">No orders found.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:3rem 1rem;color:var(--text-3)">
+                    <i class="ti ti-package-off" style="font-size:2rem;display:block;margin-bottom:.5rem"></i>
+                    No orders found.
+                </td></tr>`;
                 return;
             }
-            const payColors = {pending:'#ffc107',paid:'#2ecc71',rejected:'#ff6b6b'};
+            const statusIcons = {
+                pending:'ti-clock', processing:'ti-loader-2', out_for_delivery:'ti-truck',
+                delivered:'ti-circle-check', ready_for_pickup:'ti-building-store',
+                picked_up:'ti-checks', cancelled:'ti-ban', completed:'ti-rosette-discount-check'
+            };
+            const payBadgeCls = {pending:'so-pay-pending', paid:'so-pay-paid', rejected:'so-pay-rejected'};
             tbody.innerHTML = orders.map(o => {
                 const d = new Date(o.created_at).toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'});
-                const fIcon = o.fulfillment_method==='pickup'?'ti-building-store':'ti-truck';
-                const fLabel = o.fulfillment_method==='pickup'?'Pickup':'Delivery';
-                return `<tr style="border-bottom:1px solid var(--border)"
-                    onmouseover="this.style.background='var(--row-hover)'"
-                    onmouseout="this.style.background=''">
-                    <td style="padding:.65rem 1rem;font-weight:700">#${o.id}</td>
-                    <td style="padding:.65rem .75rem">
-                        <div style="font-weight:600;font-size:.84rem">${adEsc(o.customer_name)}</div>
-                        <div style="font-size:.72rem;color:var(--text-3)">${adEsc(o.customer_email)}</div>
+                const fIcon  = o.fulfillment_method === 'pickup' ? 'ti-building-store' : 'ti-truck';
+                const fLabel = o.fulfillment_method === 'pickup' ? 'Pick-Up' : 'Delivery';
+                const fColor = o.fulfillment_method === 'pickup' ? '#a066f5' : '#4a9eff';
+                const proofHtml = o.proof_of_payment
+                    ? `<img src="${o.proof_of_payment}" class="so-proof-thumb" onclick="viewProofImage('${adEscAttr(o.proof_of_payment)}')" alt="proof">`
+                    : `<span style="color:var(--text-3);font-size:.8rem">—</span>`;
+                const isComplete = o.status === 'completed';
+                const isCancelled= o.status === 'cancelled';
+                const canVerify  = o.payment_status === 'pending' && o.proof_of_payment && !isCancelled;
+                return `<tr>
+                    <td style="font-weight:700;color:var(--text-2);font-size:.8rem">#${o.id}</td>
+                    <td>
+                        <div style="font-weight:700;font-size:.85rem">${adEsc(o.customer_name)}</div>
+                        <div style="font-size:.72rem;color:var(--text-3);margin-top:.1rem">${adEsc(o.customer_email)}</div>
                     </td>
-                    <td style="padding:.65rem .75rem;text-align:center">
-                        <span style="font-size:.7rem;font-weight:700;padding:.18rem .55rem;border-radius:7px;background:rgba(255,255,255,.06);white-space:nowrap">
-                            <i class="ti ${fIcon}"></i> ${fLabel}
+                    <td style="text-align:center">
+                        <span style="display:inline-flex;align-items:center;gap:.3rem;font-size:.72rem;font-weight:600;padding:.22rem .6rem;border-radius:20px;background:rgba(255,255,255,.05);border:1px solid var(--border);color:${fColor}">
+                            <i class="ti ${fIcon}"></i>${fLabel}
                         </span>
                     </td>
-                    <td style="padding:.65rem .75rem;text-align:right;font-weight:700">&#8369;${parseFloat(o.total_amount).toLocaleString('en-PH',{minimumFractionDigits:2})}</td>
-                    <td style="padding:.65rem .75rem;text-align:center">
-                        <span class="ord-s ord-${o.status}">${o.status.replace(/_/g,' ')}</span>
-                    </td>
-                    <td style="padding:.65rem .75rem;text-align:center">
-                        <span style="font-size:.68rem;font-weight:700;padding:.18rem .5rem;border-radius:6px;background:rgba(0,0,0,.15);color:${payColors[o.payment_status]||'#aaa'}">
-                            ${o.payment_status}
+                    <td style="text-align:right;font-weight:800;font-size:.88rem">&#8369;${parseFloat(o.total_amount).toLocaleString('en-PH',{minimumFractionDigits:2})}</td>
+                    <td style="text-align:center">
+                        <span class="ord-s ord-${o.status}">
+                            <i class="ti ${statusIcons[o.status]||'ti-circle'}"></i>
+                            ${o.status.replace(/_/g,' ')}
                         </span>
                     </td>
-                    <td style="padding:.65rem .75rem;text-align:center;color:var(--text-2);font-size:.8rem">${d}</td>
-                    <td style="padding:.65rem .75rem;text-align:right">
-                        <div style="display:flex;justify-content:flex-end;gap:.4rem">
-                            <button class="btn sm" onclick="viewOrderDetail(${o.id})"><i class="ti ti-eye"></i></button>
-                            <button class="btn sm primary" onclick="openUpdateStatus(${o.id},'${o.status}','${o.fulfillment_method}')"><i class="ti ti-edit"></i></button>
+                    <td style="text-align:center">
+                        <span class="so-pay-badge ${payBadgeCls[o.payment_status]||''}"
+                            style="${!payBadgeCls[o.payment_status]?'background:rgba(255,255,255,.07);color:var(--text-2)':''}">
+                            ${o.payment_method.replace(/_/g,' ')}<br>
+                            <span style="opacity:.75">${o.payment_status}</span>
+                        </span>
+                    </td>
+                    <td style="text-align:center">${proofHtml}</td>
+                    <td style="text-align:center;color:var(--text-3);font-size:.78rem;white-space:nowrap">${d}</td>
+                    <td style="text-align:right">
+                        <div style="display:flex;justify-content:flex-end;align-items:center;gap:.35rem;flex-wrap:nowrap">
+                            <button class="so-action-btn" title="View Details" onclick="viewOrderDetail(${o.id})">
+                                <i class="ti ti-eye"></i>
+                            </button>
+                            ${!isComplete && !isCancelled ? `<button class="so-action-btn" title="Update Status" onclick="openUpdateStatus(${o.id},'${o.status}','${o.fulfillment_method}')">
+                                <i class="ti ti-edit"></i>
+                            </button>` : ''}
+                            ${canVerify ? `
+                            <button class="so-action-btn approve" title="Approve Payment" onclick="adminVerifyPayment(${o.id},'approve')">
+                                <i class="ti ti-check"></i>
+                            </button>
+                            <button class="so-action-btn reject" title="Reject Payment" onclick="adminVerifyPayment(${o.id},'reject')">
+                                <i class="ti ti-x"></i>
+                            </button>` : ''}
                         </div>
                     </td>
                 </tr>`;
             }).join('');
-
-            // Also refresh payment verification table
-            renderPayVerifyTable(orders.filter(o => o.payment_status === 'pending' && o.proof_of_payment));
-        }
-
-        function renderPayVerifyTable(orders) {
-            const tbody = document.getElementById('payVerifyBody');
-            if (!tbody) return;
-            if (!orders || !orders.length) {
-                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:1.5rem;color:var(--text-3)"><i class="ti ti-circle-check" style="font-size:1.4rem;display:block;margin-bottom:.4rem;color:#2ecc71"></i>No pending payment verifications.</td></tr>`;
-                return;
-            }
-            tbody.innerHTML = orders.map(o => `
-            <tr style="border-bottom:1px solid var(--border)"
-                onmouseover="this.style.background='var(--row-hover)'"
-                onmouseout="this.style.background=''">
-                <td style="padding:.65rem 1rem;font-weight:700">#${o.id}</td>
-                <td style="padding:.65rem .75rem">
-                    <div style="font-weight:600;font-size:.84rem">${adEsc(o.customer_name)}</div>
-                    <div style="font-size:.72rem;color:var(--text-3)">${adEsc(o.customer_email)}</div>
-                </td>
-                <td style="padding:.65rem .75rem;font-size:.82rem;font-weight:600">${o.payment_method.replace(/_/g,' ')}</td>
-                <td style="padding:.65rem .75rem;text-align:right;font-weight:700">&#8369;${parseFloat(o.total_amount).toLocaleString('en-PH',{minimumFractionDigits:2})}</td>
-                <td style="padding:.65rem .75rem;text-align:center">
-                    ${o.proof_of_payment
-                        ? `<img src="${o.proof_of_payment}" onclick="viewProofImage('${o.proof_of_payment}')"
-                            style="width:44px;height:44px;object-fit:cover;border-radius:8px;cursor:pointer;border:1px solid var(--border)" alt="proof">`
-                        : `<span style="color:var(--text-3);font-size:.75rem">No proof</span>`
-                    }
-                </td>
-                <td style="padding:.65rem .75rem;text-align:center">
-                    <div style="display:flex;justify-content:center;gap:.4rem">
-                        <button class="btn sm primary" onclick="adminVerifyPayment(${o.id},'approve')" style="color:#2ecc71;border-color:#2ecc71">
-                            <i class="ti ti-check"></i> Approve
-                        </button>
-                        <button class="btn sm" onclick="adminVerifyPayment(${o.id},'reject')" style="color:#ff6b6b;border-color:#ff6b6b">
-                            <i class="ti ti-x"></i> Reject
-                        </button>
-                    </div>
-                </td>
-            </tr>`).join('');
         }
 
         function viewProofImage(path) {
@@ -4148,7 +4221,7 @@ $adminData = [
 
         async function adminVerifyPayment(id, action) {
             const label = action === 'approve' ? 'Approve' : 'Reject';
-            openConfirm(`${label} payment for Order #${id}?`, async () => {
+            confirmAction('Confirm', `${label} payment for Order #${id}?`, async () => {
                 const f = new FormData();
                 f.append('action',        'admin_verify_payment');
                 f.append('csrf_token',    ADMIN_DATA.csrf);
@@ -4160,10 +4233,27 @@ $adminData = [
             });
         }
 
+        let _currentOrderId = null;
         function viewOrderDetail(id) {
+            _currentOrderId = id;
             const items = adminOrdDetail[id] || [];
             const o     = adminOrders.find(x => parseInt(x.id) === id);
             document.getElementById('order-detail-title').textContent = `Order #${id}`;
+            // Show approve/reject in footer if payment is pending and proof exists
+            const verifyBtns = document.getElementById('order-detail-verify-btns');
+            if (verifyBtns) {
+                if (o?.payment_status === 'pending' && o?.proof_of_payment && o?.status !== 'cancelled') {
+                    verifyBtns.innerHTML = `
+                        <button class="btn sm primary" onclick="adminVerifyPayment(${id},'approve');closeOrderDetailModal();" style="color:#2ecc71;border-color:#2ecc71">
+                            <i class="ti ti-check"></i> Approve Payment
+                        </button>
+                        <button class="btn sm" onclick="adminVerifyPayment(${id},'reject');closeOrderDetailModal();" style="color:#ff6b6b;border-color:#ff6b6b">
+                            <i class="ti ti-x"></i> Reject
+                        </button>`;
+                } else {
+                    verifyBtns.innerHTML = '';
+                }
+            }
             let addrHtml = '';
             if (o?.fulfillment_method === 'pickup') {
                 addrHtml = `<div style="margin-bottom:.65rem;padding:.65rem .85rem;background:rgba(255,255,255,.04);border-radius:9px;font-size:.82rem">
@@ -4193,7 +4283,7 @@ $adminData = [
                         </span>
                     </div>
                     ${addrHtml}
-                    ${o?.proof_of_payment?`<div style="margin-bottom:.65rem"><div style="font-size:.75rem;color:var(--text-3);margin-bottom:.3rem">Proof of Payment</div><img src="${o.proof_of_payment}" onclick="viewProofImage('${o.proof_of_payment}')" style="max-height:120px;border-radius:9px;cursor:pointer;border:1px solid var(--border)" alt="proof"></div>`:''}
+                    ${o?.proof_of_payment?`<div style="margin-bottom:.65rem"><div style="font-size:.75rem;color:var(--text-3);margin-bottom:.35rem;font-weight:600;text-transform:uppercase;letter-spacing:.4px">Proof of Payment</div><img src="${o.proof_of_payment}" onclick="viewProofImage('${adEscAttr(o.proof_of_payment)}')" style="max-height:160px;max-width:100%;border-radius:10px;cursor:pointer;border:1px solid var(--border);display:block" alt="proof"><div style="font-size:.72rem;color:var(--text-3);margin-top:.25rem">Click to enlarge</div></div>`:''}
                     <div style="font-size:.78rem;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:.45rem">Items</div>
                     ${ items.map(it => `<div style="display:flex;align-items:center;gap:.75rem;padding:.5rem 0;border-bottom:1px solid var(--border)">
                         ${ it.image
@@ -4207,6 +4297,12 @@ $adminData = [
                         <div style="font-weight:700">&#8369;${(parseFloat(it.price)*parseInt(it.quantity)).toLocaleString('en-PH',{minimumFractionDigits:2})}</div>
                     </div>`).join('') }
                     ${o?.delivery_fee>0?`<div style="display:flex;justify-content:space-between;padding:.5rem 0;font-size:.82rem"><span style="color:var(--text-3)">Delivery Fee</span><span>&#8369;${parseFloat(o.delivery_fee).toLocaleString('en-PH',{minimumFractionDigits:2})}</span></div>`:''}
+                    ${o?.status === 'cancelled' && o?.cancel_reason ? `<div style="margin-top:.85rem;padding:.7rem .9rem;background:rgba(255,107,107,.08);border:1px solid rgba(255,107,107,.2);border-radius:10px">
+                        <div style="font-size:.72rem;font-weight:700;color:#ff6b6b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:.3rem;display:flex;align-items:center;gap:.35rem">
+                            <i class="ti ti-message-x" style="font-size:.85rem"></i> Cancellation Reason
+                        </div>
+                        <div style="font-size:.84rem;color:var(--text-2);line-height:1.55">${adEsc(o.cancel_reason)}</div>
+                    </div>` : ''}
                 </div>`;
             document.getElementById('order-detail-modal').style.display = 'flex';
         }
@@ -4214,9 +4310,65 @@ $adminData = [
             document.getElementById('order-detail-modal').style.display = 'none';
         }
 
+        function printAdminOrderReceipt() {
+            const id = _currentOrderId;
+            if (!id) return;
+            const o = adminOrders.find(x => parseInt(x.id) === id);
+            const items = adminOrdDetail[id] || [];
+            if (!o) return;
+            const d = new Date(o.created_at).toLocaleDateString('en-PH',{year:'numeric',month:'long',day:'numeric'});
+            let addrBlock = '';
+            if (o.fulfillment_method === 'pickup') {
+                addrBlock = `<p><strong>Pickup Branch:</strong> ${adEsc(o.branch_name||'')}<br>${adEsc(o.branch_address||'')}</p>
+                             <p><strong>Pickup Date/Time:</strong> ${adEsc(o.pickup_date||'')} ${adEsc(o.pickup_time||'')}</p>`;
+            } else if (o.delivery_address) {
+                let addr = {}; try { addr = JSON.parse(o.delivery_address); } catch(e) {}
+                addrBlock = `<p><strong>Deliver to:</strong> ${adEsc(o.recipient_name||'')} &middot; ${adEsc(o.recipient_contact||'')}<br>
+                              ${[addr.street,addr.barangay,addr.city,addr.region,addr.zip].filter(Boolean).map(adEsc).join(', ')}</p>`;
+            }
+            const rows = items.map(it =>
+                `<tr><td>${adEsc(it.name)}</td><td style="text-align:center">${it.quantity}</td><td style="text-align:right">&#8369;${parseFloat(it.price).toLocaleString('en-PH',{minimumFractionDigits:2})}</td><td style="text-align:right">&#8369;${(parseFloat(it.price)*parseInt(it.quantity)).toLocaleString('en-PH',{minimumFractionDigits:2})}</td></tr>`
+            ).join('');
+            const deliveryRow = parseFloat(o.delivery_fee) > 0
+                ? `<tr><td colspan="3" style="text-align:right">Delivery Fee</td><td style="text-align:right">&#8369;${parseFloat(o.delivery_fee).toLocaleString('en-PH',{minimumFractionDigits:2})}</td></tr>` : '';
+            const win = window.open('', '_blank', 'width=700,height=900');
+            win.document.write(`<!DOCTYPE html><html><head><title>Receipt — Order #${id}</title>
+            <style>
+                body{font-family:Arial,sans-serif;font-size:13px;color:#111;margin:0;padding:2rem}
+                h1{font-size:1.3rem;margin:0 0 .25rem}
+                h2{font-size:1rem;margin:0 0 1.5rem;color:#555}
+                table{width:100%;border-collapse:collapse;margin:1rem 0}
+                th{background:#f2f2f2;padding:.45rem .6rem;text-align:left;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px}
+                td{padding:.4rem .6rem;border-bottom:1px solid #eee}
+                .total-row td{font-weight:700;font-size:1rem;border-top:2px solid #111;border-bottom:none}
+                .meta{display:flex;gap:2rem;flex-wrap:wrap;margin-bottom:1rem;font-size:.85rem}
+                .meta span{color:#555}
+                .footer{margin-top:2rem;font-size:.8rem;color:#888;text-align:center}
+                @media print{body{padding:.5rem}button{display:none}}
+            </style></head><body>
+            <h1>FitSync — Order Receipt</h1>
+            <h2>Order #${id} &nbsp;&middot;&nbsp; ${d}</h2>
+            <div class="meta">
+                <div><span>Customer:</span><br><strong>${adEsc(o.customer_name)}</strong></div>
+                <div><span>Email:</span><br><strong>${adEsc(o.customer_email)}</strong></div>
+                <div><span>Payment:</span><br><strong>${o.payment_method.replace(/_/g,' ')} &middot; ${o.payment_status}</strong></div>
+                <div><span>Status:</span><br><strong>${o.status.replace(/_/g,' ')}</strong></div>
+            </div>
+            ${addrBlock}
+            <table>
+                <thead><tr><th>Item</th><th style="text-align:center">Qty</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Subtotal</th></tr></thead>
+                <tbody>${rows}${deliveryRow}</tbody>
+                <tfoot><tr class="total-row"><td colspan="3" style="text-align:right">TOTAL</td><td style="text-align:right">&#8369;${parseFloat(o.total_amount).toLocaleString('en-PH',{minimumFractionDigits:2})}</td></tr></tfoot>
+            </table>
+            <div class="footer">Thank you for your purchase! &mdash; FitSync</div>
+            <br><button onclick="window.print()" style="padding:.5rem 1.5rem;font-size:.85rem;cursor:pointer">🖨 Print</button>
+            </body></html>`);
+            win.document.close();
+        }
+
         function openUpdateStatus(id, currentStatus, fulfillmentMethod) {
-            const delivery  = ['pending','processing','out_for_delivery','delivered','cancelled'];
-            const pickup    = ['pending','processing','ready_for_pickup','picked_up','cancelled'];
+            const delivery  = ['pending','processing','out_for_delivery','delivered','completed','cancelled'];
+            const pickup    = ['pending','processing','ready_for_pickup','picked_up','completed','cancelled'];
             const statuses  = fulfillmentMethod === 'pickup' ? pickup : delivery;
             const opts = statuses.map(s =>
                 `<option value="${s}"${s===currentStatus?' selected':''}>${s.replace(/_/g,' ')}</option>`

@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Jun 12, 2026 at 03:41 PM
+-- Generation Time: Jun 14, 2026 at 10:51 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -129,6 +129,20 @@ INSERT INTO `branch_operating_hours` (`id`, `branch_id`, `day_of_week`, `open_ti
 (12, 2, 5, '06:00:00', '21:00:00', 0),
 (13, 2, 6, '08:00:00', '18:00:00', 0),
 (14, 2, 7, NULL, NULL, 1);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `cart`
+--
+
+CREATE TABLE `cart` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `user_id` int(10) UNSIGNED NOT NULL,
+  `product_id` int(10) UNSIGNED NOT NULL,
+  `quantity` int(11) NOT NULL DEFAULT 1,
+  `added_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -344,7 +358,31 @@ INSERT INTO `login_logs` (`id`, `user_id`, `email`, `ip_address`, `user_agent`, 
 (67, 2, 'member1@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-06-12 20:50:42'),
 (68, 2, 'member1@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, '2026-06-12 20:51:30'),
 (69, 1, 'admin@fitsync.com', '10.96.211.28', 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Mobile Safari/537.36', 1, '2026-06-12 20:51:46'),
-(70, 1, 'admin@fitsync.com', '10.96.211.28', 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Mobile Safari/537.36', 1, '2026-06-12 21:01:28');
+(70, 1, 'admin@fitsync.com', '10.96.211.28', 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Mobile Safari/537.36', 1, '2026-06-12 21:01:28'),
+(71, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', 1, '2026-06-14 13:01:46'),
+(72, 2, 'member1@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', 1, '2026-06-14 13:02:42'),
+(73, 2, 'member1@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', 1, '2026-06-14 13:05:59'),
+(74, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', 1, '2026-06-14 14:28:25'),
+(75, 2, 'member1@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', 1, '2026-06-14 14:42:29'),
+(76, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', 1, '2026-06-14 14:54:02'),
+(77, 3, 'member2@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', 1, '2026-06-14 14:57:06'),
+(78, 2, 'member1@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', 1, '2026-06-14 14:57:16'),
+(79, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', 1, '2026-06-14 14:59:38'),
+(80, 2, 'member1@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', 1, '2026-06-14 15:08:52'),
+(81, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', 1, '2026-06-14 15:10:08'),
+(82, 2, 'member1@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', 1, '2026-06-14 15:12:59'),
+(83, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', 1, '2026-06-14 15:16:03'),
+(84, 2, 'member1@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', 1, '2026-06-14 15:17:23'),
+(85, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', 1, '2026-06-14 15:20:47'),
+(86, 2, 'member1@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', 1, '2026-06-14 15:21:08'),
+(87, NULL, 'admin@gmail.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', 0, '2026-06-14 15:28:38'),
+(88, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', 1, '2026-06-14 15:28:41'),
+(89, 2, 'member1@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', 1, '2026-06-14 15:37:24'),
+(90, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', 1, '2026-06-14 16:28:19'),
+(91, 2, 'member1@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', 1, '2026-06-14 16:37:52'),
+(92, 2, 'member1@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', 1, '2026-06-14 16:38:46'),
+(93, 1, 'admin@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', 1, '2026-06-14 16:38:52'),
+(94, 2, 'member1@fitsync.com', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', 1, '2026-06-14 16:45:01');
 
 -- --------------------------------------------------------
 
@@ -424,17 +462,171 @@ CREATE TABLE `member_notes` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `password_resets`
+-- Table structure for table `orders`
 --
 
-CREATE TABLE `password_resets` (
+CREATE TABLE `orders` (
   `id` int(10) UNSIGNED NOT NULL,
   `user_id` int(10) UNSIGNED NOT NULL,
-  `token` varchar(128) NOT NULL,
-  `expires_at` datetime NOT NULL,
-  `used_at` datetime DEFAULT NULL,
-  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+  `total_amount` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `status` enum('pending','processing','out_for_delivery','delivered','ready_for_pickup','picked_up','cancelled','completed') NOT NULL DEFAULT 'pending',
+  `fulfillment_method` enum('delivery','pickup') NOT NULL DEFAULT 'delivery',
+  `delivery_fee` decimal(8,2) NOT NULL DEFAULT 0.00,
+  `delivery_address` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`delivery_address`)),
+  `pickup_branch_id` smallint(5) UNSIGNED DEFAULT NULL,
+  `pickup_date` date DEFAULT NULL,
+  `pickup_time` varchar(20) DEFAULT NULL,
+  `payment_method` varchar(30) NOT NULL DEFAULT 'cash',
+  `payment_status` enum('pending','paid','rejected') NOT NULL DEFAULT 'pending',
+  `proof_of_payment` varchar(255) DEFAULT NULL,
+  `order_notes` text DEFAULT NULL,
+  `recipient_name` varchar(160) DEFAULT NULL,
+  `recipient_contact` varchar(30) DEFAULT NULL,
+  `recipient_email` varchar(160) DEFAULT NULL,
+  `cancel_reason` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `orders`
+--
+
+INSERT INTO `orders` (`id`, `user_id`, `total_amount`, `status`, `fulfillment_method`, `delivery_fee`, `delivery_address`, `pickup_branch_id`, `pickup_date`, `pickup_time`, `payment_method`, `payment_status`, `proof_of_payment`, `order_notes`, `recipient_name`, `recipient_contact`, `recipient_email`, `cancel_reason`, `created_at`, `updated_at`) VALUES
+(1, 2, 849.00, 'completed', 'delivery', 150.00, '{\"region\":\"Provincial\",\"province\":\"-\",\"city\":\"-\",\"barangay\":\"-\",\"street\":\"26A 301 Gov Carpio Ave\",\"zip\":\"-\",\"landmark\":\"-\",\"notes\":\"\"}', NULL, NULL, NULL, 'gcash', 'paid', 'uploads/proof/proof_2_1781418467_8ecf30b2.png', '', 'Michael Bathan', '09472100006', 'member1@fitsync.com', NULL, '2026-06-14 06:27:55', '2026-06-14 07:09:44'),
+(2, 2, 1499.00, 'cancelled', 'pickup', 0.00, NULL, 1, '2026-06-15', '10:00 AM', 'gcash', 'pending', 'uploads/proof/proof_2_1781421619_fc49e793.png', '', 'Michael Bathan', '09472100006', 'member1@fitsync.com', NULL, '2026-06-14 07:20:24', '2026-06-14 07:28:30'),
+(3, 2, 7495.00, 'completed', 'pickup', 0.00, NULL, 2, '2026-06-20', '8:00 AM', 'cash_on_pickup', 'pending', NULL, '', 'Michael Bathan', '09472100006', 'member1@fitsync.com', NULL, '2026-06-14 08:38:27', '2026-06-14 08:40:45');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `order_items`
+--
+
+CREATE TABLE `order_items` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `order_id` int(10) UNSIGNED NOT NULL,
+  `product_id` int(10) UNSIGNED NOT NULL,
+  `quantity` int(11) NOT NULL DEFAULT 1,
+  `price` decimal(10,2) NOT NULL DEFAULT 0.00
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `order_items`
+--
+
+INSERT INTO `order_items` (`id`, `order_id`, `product_id`, `quantity`, `price`) VALUES
+(1, 1, 2, 1, 699.00),
+(2, 2, 1, 1, 1499.00),
+(3, 3, 1, 5, 1499.00);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `products`
+--
+
+CREATE TABLE `products` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `name` varchar(160) NOT NULL,
+  `description` text NOT NULL,
+  `category` varchar(80) NOT NULL DEFAULT 'Supplement',
+  `price` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `image` varchar(255) NOT NULL DEFAULT '',
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `products`
+--
+
+INSERT INTO `products` (`id`, `name`, `description`, `category`, `price`, `image`, `is_active`, `created_at`) VALUES
+(1, 'Whey Protein', 'Premium whey protein isolate with 25g of protein per serving. Fast-absorbing formula ideal for post-workout recovery. Available in Chocolate, Vanilla, and Strawberry flavors.', 'Supplement', 1499.00, 'assets/WHEY_PROTEIN.png', 1, '2026-06-14 05:01:29'),
+(2, 'Creatine Monohydrate', 'Pure micronized creatine monohydrate. Proven to increase strength, power output, and muscle volume. Unflavored — mixes easily with any drink. 300g per container.', 'Supplement', 699.00, 'assets/CREATINE.png', 1, '2026-06-14 05:01:29'),
+(3, 'Mass Gainer', 'High-calorie mass gainer with 50g protein and 250g carbs per serving. Designed for hardgainers who struggle to meet caloric goals. Rich chocolate flavor with easy mixability.', 'Supplement', 1899.00, 'assets/MASS_GAINER.png', 1, '2026-06-14 05:01:29'),
+(4, 'Pre-Workout', 'High-stim pre-workout formula with 300mg caffeine, beta-alanine, and L-citrulline. Explosive energy, intense focus, and skin-splitting pumps. 30 servings.', 'Supplement', 999.00, 'assets/PREWORKOUT.png', 1, '2026-06-14 05:01:29'),
+(5, 'BCAA', 'Branched-chain amino acids in a 2:1:1 ratio (Leucine, Isoleucine, Valine). Reduces muscle breakdown during training and accelerates recovery. Refreshing fruit punch flavor.', 'Supplement', 799.00, 'assets/BCAA.png', 1, '2026-06-14 05:01:29'),
+(6, 'Multivitamins', 'Complete daily multivitamin formula with 23 essential vitamins and minerals. Supports immune function, energy metabolism, and overall health. 90 tablets per bottle.', 'Supplement', 549.00, 'assets/MULTIVITAMIN.png', 1, '2026-06-14 05:01:29'),
+(7, 'Fish Oil', 'High-potency omega-3 fish oil with 1000mg EPA and DHA per softgel. Supports heart health, joint mobility, and cognitive function. Enteric-coated to prevent fishy aftertaste.', 'Supplement', 449.00, 'assets/FISH_OIL.png', 1, '2026-06-14 05:01:29'),
+(8, 'Shaker Bottle', 'BPA-free 700ml shaker bottle with stainless steel mixing ball. Leak-proof lid, measurement markings, and a wide mouth for easy cleaning. Available in Black and White.', 'Equipment', 299.00, 'assets/SHAKER_BOTTLE.png', 1, '2026-06-14 05:01:29'),
+(9, 'Gym Towel', 'Microfiber gym towel with fast-drying technology. Ultra-absorbent, lightweight, and compact. FitSync logo embroidered on corner. 40x80cm — perfect gym bag size.', 'Equipment', 249.00, 'assets/GYM_TOWEL.png', 1, '2026-06-14 05:01:29'),
+(10, 'Resistance Bands', 'Set of 5 resistance bands in varying tensions (5–50 lbs). Made from premium latex for durability. Ideal for warm-ups, mobility work, and accessory exercises. Includes carry pouch.', 'Equipment', 599.00, 'assets/RESISTANCE_BAND.png', 1, '2026-06-14 05:01:29'),
+(11, 'Lifting Straps', 'Heavy-duty cotton lifting straps with neoprene wrist padding. Improves grip during deadlifts, rows, and shrugs. Sold as a pair. Adjustable length fits all wrist sizes.', 'Equipment', 349.00, 'assets/LIFTING_STRAPS.png', 1, '2026-06-14 05:01:29');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `product_stocks`
+--
+
+CREATE TABLE `product_stocks` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `product_id` int(10) UNSIGNED NOT NULL,
+  `branch_id` smallint(5) UNSIGNED NOT NULL,
+  `stock` int(11) NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `product_stocks`
+--
+
+INSERT INTO `product_stocks` (`id`, `product_id`, `branch_id`, `stock`) VALUES
+(1, 1, 1, 50),
+(2, 2, 1, 50),
+(3, 3, 1, 50),
+(4, 4, 1, 50),
+(5, 5, 1, 50),
+(6, 6, 1, 50),
+(7, 7, 1, 50),
+(8, 8, 1, 50),
+(9, 9, 1, 50),
+(10, 10, 1, 50),
+(11, 11, 1, 50),
+(13, 11, 2, 20),
+(14, 11, 3, 20),
+(15, 11, 4, 20),
+(16, 11, 5, 20),
+(23, 10, 2, 20),
+(24, 10, 3, 20),
+(25, 10, 4, 20),
+(26, 10, 5, 20),
+(28, 9, 2, 20),
+(29, 9, 3, 20),
+(30, 9, 4, 20),
+(31, 9, 5, 20),
+(33, 8, 2, 20),
+(34, 8, 3, 20),
+(35, 8, 4, 20),
+(36, 8, 5, 20),
+(38, 7, 2, 20),
+(39, 7, 3, 20),
+(40, 7, 4, 20),
+(41, 7, 5, 20),
+(43, 6, 2, 20),
+(44, 6, 3, 20),
+(45, 6, 4, 20),
+(46, 6, 5, 20),
+(48, 5, 2, 20),
+(49, 5, 3, 20),
+(50, 5, 4, 20),
+(51, 5, 5, 20),
+(53, 4, 2, 20),
+(54, 4, 3, 20),
+(55, 4, 4, 20),
+(56, 4, 5, 20),
+(58, 3, 2, 20),
+(59, 3, 3, 20),
+(60, 3, 4, 20),
+(61, 3, 5, 20),
+(63, 2, 2, 20),
+(64, 2, 3, 20),
+(65, 2, 4, 20),
+(66, 2, 5, 20),
+(68, 1, 2, 15),
+(69, 1, 3, 20),
+(70, 1, 4, 20),
+(71, 1, 5, 20);
 
 -- --------------------------------------------------------
 
@@ -453,7 +645,6 @@ CREATE TABLE `users` (
   `gender` enum('male','female','nonbinary','other') DEFAULT NULL,
   `email_verified_at` datetime DEFAULT NULL,
   `verification_token` varchar(128) DEFAULT NULL,
-  `remember_token` varchar(128) DEFAULT NULL,
   `profile_photo` varchar(255) DEFAULT NULL,
   `is_active` tinyint(1) NOT NULL DEFAULT 1,
   `last_login_at` datetime DEFAULT NULL,
@@ -466,11 +657,11 @@ CREATE TABLE `users` (
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`id`, `role`, `first_name`, `last_name`, `email`, `password_hash`, `birthdate`, `gender`, `email_verified_at`, `verification_token`, `remember_token`, `profile_photo`, `is_active`, `last_login_at`, `created_at`, `updated_at`, `is_approved`) VALUES
-(1, 'admin', 'FitSync', 'Admin', 'admin@fitsync.com', '$2y$12$fjUipSsJhqxbfNt5gYTXvufikLX0YajhMIbyKAaCoUhQW67fHFUqq', NULL, NULL, '2026-05-19 10:04:41', NULL, NULL, NULL, 1, '2026-06-12 21:01:28', '2026-05-19 02:43:50', '2026-06-12 21:01:28', 1),
-(2, 'member', 'Juan', 'Dela Cruz', 'member1@fitsync.com', '$2y$12$c0MT9Z9xvxJERnn2C2x4duzR.TFqOrl/RiMMpsfdmPwQe7i174Lky', '2009-01-15', 'male', NULL, '96e9b99159e029db6e6dd2e7089b63bfd9a9aedaea5a8895efed27b574e68530', NULL, NULL, 1, '2026-06-12 20:51:30', '2026-06-12 20:50:16', '2026-06-12 20:51:55', 1),
-(3, 'member', 'Pedro', 'Penduco', 'member2@fitsync.com', '$2y$12$kMC8XcQRo4d8lMyjpZBxp.F1K1L68dGuZ/0I47POVwmOKOmyu4EUK', '2008-07-09', 'male', NULL, '67cc39967895d5c94da05dd2d4fa45244323bff2440a7b3b03cf362c73d0bd8a', NULL, NULL, 1, NULL, '2026-06-12 20:56:38', '2026-06-12 21:02:00', 1),
-(4, 'member', 'Maria', 'Clara', 'member3@fitsync.com', '$2y$12$NCj5GOHNWCZF3bw.opW0KO93IbtauBSFaesCpb3pXklBUPX5DEvE.', '2005-08-28', 'female', NULL, 'ba5f86807014be1c5b2130117ee6260c997356886bc86f82c411c351301ac4a7', NULL, NULL, 1, NULL, '2026-06-12 21:03:27', '2026-06-12 21:03:27', 0);
+INSERT INTO `users` (`id`, `role`, `first_name`, `last_name`, `email`, `password_hash`, `birthdate`, `gender`, `email_verified_at`, `verification_token`, `profile_photo`, `is_active`, `last_login_at`, `created_at`, `updated_at`, `is_approved`) VALUES
+(1, 'admin', 'FitSync', 'Admin', 'admin@fitsync.com', '$2y$12$fjUipSsJhqxbfNt5gYTXvufikLX0YajhMIbyKAaCoUhQW67fHFUqq', NULL, NULL, '2026-05-19 10:04:41', NULL, NULL, 1, '2026-06-14 16:38:52', '2026-05-19 02:43:50', '2026-06-14 16:38:52', 1),
+(2, 'member', 'Juan', 'Dela Cruz', 'member1@fitsync.com', '$2y$12$c0MT9Z9xvxJERnn2C2x4duzR.TFqOrl/RiMMpsfdmPwQe7i174Lky', '2009-01-15', 'male', NULL, '96e9b99159e029db6e6dd2e7089b63bfd9a9aedaea5a8895efed27b574e68530', NULL, 1, '2026-06-14 16:45:01', '2026-06-12 20:50:16', '2026-06-14 16:45:01', 1),
+(3, 'member', 'Pedro', 'Penduco', 'member2@fitsync.com', '$2y$12$kMC8XcQRo4d8lMyjpZBxp.F1K1L68dGuZ/0I47POVwmOKOmyu4EUK', '2008-07-09', 'male', NULL, '67cc39967895d5c94da05dd2d4fa45244323bff2440a7b3b03cf362c73d0bd8a', NULL, 1, '2026-06-14 14:57:07', '2026-06-12 20:56:38', '2026-06-14 14:57:07', 1),
+(4, 'member', 'Maria', 'Clara', 'member3@fitsync.com', '$2y$12$NCj5GOHNWCZF3bw.opW0KO93IbtauBSFaesCpb3pXklBUPX5DEvE.', '2005-08-28', 'female', NULL, 'ba5f86807014be1c5b2130117ee6260c997356886bc86f82c411c351301ac4a7', NULL, 1, NULL, '2026-06-12 21:03:27', '2026-06-12 21:03:27', 0);
 
 --
 -- Indexes for dumped tables
@@ -506,6 +697,14 @@ ALTER TABLE `branch_announcements`
 ALTER TABLE `branch_operating_hours`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uq_branch_day` (`branch_id`,`day_of_week`);
+
+--
+-- Indexes for table `cart`
+--
+ALTER TABLE `cart`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_user_product` (`user_id`,`product_id`),
+  ADD KEY `idx_user_id` (`user_id`);
 
 --
 -- Indexes for table `classes`
@@ -590,13 +789,38 @@ ALTER TABLE `member_notes`
   ADD KEY `idx_member_notes_created` (`created_at`);
 
 --
--- Indexes for table `password_resets`
+-- Indexes for table `orders`
 --
-ALTER TABLE `password_resets`
+ALTER TABLE `orders`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_pr_token` (`token`),
-  ADD KEY `idx_pr_user` (`user_id`),
-  ADD KEY `idx_pr_expires` (`expires_at`);
+  ADD KEY `idx_user_id` (`user_id`),
+  ADD KEY `idx_status` (`status`),
+  ADD KEY `idx_payment_status` (`payment_status`),
+  ADD KEY `idx_fulfillment` (`fulfillment_method`);
+
+--
+-- Indexes for table `order_items`
+--
+ALTER TABLE `order_items`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_order_id` (`order_id`),
+  ADD KEY `idx_product_id` (`product_id`);
+
+--
+-- Indexes for table `products`
+--
+ALTER TABLE `products`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_category` (`category`),
+  ADD KEY `idx_active` (`is_active`);
+
+--
+-- Indexes for table `product_stocks`
+--
+ALTER TABLE `product_stocks`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_product_branch` (`product_id`,`branch_id`),
+  ADD KEY `fk_prod_stock_branch` (`branch_id`);
 
 --
 -- Indexes for table `users`
@@ -636,6 +860,12 @@ ALTER TABLE `branch_operating_hours`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
 
 --
+-- AUTO_INCREMENT for table `cart`
+--
+ALTER TABLE `cart`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+
+--
 -- AUTO_INCREMENT for table `classes`
 --
 ALTER TABLE `classes`
@@ -669,7 +899,7 @@ ALTER TABLE `feedback`
 -- AUTO_INCREMENT for table `login_logs`
 --
 ALTER TABLE `login_logs`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=71;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=95;
 
 --
 -- AUTO_INCREMENT for table `memberships`
@@ -690,10 +920,28 @@ ALTER TABLE `member_notes`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
--- AUTO_INCREMENT for table `password_resets`
+-- AUTO_INCREMENT for table `orders`
 --
-ALTER TABLE `password_resets`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
+ALTER TABLE `orders`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT for table `order_items`
+--
+ALTER TABLE `order_items`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT for table `products`
+--
+ALTER TABLE `products`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+
+--
+-- AUTO_INCREMENT for table `product_stocks`
+--
+ALTER TABLE `product_stocks`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=72;
 
 --
 -- AUTO_INCREMENT for table `users`
@@ -767,10 +1015,11 @@ ALTER TABLE `member_notes`
   ADD CONSTRAINT `fk_member_notes_member` FOREIGN KEY (`member_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --
--- Constraints for table `password_resets`
+-- Constraints for table `product_stocks`
 --
-ALTER TABLE `password_resets`
-  ADD CONSTRAINT `fk_pr_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+ALTER TABLE `product_stocks`
+  ADD CONSTRAINT `fk_prod_stock_branch` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_prod_stock_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

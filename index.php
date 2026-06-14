@@ -1600,8 +1600,9 @@ try {
             $featuredProducts = [];
             try {
                 $featStmt = db()->query(
-                    'SELECT id, name, description, category, price, stock, image
-                     FROM products WHERE is_active = 1 ORDER BY id ASC LIMIT 8'
+                    'SELECT p.id, p.name, p.description, p.category, p.price, p.image,
+                            COALESCE((SELECT SUM(stock) FROM product_stocks WHERE product_id = p.id), 0) AS stock
+                     FROM products p WHERE p.is_active = 1 ORDER BY p.id ASC LIMIT 8'
                 );
                 $featuredProducts = $featStmt->fetchAll(PDO::FETCH_ASSOC);
             } catch (Throwable) {}
