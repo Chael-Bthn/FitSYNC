@@ -3,6 +3,9 @@
 //  FitSync — Member Profile (Enhanced)
 //  profile.php
 // ============================================================
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
 require_once __DIR__ . '/config/auth_guard.php';
 requireRole('member');
 require_once __DIR__ . '/config/db.php';
@@ -248,6 +251,14 @@ if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 $csrf = $_SESSION['csrf_token'];
+
+// ── SHOP DATA ─────────────────────────────────────────────
+$shopCartCount = 0;
+try {
+    $cartCountStmt = $pdo->prepare('SELECT COALESCE(SUM(quantity),0) FROM cart WHERE user_id = ?');
+    $cartCountStmt->execute([$userId]);
+    $shopCartCount = (int)$cartCountStmt->fetchColumn();
+} catch (Throwable) {}
 
 function payLabel(string $m): string
 {
@@ -601,6 +612,21 @@ $workoutPrograms = [
             opacity: .35;
             cursor: not-allowed;
             pointer-events: none;
+        }
+
+        .sb-cart-badge {
+            margin-left: auto;
+            background: var(--fs-red);
+            color: #fff;
+            font-size: .65rem;
+            font-weight: 700;
+            min-width: 18px;
+            height: 18px;
+            border-radius: 9px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 5px;
         }
 
         .sb-footer {
@@ -3225,6 +3251,17 @@ $workoutPrograms = [
             <button class="sb-nav-item" <?= $isPending ? 'disabled' : '' ?> onclick="showTab('settings', this)">
                 <i class="ti ti-settings"></i> Settings
             </button>
+            <div class="sb-nav-label" style="margin-top:1rem">Shop</div>
+            <button class="sb-nav-item" <?= $isPending ? 'disabled' : '' ?> onclick="showTab('shop', this)">
+                <i class="ti ti-shopping-bag"></i> Shop
+            </button>
+            <button class="sb-nav-item" <?= $isPending ? 'disabled' : '' ?> onclick="showTab('cart', this)" id="sbCartBtn">
+                <i class="ti ti-shopping-cart"></i> Cart
+                <span class="sb-cart-badge" id="sbCartBadge" style="<?= $shopCartCount > 0 ? '' : 'display:none' ?>"><?= $shopCartCount ?></span>
+            </button>
+            <button class="sb-nav-item" <?= $isPending ? 'disabled' : '' ?> onclick="showTab('orders', this)">
+                <i class="ti ti-package"></i> Orders
+            </button>
         </nav>
 
         <div class="sb-footer">
@@ -4116,7 +4153,392 @@ $workoutPrograms = [
             </div>
 
         </aside>
+
+        <!-- ══ SHOP TAB ══ -->
+        <div class="page-section" id="tab-shop">
+            <!-- Search + Filter -->
+            <div class="row g-2 mb-4">
+                <div class="col-md-7">
+                    <div style="position:relative">
+                        <i class="ti ti-search" style="position:absolute;left:.85rem;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:1rem"></i>
+                        <input type="text" id="shopSearch" placeholder="Search products…" oninput="debounceShop()"
+                            style="width:100%;padding:.55rem .85rem .55rem 2.4rem;background:var(--input-bg);border:1px solid var(--input-border);border-radius:10px;color:var(--input-color);font-size:.875rem;outline:none">
+                    </div>
+                </div>
+                <div class="col-md-5">
+                    <select id="shopCategory" onchange="loadShopProducts()"
+                        style="width:100%;padding:.55rem .85rem;background:var(--input-bg);border:1px solid var(--input-border);border-radius:10px;color:var(--input-color);font-size:.875rem;outline:none;appearance:none">
+                        <option value="">All Categories</option>
+                    </select>
+                </div>
+            </div>
+            <div id="shopProductGrid" class="row g-3"></div>
+            <div id="shopEmpty" style="display:none;text-align:center;padding:4rem 1rem;color:var(--text-muted)">
+                <i class="ti ti-mood-empty" style="font-size:3rem;display:block;margin-bottom:1rem"></i>
+                <div>No products found.</div>
+            </div>
+        </div>
+
+        <!-- ══ CART TAB ══ -->
+        <div class="page-section" id="tab-cart">
+            <div id="cartContent"></div>
+        </div>
+
+
+        <!-- ══ ORDERS TAB ══ -->
+        <div class="page-section" id="tab-orders">
+            <div id="ordersContent"></div>
+        </div>
+
+
+        <!-- ══ CHECKOUT MODAL ══ -->
+        <div id="checkoutOverlay" class="co-modal-overlay" style="display:none" onclick="if(event.target===this)closeCheckoutModal()">
+          <div class="co-modal" onclick="event.stopPropagation()">
+
+            <!-- Header -->
+            <div class="co-header">
+              <div>
+                <div style="font-size:1rem;font-weight:800;letter-spacing:-.2px">Checkout</div>
+                <div style="font-size:.75rem;color:var(--text-muted)" id="co-step-subtitle">Review your cart</div>
+              </div>
+              <button class="co-close-btn" onclick="closeCheckoutModal()"><i class="ti ti-x"></i></button>
+            </div>
+
+            <!-- Stepper -->
+            <div class="co-stepper" id="co-stepper">
+              <div class="co-step active" id="co-s1"><div class="co-step-dot">1</div><span class="co-step-label">Review</span></div>
+              <div class="co-step-line" id="co-l1"></div>
+              <div class="co-step" id="co-s2"><div class="co-step-dot">2</div><span class="co-step-label">Fulfillment</span></div>
+              <div class="co-step-line" id="co-l2"></div>
+              <div class="co-step" id="co-s3"><div class="co-step-dot">3</div><span class="co-step-label">Payment</span></div>
+              <div class="co-step-line" id="co-l3"></div>
+              <div class="co-step" id="co-s4"><div class="co-step-dot">4</div><span class="co-step-label">Confirm</span></div>
+            </div>
+
+            <!-- Body -->
+            <div class="co-body">
+
+              <!-- ── STEP 1: ORDER REVIEW ── -->
+              <div class="co-panel active" id="co-panel-1">
+                <div id="co-review-items"></div>
+                <div class="co-sum-block" style="margin-top:.75rem">
+                  <div class="co-sum-row"><span>Subtotal</span><span id="co-review-subtotal" style="font-weight:700"></span></div>
+                  <div class="co-sum-row" style="color:var(--text-muted);font-size:.78rem"><span>Delivery fee calculated in next step</span><span>—</span></div>
+                </div>
+              </div>
+
+              <!-- ── STEP 2: FULFILLMENT ── -->
+              <div class="co-panel" id="co-panel-2">
+                <div class="fulfill-grid">
+                  <div class="fulfill-card selected" id="fc-delivery" onclick="coSelectFulfill('delivery')">
+                    <i class="ti ti-truck"></i>
+                    <div class="fulfill-card-title">Delivery</div>
+                    <div class="fulfill-card-sub">Shipped to your address</div>
+                  </div>
+                  <div class="fulfill-card" id="fc-pickup" onclick="coSelectFulfill('pickup')">
+                    <i class="ti ti-building-store"></i>
+                    <div class="fulfill-card-title">Branch Pick-Up</div>
+                    <div class="fulfill-card-sub">Collect at your preferred branch</div>
+                  </div>
+                </div>
+
+                <!-- Delivery Form -->
+                <div id="co-delivery-form">
+                  <div class="co-sec-title">Recipient Information</div>
+                  <div class="co-row">
+                    <div class="co-field"><label class="co-label">Full Name <span class="req">*</span></label><input class="co-input" id="co-fullname" placeholder="Juan Dela Cruz"></div>
+                    <div class="co-field"><label class="co-label">Contact Number <span class="req">*</span></label><input class="co-input" id="co-contact" placeholder="09XX XXX XXXX"></div>
+                  </div>
+                  <div class="co-field"><label class="co-label">Email Address <span class="req">*</span></label><input class="co-input" id="co-email" type="email" placeholder="you@email.com"></div>
+
+                  <div class="co-sec-title">Delivery Address</div>
+                  <div class="co-row">
+                    <div class="co-field"><label class="co-label">Region <span class="req">*</span></label>
+                      <select class="co-select" id="co-region" onchange="coUpdateDeliveryFee()">
+                        <option value="">Select Region</option>
+                        <option value="NCR">NCR – Metro Manila</option>
+                        <option value="Region I">Region I – Ilocos</option>
+                        <option value="Region II">Region II – Cagayan Valley</option>
+                        <option value="Region III">Region III – Central Luzon</option>
+                        <option value="Region IV-A">Region IV-A – CALABARZON</option>
+                        <option value="Region IV-B">Region IV-B – MIMAROPA</option>
+                        <option value="Region V">Region V – Bicol</option>
+                        <option value="Region VI">Region VI – Western Visayas</option>
+                        <option value="Region VII">Region VII – Central Visayas</option>
+                        <option value="Region VIII">Region VIII – Eastern Visayas</option>
+                        <option value="Region IX">Region IX – Zamboanga Peninsula</option>
+                        <option value="Region X">Region X – Northern Mindanao</option>
+                        <option value="Region XI">Region XI – Davao</option>
+                        <option value="Region XII">Region XII – SOCCSKSARGEN</option>
+                        <option value="Region XIII">Region XIII – Caraga</option>
+                        <option value="CAR">CAR – Cordillera</option>
+                        <option value="BARMM">BARMM – Bangsamoro</option>
+                      </select>
+                    </div>
+                    <div class="co-field"><label class="co-label">Province</label><input class="co-input" id="co-province" placeholder="e.g. Bulacan"></div>
+                  </div>
+                  <div class="co-row">
+                    <div class="co-field"><label class="co-label">City / Municipality <span class="req">*</span></label><input class="co-input" id="co-city" placeholder="e.g. Caloocan"></div>
+                    <div class="co-field"><label class="co-label">Barangay <span class="req">*</span></label><input class="co-input" id="co-barangay" placeholder="e.g. Brgy. 1"></div>
+                  </div>
+                  <div class="co-row">
+                    <div class="co-field" style="grid-column:1/-1"><label class="co-label">Street Address <span class="req">*</span></label><input class="co-input" id="co-street" placeholder="House No., Street, Subdivision"></div>
+                  </div>
+                  <div class="co-row">
+                    <div class="co-field"><label class="co-label">Zip Code <span class="req">*</span></label><input class="co-input" id="co-zip" placeholder="1000"></div>
+                    <div class="co-field"><label class="co-label">Landmark <span style="color:var(--text-muted);font-weight:400">(optional)</span></label><input class="co-input" id="co-landmark" placeholder="Near SM, beside 7/11…"></div>
+                  </div>
+                  <div class="co-field"><label class="co-label">Delivery Notes <span style="color:var(--text-muted);font-weight:400">(optional)</span></label>
+                    <input class="co-input" id="co-notes" placeholder="Leave at door, call on arrival…">
+                  </div>
+                  <!-- Fee estimate -->
+                  <div id="co-fee-box" style="display:none;background:rgba(204,26,26,.07);border:1px solid rgba(204,26,26,.2);border-radius:10px;padding:.75rem 1rem;margin-top:.5rem;display:flex;align-items:center;justify-content:space-between">
+                    <span style="font-size:.83rem;color:var(--text-muted)"><i class="ti ti-truck me-1"></i>Estimated Delivery Fee</span>
+                    <span id="co-fee-val" style="font-weight:800;color:var(--fs-red)">₱80</span>
+                  </div>
+                  <div style="font-size:.75rem;color:var(--text-muted);margin-top:.5rem;text-align:right"><i class="ti ti-clock"></i> Estimated delivery: 3–5 business days after payment confirmation</div>
+                </div>
+
+                <!-- Pickup Form -->
+                <div id="co-pickup-form" style="display:none">
+                  <div class="co-sec-title">Select Branch</div>
+                  <div id="co-branch-list"></div>
+
+                  <div class="co-sec-title">Schedule</div>
+                  <div class="co-row">
+                    <div class="co-field"><label class="co-label">Preferred Pickup Date <span class="req">*</span></label><input class="co-input" id="co-pickup-date" type="date"></div>
+                    <div class="co-field"><label class="co-label">Preferred Pickup Time <span class="req">*</span></label>
+                      <select class="co-select" id="co-pickup-time">
+                        <option value="">Select time</option>
+                        <option>8:00 AM</option><option>9:00 AM</option><option>10:00 AM</option>
+                        <option>11:00 AM</option><option>12:00 PM</option><option>1:00 PM</option>
+                        <option>2:00 PM</option><option>3:00 PM</option><option>4:00 PM</option>
+                        <option>5:00 PM</option><option>6:00 PM</option><option>7:00 PM</option>
+                        <option>8:00 PM</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div style="background:rgba(74,158,255,.07);border:1px solid rgba(74,158,255,.2);border-radius:10px;padding:.75rem 1rem;font-size:.8rem;color:#4a9eff;margin-top:.5rem">
+                    <i class="ti ti-info-circle"></i> Your order will be ready for pick-up within 1–2 business days after payment confirmation. Please bring a valid ID and your order number.
+                  </div>
+                </div>
+              </div>
+
+              <!-- ── STEP 3: PAYMENT ── -->
+              <div class="co-panel" id="co-panel-3">
+                <div class="co-sec-title">Select Payment Method</div>
+                <div class="co-pay-grid" id="co-pay-grid">
+                  <button class="co-pay-btn" onclick="coSelectPayment('gcash',this)"><i class="ti ti-wallet"></i><span>GCash</span></button>
+                  <button class="co-pay-btn" onclick="coSelectPayment('maya',this)"><i class="ti ti-wallet"></i><span>Maya</span></button>
+                  <button class="co-pay-btn" onclick="coSelectPayment('bank_transfer',this)"><i class="ti ti-building-bank"></i><span>Bank Transfer</span></button>
+                  <button class="co-pay-btn" id="co-cop-btn" onclick="coSelectPayment('cash_on_pickup',this)" style="display:none"><i class="ti ti-cash"></i><span>Cash on Pickup</span></button>
+                </div>
+
+                <!-- GCash -->
+                <div class="co-pay-info" id="co-pay-gcash">
+                  <div style="font-size:.85rem;font-weight:700;margin-bottom:.75rem"><i class="ti ti-wallet me-1" style="color:var(--fs-red)"></i>GCash Payment</div>
+                  <div style="text-align:center;margin-bottom:.75rem">
+                    <div style="width:130px;height:130px;background:rgba(255,255,255,.08);border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:.75rem;color:var(--text-muted)"><i class="ti ti-qrcode" style="font-size:3rem"></i></div>
+                    <div style="font-size:.72rem;color:var(--text-muted);margin-top:.4rem">Scan QR code using GCash app</div>
+                  </div>
+                  <div class="co-pay-detail-row"><span style="color:var(--text-muted)">Account Name</span><div style="display:flex;align-items:center;gap:.4rem"><span style="font-weight:600">FitSync Gym</span><button class="co-copy-btn" onclick="coCopy('FitSync Gym',this)"><i class="ti ti-copy"></i> Copy</button></div></div>
+                  <div class="co-pay-detail-row"><span style="color:var(--text-muted)">Mobile Number</span><div style="display:flex;align-items:center;gap:.4rem"><span style="font-weight:600">0917 123 4567</span><button class="co-copy-btn" onclick="coCopy('09171234567',this)"><i class="ti ti-copy"></i> Copy</button></div></div>
+                  <div class="co-pay-detail-row"><span style="color:var(--text-muted)">Amount</span><span id="gcash-amount" style="font-weight:800;color:var(--fs-red)"></span></div>
+                </div>
+
+                <!-- Maya -->
+                <div class="co-pay-info" id="co-pay-maya">
+                  <div style="font-size:.85rem;font-weight:700;margin-bottom:.75rem"><i class="ti ti-wallet me-1" style="color:var(--fs-red)"></i>Maya Payment</div>
+                  <div style="text-align:center;margin-bottom:.75rem">
+                    <div style="width:130px;height:130px;background:rgba(255,255,255,.08);border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:.75rem;color:var(--text-muted)"><i class="ti ti-qrcode" style="font-size:3rem"></i></div>
+                    <div style="font-size:.72rem;color:var(--text-muted);margin-top:.4rem">Scan QR code using Maya app</div>
+                  </div>
+                  <div class="co-pay-detail-row"><span style="color:var(--text-muted)">Account Name</span><div style="display:flex;align-items:center;gap:.4rem"><span style="font-weight:600">FitSync Gym</span><button class="co-copy-btn" onclick="coCopy('FitSync Gym',this)"><i class="ti ti-copy"></i> Copy</button></div></div>
+                  <div class="co-pay-detail-row"><span style="color:var(--text-muted)">Mobile Number</span><div style="display:flex;align-items:center;gap:.4rem"><span style="font-weight:600">0917 765 4321</span><button class="co-copy-btn" onclick="coCopy('09177654321',this)"><i class="ti ti-copy"></i> Copy</button></div></div>
+                  <div class="co-pay-detail-row"><span style="color:var(--text-muted)">Amount</span><span id="maya-amount" style="font-weight:800;color:var(--fs-red)"></span></div>
+                </div>
+
+                <!-- Bank Transfer -->
+                <div class="co-pay-info" id="co-pay-bank_transfer">
+                  <div style="font-size:.85rem;font-weight:700;margin-bottom:.75rem"><i class="ti ti-building-bank me-1" style="color:var(--fs-red)"></i>Bank Transfer</div>
+                  <div class="co-pay-detail-row"><span style="color:var(--text-muted)">Bank</span><span style="font-weight:600">Metrobank</span></div>
+                  <div class="co-pay-detail-row"><span style="color:var(--text-muted)">Account Name</span><div style="display:flex;align-items:center;gap:.4rem"><span style="font-weight:600">FitSync Corp</span><button class="co-copy-btn" onclick="coCopy('FitSync Corp',this)"><i class="ti ti-copy"></i> Copy</button></div></div>
+                  <div class="co-pay-detail-row"><span style="color:var(--text-muted)">Account Number</span><div style="display:flex;align-items:center;gap:.4rem"><span style="font-weight:600">123 456 789 0</span><button class="co-copy-btn" onclick="coCopy('1234567890',this)"><i class="ti ti-copy"></i> Copy</button></div></div>
+                  <div class="co-pay-detail-row"><span style="color:var(--text-muted)">Amount</span><span id="bank-amount" style="font-weight:800;color:var(--fs-red)"></span></div>
+                </div>
+
+                <!-- Cash on Pickup -->
+                <div class="co-pay-info" id="co-pay-cash_on_pickup">
+                  <div style="font-size:.85rem;font-weight:700;margin-bottom:.5rem"><i class="ti ti-cash me-1" style="color:var(--fs-red)"></i>Cash on Pickup</div>
+                  <div style="background:rgba(46,204,113,.07);border:1px solid rgba(46,204,113,.2);border-radius:10px;padding:.75rem 1rem;font-size:.82rem;color:#2ecc71">
+                    <i class="ti ti-circle-check"></i> Pay at the branch when you collect your order. Please bring exact amount or card.
+                  </div>
+                  <div class="co-pay-detail-row" style="margin-top:.65rem"><span style="color:var(--text-muted)">Amount Due</span><span id="cop-amount" style="font-weight:800;color:var(--fs-red)"></span></div>
+                </div>
+
+                <!-- Proof upload (for non-cash) -->
+                <div id="co-proof-section" style="margin-top:1rem;display:none">
+                  <div class="co-sec-title">Upload Proof of Payment</div>
+                  <div class="proof-zone" id="co-proof-zone" onclick="document.getElementById('co-proof-input').click()"
+                       ondragover="event.preventDefault();this.classList.add('drag')"
+                       ondragleave="this.classList.remove('drag')"
+                       ondrop="coHandleProofDrop(event)">
+                    <input type="file" id="co-proof-input" accept="image/*" onchange="coPreviewProof(this)">
+                    <div id="co-proof-placeholder">
+                      <i class="ti ti-cloud-upload" style="font-size:2rem;color:var(--text-muted);display:block;margin-bottom:.5rem"></i>
+                      <div style="font-size:.85rem;font-weight:600">Click or drag to upload proof</div>
+                      <div style="font-size:.72rem;color:var(--text-muted);margin-top:.25rem">JPG, PNG, WEBP — max 8MB</div>
+                    </div>
+                    <img id="co-proof-preview" style="max-height:160px;border-radius:8px;display:none;margin:auto" alt="proof">
+                  </div>
+                  <div id="co-proof-name" style="font-size:.75rem;color:var(--text-muted);margin-top:.35rem;text-align:center"></div>
+                </div>
+              </div>
+
+              <!-- ── STEP 4: CONFIRMATION ── -->
+              <div class="co-panel" id="co-panel-4">
+                <div id="co-confirm-body"></div>
+              </div>
+
+              <!-- ── SUCCESS ── -->
+              <div class="co-panel" id="co-panel-success">
+                <div class="co-success">
+                  <div class="co-success-icon"><i class="ti ti-circle-check"></i></div>
+                  <h3 style="font-weight:800;margin-bottom:.4rem">Order Placed!</h3>
+                  <div id="co-success-order-id" style="font-size:.88rem;color:var(--text-muted);margin-bottom:1.5rem"></div>
+                  <div style="font-size:.83rem;color:var(--text-muted);max-width:340px;margin:auto;line-height:1.7">
+                    Your order has been received. We'll notify you once your payment is verified and your order is processed.
+                  </div>
+                  <div style="display:flex;gap:.75rem;justify-content:center;margin-top:1.75rem;flex-wrap:wrap">
+                    <button class="btn-fs" style="border-radius:10px;padding:.55rem 1.4rem;font-size:.85rem" onclick="closeCheckoutModal();showTab('orders',null)">
+                      <i class="ti ti-package"></i> View My Orders
+                    </button>
+                    <button class="btn-fs" style="border-radius:10px;padding:.55rem 1.4rem;font-size:.85rem;background:rgba(255,255,255,.08);border:1px solid var(--card-border)" onclick="closeCheckoutModal();showTab('shop',null)">
+                      <i class="ti ti-shopping-bag"></i> Continue Shopping
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+            </div><!-- /co-body -->
+
+            <!-- Footer -->
+            <div class="co-footer" id="co-footer">
+              <button class="btn-fs" id="co-back-btn" style="background:rgba(255,255,255,.08);border:1px solid var(--card-border);border-radius:10px;padding:.52rem 1.2rem;font-size:.85rem" onclick="coStepBack()">
+                <i class="ti ti-arrow-left"></i> Back
+              </button>
+              <div style="font-size:.8rem;color:var(--text-muted)" id="co-step-indicator">Step 1 of 4</div>
+              <button class="btn-fs" id="co-next-btn" style="border-radius:10px;padding:.52rem 1.4rem;font-size:.88rem;background:linear-gradient(135deg,#cc1a1a,#ff3333)" onclick="coStepNext()">
+                Continue <i class="ti ti-arrow-right"></i>
+              </button>
+            </div>
+
+          </div><!-- /co-modal -->
+        </div><!-- /checkoutOverlay -->
+
+        <style>
+        /* ── CHECKOUT MODAL ── */
+        .co-modal-overlay{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.75);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;padding:1rem;animation:fadeIn .2s}
+        .co-modal{background:var(--card-bg);border:1px solid var(--card-border);border-radius:22px;width:100%;max-width:700px;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,.6);animation:slideUp .25s}
+        @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:none;opacity:1}}
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+        .co-header{padding:1.1rem 1.4rem .9rem;border-bottom:1px solid var(--card-border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+        .co-close-btn{width:32px;height:32px;border-radius:8px;border:1px solid var(--card-border);background:transparent;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:background .15s}
+        .co-close-btn:hover{background:rgba(255,255,255,.08)}
+        .co-stepper{display:flex;align-items:center;padding:.8rem 1.4rem;border-bottom:1px solid var(--card-border);flex-shrink:0;overflow-x:auto;gap:0}
+        .co-step{display:flex;align-items:center;gap:.35rem;flex-shrink:0}
+        .co-step-dot{width:26px;height:26px;border-radius:50%;border:2px solid var(--card-border);display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800;color:var(--text-muted);transition:all .25s;flex-shrink:0}
+        .co-step.active .co-step-dot{border-color:var(--fs-red);background:var(--fs-red);color:#fff}
+        .co-step.done   .co-step-dot{border-color:#2ecc71;background:#2ecc71;color:#fff}
+        .co-step-label{font-size:.7rem;font-weight:600;color:var(--text-muted);white-space:nowrap}
+        .co-step.active .co-step-label,.co-step.done .co-step-label{color:var(--fs-red)}
+        .co-step.done .co-step-label{color:#2ecc71}
+        .co-step-line{flex:1;height:2px;background:var(--card-border);min-width:18px;margin:0 .3rem;transition:background .25s}
+        .co-step-line.done{background:#2ecc71}
+        .co-body{flex:1;overflow-y:auto;padding:1.25rem 1.4rem;scroll-behavior:smooth}
+        .co-footer{padding:.85rem 1.4rem;border-top:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;gap:.75rem;background:var(--card-bg)}
+        .co-panel{display:none}.co-panel.active{display:block}
+        .co-sec-title{font-size:.82rem;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);margin:1.1rem 0 .55rem}
+        /* Fulfillment */
+        .fulfill-grid{display:grid;grid-template-columns:1fr 1fr;gap:.85rem;margin-bottom:1.1rem}
+        .fulfill-card{border:2px solid var(--card-border);border-radius:14px;padding:1.25rem 1rem 1rem;cursor:pointer;transition:border-color .2s,background .2s,transform .15s;text-align:center}
+        .fulfill-card:hover{border-color:rgba(204,26,26,.45);background:rgba(204,26,26,.04);transform:translateY(-2px)}
+        .fulfill-card.selected{border-color:var(--fs-red);background:rgba(204,26,26,.08)}
+        .fulfill-card i{font-size:2rem;color:var(--text-muted);display:block;margin-bottom:.55rem;transition:color .2s}
+        .fulfill-card.selected i{color:var(--fs-red)}
+        .fulfill-card-title{font-size:.9rem;font-weight:700}
+        .fulfill-card-sub{font-size:.71rem;color:var(--text-muted);margin-top:.2rem}
+        /* Branch */
+        .branch-card{border:1.5px solid var(--card-border);border-radius:11px;padding:.75rem 1rem;cursor:pointer;transition:border-color .2s,background .2s;display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem}
+        .branch-card:hover{border-color:rgba(204,26,26,.4)}
+        .branch-card.selected{border-color:var(--fs-red);background:rgba(204,26,26,.06)}
+        .branch-radio{width:18px;height:18px;border-radius:50%;border:2px solid var(--card-border);flex-shrink:0;transition:all .2s;position:relative}
+        .branch-card.selected .branch-radio{border-color:var(--fs-red)}
+        .branch-card.selected .branch-radio::after{content:'';position:absolute;inset:3px;border-radius:50%;background:var(--fs-red)}
+        /* Forms */
+        .co-field{margin-bottom:.75rem}
+        .co-label{font-size:.77rem;font-weight:600;color:var(--text-muted);display:block;margin-bottom:.28rem}
+        .co-label .req{color:var(--fs-red)}
+        .co-input,.co-select{width:100%;padding:.52rem .8rem;background:var(--input-bg);border:1.5px solid var(--input-border);border-radius:9px;color:var(--input-color);font-size:.875rem;outline:none;transition:border-color .2s}
+        .co-input:focus,.co-select:focus{border-color:var(--fs-red)}
+        .co-input.invalid,.co-select.invalid{border-color:#ff6b6b!important}
+        .co-row{display:grid;grid-template-columns:1fr 1fr;gap:.65rem}
+        /* Payment */
+        .co-pay-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:.6rem;margin-bottom:.85rem}
+        .co-pay-btn{border:2px solid var(--card-border);border-radius:11px;padding:.7rem .5rem;cursor:pointer;text-align:center;background:transparent;color:var(--text-muted);transition:border-color .2s,background .2s,color .2s}
+        .co-pay-btn:hover{border-color:rgba(204,26,26,.4);color:var(--text-primary)}
+        .co-pay-btn.active{border-color:var(--fs-red);background:rgba(204,26,26,.08);color:var(--text-primary)}
+        .co-pay-btn i{font-size:1.5rem;display:block;margin-bottom:.3rem}
+        .co-pay-btn span{font-size:.72rem;font-weight:700}
+        .co-pay-info{border:1.5px solid var(--card-border);border-radius:12px;padding:1rem;background:rgba(255,255,255,.02);display:none}
+        .co-pay-info.active{display:block}
+        .co-pay-detail-row{display:flex;align-items:center;justify-content:space-between;padding:.45rem 0;border-bottom:1px solid var(--card-border);font-size:.83rem}
+        .co-pay-detail-row:last-child{border:none}
+        .co-copy-btn{background:rgba(255,255,255,.08);border:none;border-radius:6px;padding:.2rem .55rem;color:var(--text-muted);cursor:pointer;font-size:.72rem;transition:background .15s}
+        .co-copy-btn:hover{background:rgba(204,26,26,.15);color:var(--fs-red)}
+        /* Proof upload */
+        .proof-zone{border:2px dashed var(--card-border);border-radius:12px;padding:1.4rem;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;margin-top:.65rem}
+        .proof-zone:hover,.proof-zone.drag{border-color:var(--fs-red);background:rgba(204,26,26,.04)}
+        .proof-zone input[type=file]{display:none}
+        /* Summary */
+        .co-sum-block{background:rgba(255,255,255,.025);border:1px solid var(--card-border);border-radius:12px;padding:.9rem 1rem;margin-bottom:.85rem}
+        .co-sum-title{font-size:.73rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:.55rem}
+        .co-sum-row{display:flex;justify-content:space-between;font-size:.83rem;padding:.28rem 0}
+        .co-sum-row.total{font-size:1rem;font-weight:900;color:var(--fs-red);padding-top:.65rem;border-top:1px solid var(--card-border);margin-top:.4rem}
+        /* Success */
+        .co-success{text-align:center;padding:2.5rem 1rem}
+        .co-success-icon{width:76px;height:76px;border-radius:50%;background:rgba(46,204,113,.15);display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-size:2.2rem;color:#2ecc71}
+        @media(max-width:520px){.co-row{grid-template-columns:1fr}.co-body{padding:1rem}.co-stepper{padding:.6rem 1rem}.co-header{padding:.9rem 1rem}.co-footer{padding:.75rem 1rem}}
+
+        /* ── SHOP STYLES ── */
+
+        .shop-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px;overflow:hidden;transition:transform .2s,box-shadow .2s,border-color .2s;height:100%;display:flex;flex-direction:column}
+        .shop-card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,.3);border-color:rgba(204,26,26,.3)}
+        .shop-card-img-ph{width:100%;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(204,26,26,.08),rgba(204,26,26,.02));color:var(--text-muted);font-size:3.5rem}
+        .shop-card-img{width:100%;aspect-ratio:1/1;object-fit:cover}
+        .shop-card-body{padding:1rem;flex:1;display:flex;flex-direction:column}
+        .shop-cat-badge{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--fs-red);background:rgba(204,26,26,.1);padding:.2rem .55rem;border-radius:6px;display:inline-block;margin-bottom:.45rem}
+        .shop-card-name{font-size:.92rem;font-weight:700;margin-bottom:.35rem;color:var(--text-primary)}
+        .shop-card-desc{font-size:.78rem;color:var(--text-muted);line-height:1.5;flex:1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+        .shop-card-footer{display:flex;align-items:center;justify-content:space-between;margin-top:.85rem;gap:.5rem}
+        .shop-price{font-size:1.1rem;font-weight:800;color:var(--fs-red)}
+        .cart-row{display:flex;align-items:center;gap:1rem;padding:1rem;border-bottom:1px solid var(--card-border)}
+        .cart-row:last-child{border-bottom:none}
+        .cart-thumb{width:64px;height:64px;border-radius:10px;object-fit:cover;flex-shrink:0}
+        .cart-thumb-ph{width:64px;height:64px;border-radius:10px;background:rgba(204,26,26,.08);display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:1.5rem;flex-shrink:0}
+        .qty-ctrl{display:flex;align-items:center;gap:.35rem}
+        .qty-btn{width:28px;height:28px;border-radius:7px;border:1px solid var(--card-border);background:var(--input-bg);color:var(--text-primary);font-size:.9rem;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s}
+        .qty-btn:hover{background:rgba(204,26,26,.15)}
+        .qty-val{width:32px;text-align:center;font-weight:700;font-size:.88rem}
+        .order-status-badge{display:inline-flex;align-items:center;gap:.3rem;font-size:.7rem;font-weight:700;padding:.25rem .65rem;border-radius:8px;text-transform:uppercase;letter-spacing:.4px}
+        .status-pending{background:rgba(255,193,7,.15);color:#ffc107}
+        .status-processing{background:rgba(13,110,253,.15);color:#4a9eff}
+        .status-shipped{background:rgba(111,66,193,.15);color:#a066f5}
+        .status-delivered{background:rgba(25,135,84,.15);color:#2ecc71}
+        .status-cancelled{background:rgba(220,53,69,.15);color:#ff6b6b}
+        </style>
     </main>
+
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
@@ -4293,6 +4715,10 @@ $workoutPrograms = [
             if (window.innerWidth < 992) closeSidebar();
             // Sync settings fields when opening settings
             if (id === 'settings') syncSettingsFields();
+            // Lazy-load shop tabs
+            if (id === 'shop')   { window._modalQty = 1; loadShopProducts(); }
+            if (id === 'cart')   loadCart();
+            if (id === 'orders') loadOrders();
         }
         document.querySelectorAll('.page-tab').forEach(tab => {
             tab.addEventListener('click', () => showTab(tab.dataset.tab, tab));
@@ -4300,9 +4726,675 @@ $workoutPrograms = [
 
         /* ── SIDEBAR ── */
         const initialTab = location.hash.replace('#', '');
-        if (['dashboard', 'programs', 'billing', 'schedule', 'feedback', 'settings'].includes(initialTab)) {
+        if (['dashboard', 'programs', 'billing', 'schedule', 'feedback', 'settings', 'shop', 'cart', 'orders'].includes(initialTab)) {
             showTab(initialTab, null);
         }
+
+        /* ══════════════════════════════════════════════
+           SHOP MODULE
+        ══════════════════════════════════════════════ */
+        const SHOP_CSRF = CSRF;
+        let shopProducts = [];
+        let shopSearchTimer = null;
+        window._modalQty = 1;
+
+        // Debounce search
+        function debounceShop() {
+            clearTimeout(shopSearchTimer);
+            shopSearchTimer = setTimeout(loadShopProducts, 350);
+        }
+
+        // Load products
+        async function loadShopProducts() {
+            const search   = document.getElementById('shopSearch')?.value ?? '';
+            const category = document.getElementById('shopCategory')?.value ?? '';
+            try {
+                const res  = await fetch('handlers/shop_handler.php?' + new URLSearchParams({ action:'get_products', search, category }));
+                const data = await res.json();
+                if (!data.success) return;
+                shopProducts = data.products;
+                renderShopProducts(data.products);
+                populateCategoryFilter(data.categories, category);
+            } catch(e) { console.error('Shop load', e); }
+        }
+
+        function populateCategoryFilter(cats, active) {
+            const sel = document.getElementById('shopCategory');
+            if (!sel) return;
+            const cur = active || sel.value;
+            sel.innerHTML = '<option value="">All Categories</option>';
+            cats.forEach(c => {
+                const o = document.createElement('option');
+                o.value = c; o.textContent = c;
+                if (c === cur) o.selected = true;
+                sel.appendChild(o);
+            });
+        }
+
+        function renderShopProducts(products) {
+            const grid  = document.getElementById('shopProductGrid');
+            const empty = document.getElementById('shopEmpty');
+            if (!grid) return;
+            if (!products.length) { grid.innerHTML = ''; empty.style.display = 'block'; return; }
+            empty.style.display = 'none';
+            grid.innerHTML = products.map(p => {
+                const inStock = parseInt(p.stock) > 0;
+                const img = p.image
+                    ? `<img src="${p.image}" class="shop-card-img" alt="${shEsc(p.name)}" loading="lazy">`
+                    : `<div class="shop-card-img-ph"><i class="ti ti-package"></i></div>`;
+                const stockBadge = inStock
+                    ? `<span style="font-size:.68rem;font-weight:600;color:#2ecc71;background:rgba(46,204,113,.12);padding:.18rem .5rem;border-radius:6px">${p.stock} left</span>`
+                    : `<span style="font-size:.68rem;font-weight:600;color:#ff6b6b;background:rgba(255,107,107,.12);padding:.18rem .5rem;border-radius:6px">Sold Out</span>`;
+                return `<div class="col-6 col-md-4 col-lg-3">
+                    <div class="shop-card">
+                        <div onclick="openProductModal(${p.id})" style="cursor:pointer">${img}</div>
+                        <div class="shop-card-body">
+                            <span class="shop-cat-badge">${shEsc(p.category)}</span>
+                            <div class="shop-card-name" onclick="openProductModal(${p.id})" style="cursor:pointer">${shEsc(p.name)}</div>
+                            <div class="shop-card-desc">${shEsc(p.description)}</div>
+                            <div class="shop-card-footer">
+                                <span class="shop-price">&#8369;${parseFloat(p.price).toLocaleString('en-PH',{minimumFractionDigits:2})}</span>
+                                ${stockBadge}
+                            </div>
+                            <button class="btn-fs w-100 mt-2" style="border-radius:9px;padding:.42rem;font-size:.82rem"
+                                ${!inStock ? 'disabled style="opacity:.4;cursor:not-allowed"' : `onclick="quickAddToCart(${p.id},'${shEscAttr(p.name)}')"`}>
+                                <i class="ti ti-shopping-cart-plus"></i> ${inStock ? 'Add to Cart' : 'Out of Stock'}
+                            </button>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function openProductModal(id) {
+            const p = shopProducts.find(x => parseInt(x.id) === id);
+            if (!p) return;
+            window._modalQty = 1;
+            const inStock = parseInt(p.stock) > 0;
+            document.getElementById('productModalTitle').textContent = p.name;
+            document.getElementById('productModalBody').innerHTML = `
+                <div class="row g-0">
+                    <div class="col-md-5">
+                        ${ p.image
+                            ? `<img src="${p.image}" style="width:100%;aspect-ratio:1/1;object-fit:cover" alt="${shEsc(p.name)}">`
+                            : `<div style="width:100%;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;background:rgba(204,26,26,.06);font-size:5rem;color:var(--text-muted)"><i class="ti ti-photo"></i></div>`
+                        }
+                    </div>
+                    <div class="col-md-7 p-4">
+                        <span class="shop-cat-badge">${shEsc(p.category)}</span>
+                        <h4 class="fw-bold my-2">${shEsc(p.name)}</h4>
+                        <p style="font-size:.88rem;color:var(--text-muted);line-height:1.7">${shEsc(p.description)}</p>
+                        <div style="font-size:1.6rem;font-weight:900;color:var(--fs-red);margin:.75rem 0">
+                            &#8369;${parseFloat(p.price).toLocaleString('en-PH',{minimumFractionDigits:2})}
+                        </div>
+                        <div style="margin-bottom:1rem;font-size:.82rem;color:${ inStock?'#2ecc71':'#ff6b6b' }">
+                            <i class="ti ti-packages"></i> ${ inStock ? p.stock+' units available' : 'Out of stock' }
+                        </div>
+                        <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+                            <div class="qty-ctrl">
+                                <button class="qty-btn" onclick="modalQtyChange(-1)"><i class="ti ti-minus"></i></button>
+                                <span class="qty-val" id="modalQtyDisplay">1</span>
+                                <button class="qty-btn" onclick="modalQtyChange(1)"><i class="ti ti-plus"></i></button>
+                            </div>
+                            <button class="btn-fs flex-fill" style="border-radius:10px;padding:.55rem"
+                                ${ !inStock ? 'disabled' : '' }
+                                onclick="addToCartFromModal(${p.id},'${shEscAttr(p.name)}')">
+                                <i class="ti ti-shopping-cart-plus"></i> Add to Cart
+                            </button>
+                        </div>
+                    </div>
+                </div>`;
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('productModal')).show();
+        }
+        function modalQtyChange(d) {
+            window._modalQty = Math.max(1, (window._modalQty||1) + d);
+            const el = document.getElementById('modalQtyDisplay');
+            if (el) el.textContent = window._modalQty;
+        }
+        async function quickAddToCart(pid, name) { await doAddToCart(pid, 1, name); }
+        async function addToCartFromModal(pid, name) {
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('productModal')).hide();
+            await doAddToCart(pid, window._modalQty || 1, name);
+        }
+        async function doAddToCart(pid, qty, name) {
+            try {
+                const form = new FormData();
+                form.append('action','add_to_cart'); form.append('csrf_token',SHOP_CSRF);
+                form.append('product_id',pid); form.append('quantity',qty);
+                const data = await (await fetch('handlers/shop_handler.php',{method:'POST',body:form})).json();
+                if (data.success) { updateCartBadge(data.cart_count); shopToast('success', `${name} added to cart!`); }
+                else shopToast('error', data.message || 'Could not add to cart.');
+            } catch { shopToast('error','Network error.'); }
+        }
+
+        function updateCartBadge(count) {
+            ['sbCartBadge','shopHeaderCartBadge'].forEach(id => {
+                const b = document.getElementById(id);
+                if (!b) return;
+                b.textContent = count;
+                b.style.display = count > 0 ? '' : 'none';
+            });
+        }
+
+        // Cart
+        async function loadCart() {
+            try {
+                const data = await (await fetch('handlers/shop_handler.php?action=get_cart')).json();
+                if (!data.success) return;
+                updateCartBadge(data.count);
+                renderCart(data.items, data.total);
+            } catch { }
+        }
+        function renderCart(items, total) {
+            const el = document.getElementById('cartContent');
+            if (!el) return;
+            if (!items.length) {
+                el.innerHTML = `<div style="text-align:center;padding:4rem 1rem;color:var(--text-muted)">
+                    <i class="ti ti-shopping-cart-off" style="font-size:3rem;display:block;margin-bottom:1rem"></i>
+                    <div style="font-size:1rem;font-weight:600">Your cart is empty</div>
+                    <div style="font-size:.85rem;margin-top:.4rem">Browse the shop and add items to get started.</div>
+                    <button class="btn-fs mt-3" style="border-radius:10px;padding:.5rem 1.5rem" onclick="showTab('shop',null)">
+                        <i class="ti ti-shopping-bag"></i> Browse Shop
+                    </button></div>`;
+                return;
+            }
+            const token = 'chk_' + Date.now();
+            el.innerHTML = `<div style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px;overflow:hidden">
+                ${items.map(item => `
+                <div class="cart-row">
+                    ${ item.image ? `<img src="${item.image}" class="cart-thumb" alt="">` : `<div class="cart-thumb-ph"><i class="ti ti-package"></i></div>` }
+                    <div style="flex:1;min-width:0">
+                        <div style="font-size:.9rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${shEsc(item.name)}</div>
+                        <div style="font-size:.78rem;color:var(--text-muted)">&#8369;${parseFloat(item.price).toLocaleString('en-PH',{minimumFractionDigits:2})} each</div>
+                    </div>
+                    <div class="qty-ctrl">
+                        <button class="qty-btn" onclick="cartQty(${item.id},${parseInt(item.quantity)-1})"><i class="ti ti-minus"></i></button>
+                        <span class="qty-val">${item.quantity}</span>
+                        <button class="qty-btn" onclick="cartQty(${item.id},${parseInt(item.quantity)+1})"><i class="ti ti-plus"></i></button>
+                    </div>
+                    <div style="min-width:80px;text-align:right">
+                        <div style="font-size:.92rem;font-weight:800;color:var(--fs-red)">&#8369;${(parseFloat(item.price)*parseInt(item.quantity)).toLocaleString('en-PH',{minimumFractionDigits:2})}</div>
+                        <button style="background:none;border:none;color:rgba(255,80,80,.6);font-size:.75rem;cursor:pointer" onclick="cartRemove(${item.id})">
+                            <i class="ti ti-trash"></i> Remove
+                        </button>
+                    </div>
+                </div>`).join('')}
+                <div style="padding:1rem;border-top:1px solid var(--card-border);display:flex;align-items:center;justify-content:space-between">
+                    <div>
+                        <div style="font-size:.8rem;color:var(--text-muted)">Subtotal</div>
+                        <div style="font-size:1.4rem;font-weight:900;color:var(--fs-red)">&#8369;${parseFloat(total).toLocaleString('en-PH',{minimumFractionDigits:2})}</div>
+                    </div>
+                    <button class="btn-fs" style="border-radius:12px;padding:.6rem 1.5rem;font-size:.9rem;background:linear-gradient(135deg,#cc1a1a,#ff4040)" onclick="openCheckoutModal()">
+                        <i class="ti ti-credit-card"></i> Checkout
+                    </button>
+                </div>
+            </div>`;
+        }
+        async function cartQty(id, qty) {
+            const f = new FormData(); f.append('action','update_cart'); f.append('csrf_token',SHOP_CSRF); f.append('cart_id',id); f.append('quantity',qty);
+            await fetch('handlers/shop_handler.php',{method:'POST',body:f}); loadCart();
+        }
+        async function cartRemove(id) {
+            const f = new FormData(); f.append('action','remove_from_cart'); f.append('csrf_token',SHOP_CSRF); f.append('cart_id',id);
+            await fetch('handlers/shop_handler.php',{method:'POST',body:f}); loadCart();
+        }
+
+
+        // Orders
+        async function loadOrders() {
+            try {
+                const data = await (await fetch('handlers/shop_handler.php?action=get_orders')).json();
+                const el = document.getElementById('ordersContent');
+                if (!el) return;
+                if (!data.success || !data.orders.length) {
+                    el.innerHTML = `<div style="text-align:center;padding:4rem 1rem;color:var(--text-muted)">
+                        <i class="ti ti-package-off" style="font-size:3rem;display:block;margin-bottom:1rem"></i>
+                        <div>No orders yet.</div>
+                        <button class="btn-fs mt-3" style="border-radius:10px;padding:.5rem 1.5rem" onclick="showTab('shop',null)">
+                            <i class="ti ti-shopping-bag"></i> Start Shopping
+                        </button></div>`;
+                    return;
+                }
+                const statusIcons = {
+                    pending:'ti-clock',processing:'ti-loader-2',out_for_delivery:'ti-truck',
+                    delivered:'ti-circle-check',ready_for_pickup:'ti-building-store',
+                    picked_up:'ti-checks',cancelled:'ti-ban'
+                };
+                const payColors = {pending:'#ffc107',paid:'#2ecc71',rejected:'#ff6b6b'};
+                el.innerHTML = `<div style="display:flex;flex-direction:column;gap:1rem">` + data.orders.map(o => {
+                    const items = (data.details[o.id] || []);
+                    const d = new Date(o.created_at).toLocaleDateString('en-PH',{year:'numeric',month:'short',day:'numeric'});
+                    let addr = null; try { if(o.delivery_address) addr = JSON.parse(o.delivery_address); } catch(e){}
+                    const fulfillLabel = o.fulfillment_method==='pickup'
+                        ? `<i class="ti ti-building-store"></i> Branch Pick-Up${o.branch_name?` · ${shEsc(o.branch_name)}`:''}`
+                        : `<i class="ti ti-truck"></i> Delivery${addr?` · ${shEsc(addr.city||'')}, ${shEsc(addr.region||'')}`:'' }`;
+                    return `<div style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;overflow:hidden">
+                        <div style="display:flex;align-items:center;justify-content:space-between;padding:.9rem 1.1rem;border-bottom:1px solid var(--card-border);flex-wrap:wrap;gap:.5rem">
+                            <div>
+                                <span style="font-weight:700;font-size:.92rem">Order #${o.id}</span>
+                                <span style="font-size:.75rem;color:var(--text-muted);margin-left:.6rem">${d}</span>
+                                <div style="font-size:.72rem;color:var(--text-muted);margin-top:.15rem">${fulfillLabel}</div>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;justify-content:flex-end">
+                                <span style="font-size:.95rem;font-weight:800;color:var(--fs-red)">&#8369;${parseFloat(o.total_amount).toLocaleString('en-PH',{minimumFractionDigits:2})}</span>
+                                <span class="order-status-badge status-${o.status.replace(/_/g,'-')}"><i class="ti ${statusIcons[o.status]||'ti-circle'}"></i> ${o.status.replace(/_/g,' ')}</span>
+                                <span style="font-size:.68rem;font-weight:700;padding:.18rem .55rem;border-radius:6px;background:rgba(0,0,0,.2);color:${payColors[o.payment_status]||'#aaa'}">
+                                    ${o.payment_method.replace(/_/g,' ')} · ${o.payment_status}
+                                </span>
+                            </div>
+                        </div>
+                        <div style="padding:.85rem 1.1rem">
+                        ${ items.map(it => `<div style="display:flex;align-items:center;gap:.75rem;padding:.35rem 0">
+                            ${ it.image ? `<img src="${it.image}" style="width:40px;height:40px;border-radius:8px;object-fit:cover" alt="">` : `<div style="width:40px;height:40px;border-radius:8px;background:rgba(204,26,26,.08);display:flex;align-items:center;justify-content:center;color:var(--text-muted)"><i class="ti ti-package" style="font-size:1.2rem"></i></div>` }
+                            <div style="flex:1"><div style="font-size:.85rem;font-weight:600">${shEsc(it.name)}</div><div style="font-size:.75rem;color:var(--text-muted)">&times;${it.quantity} &nbsp;&middot;&nbsp; &#8369;${parseFloat(it.price).toLocaleString('en-PH',{minimumFractionDigits:2})}/ea</div></div>
+                        </div>`).join('') }
+                        </div>
+                    </div>`;
+                }).join('') + '</div>';
+            } catch { }
+        }
+
+        /* ══════════════════════════════════════════════════
+           CHECKOUT MODULE
+        ══════════════════════════════════════════════════ */
+        let coState = {
+            step: 1,
+            fulfillment: 'delivery',
+            payMethod: '',
+            proofPath: '',
+            cartItems: [],
+            subtotal: 0,
+            deliveryFee: 0,
+            branches: [],
+            selectedBranch: null,
+            userInfo: {},
+        };
+        const PH_FMT = v => '₱' + parseFloat(v).toLocaleString('en-PH',{minimumFractionDigits:2});
+        const coEl   = id => document.getElementById(id);
+
+        async function openCheckoutModal() {
+            // Show the overlay immediately so DOM elements exist and are accessible
+            const overlay = document.getElementById('checkoutOverlay');
+            if (!overlay) { console.error('checkoutOverlay element not found'); return; }
+            overlay.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+
+            // Reset state and go to step 1
+            coState = {...coState, step:1, fulfillment:'delivery', payMethod:'', proofPath:'', selectedBranch:null};
+            try { coGoToStep(1); } catch(e) { console.error('coGoToStep error:', e); }
+
+            // Load data
+            try {
+                const res  = await fetch('handlers/shop_handler.php?action=get_checkout_data');
+                const data = await res.json();
+                if (!data.success || !data.items || !data.items.length) {
+                    overlay.style.display = 'none';
+                    document.body.style.overflow = '';
+                    shopToast('error', data.message || 'Your cart is empty.');
+                    return;
+                }
+                coState.cartItems   = data.items;
+                coState.subtotal    = parseFloat(data.subtotal);
+                coState.branches    = data.branches || [];
+                coState.userInfo    = data.user || {};
+                coState.deliveryFee = 80;
+
+                // Pre-fill user info
+                const fn = coEl('co-fullname');
+                const em = coEl('co-email');
+                const ph = coEl('co-contact');
+                if (fn && coState.userInfo.first_name) fn.value = ((coState.userInfo.first_name||'') + ' ' + (coState.userInfo.last_name||'')).trim();
+                if (em && coState.userInfo.email)      em.value = coState.userInfo.email;
+                if (ph && coState.userInfo.phone)      ph.value = coState.userInfo.phone;
+
+                // Set min pickup date (tomorrow)
+                const pd = coEl('co-pickup-date');
+                if (pd) { const tm = new Date(); tm.setDate(tm.getDate()+1); pd.min = tm.toISOString().split('T')[0]; }
+
+                // Render review items, branches, fulfillment
+                coRenderReview();
+                coRenderBranches();
+                coSelectFulfill('delivery', false);
+                coUpdateDeliveryFee();
+
+            } catch(e) {
+                console.error('openCheckoutModal fetch error:', e);
+                overlay.style.display = 'none';
+                document.body.style.overflow = '';
+                shopToast('error', 'Failed to load checkout data. Please try again.');
+            }
+        }
+
+        function closeCheckoutModal() {
+            const overlay = document.getElementById('checkoutOverlay');
+            if (overlay) overlay.style.display = 'none';
+            document.body.style.overflow = '';
+        }
+
+        function coRenderReview() {
+            coEl('co-review-items').innerHTML = `
+            <div style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;overflow:hidden">
+              <div style="padding:.65rem 1rem;border-bottom:1px solid var(--card-border);font-size:.78rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">Order Items</div>
+              ${coState.cartItems.map(item => `
+              <div style="display:flex;align-items:center;gap:.85rem;padding:.75rem 1rem;border-bottom:1px solid var(--card-border)">
+                ${item.image?`<img src="${item.image}" style="width:52px;height:52px;border-radius:9px;object-fit:cover;flex-shrink:0" alt="">`:`<div style="width:52px;height:52px;border-radius:9px;background:rgba(204,26,26,.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--text-muted)"><i class="ti ti-package" style="font-size:1.4rem"></i></div>`}
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:.88rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${shEsc(item.name)}</div>
+                  <div style="font-size:.75rem;color:var(--text-muted)">${PH_FMT(item.price)} &times; ${item.quantity}</div>
+                </div>
+                <div style="font-size:.92rem;font-weight:800;color:var(--fs-red);flex-shrink:0">${PH_FMT(item.price * item.quantity)}</div>
+              </div>`).join('')}
+            </div>`;
+            coEl('co-review-subtotal').textContent = PH_FMT(coState.subtotal);
+        }
+
+        function coRenderBranches() {
+            const list = coEl('co-branch-list');
+            if (!list) return;
+            list.innerHTML = coState.branches.map(b => `
+            <div class="branch-card${coState.selectedBranch===b.id?' selected':''}" onclick="coSelectBranch(${b.id},this)">
+              <div class="branch-radio"></div>
+              <div>
+                <div style="font-size:.88rem;font-weight:700">${shEsc(b.name)}</div>
+                <div style="font-size:.74rem;color:var(--text-muted)">${shEsc(b.address||'')} ${shEsc(b.city||'')}</div>
+              </div>
+            </div>`).join('');
+        }
+
+        function coSelectBranch(id, el) {
+            coState.selectedBranch = id;
+            document.querySelectorAll('.branch-card').forEach(c => c.classList.remove('selected'));
+            el.classList.add('selected');
+        }
+
+        function coSelectFulfill(type, render=true) {
+            coState.fulfillment = type;
+            coEl('fc-delivery').classList.toggle('selected', type==='delivery');
+            coEl('fc-pickup').classList.toggle('selected',   type==='pickup');
+            coEl('co-delivery-form').style.display = type==='delivery' ? '' : 'none';
+            coEl('co-pickup-form').style.display   = type==='pickup'   ? '' : 'none';
+            // Cash on pickup button
+            const copBtn = coEl('co-cop-btn');
+            if (copBtn) copBtn.style.display = type==='pickup' ? '' : 'none';
+            // If switching away from pickup + cash_on_pickup selected, clear payment
+            if (type==='delivery' && coState.payMethod==='cash_on_pickup') {
+                coState.payMethod='';
+                document.querySelectorAll('.co-pay-btn').forEach(b=>b.classList.remove('active'));
+                document.querySelectorAll('.co-pay-info').forEach(i=>i.classList.remove('active'));
+            }
+            if (type==='delivery') { coState.deliveryFee=80; coUpdateDeliveryFee(); }
+            else coState.deliveryFee = 0;
+        }
+
+        function coUpdateDeliveryFee() {
+            const region = (coEl('co-region')?.value||'').toLowerCase();
+            const ncr = ['ncr','ncr – metro manila'];
+            coState.deliveryFee = ncr.includes(region)||region==='' ? 80 : 150;
+            const box = coEl('co-fee-box');
+            const val = coEl('co-fee-val');
+            if (box) box.style.display = region ? 'flex' : 'none';
+            if (val) val.textContent = PH_FMT(coState.deliveryFee);
+        }
+
+        function coSelectPayment(method, btn) {
+            coState.payMethod = method;
+            document.querySelectorAll('.co-pay-btn').forEach(b=>b.classList.remove('active'));
+            btn.classList.add('active');
+            document.querySelectorAll('.co-pay-info').forEach(i=>i.classList.remove('active'));
+            const info = coEl('co-pay-' + method);
+            if (info) info.classList.add('active');
+            // Update amount labels
+            const total = coState.subtotal + coState.deliveryFee;
+            ['gcash-amount','maya-amount','bank-amount','cop-amount'].forEach(id => {
+                const el = coEl(id); if(el) el.textContent = PH_FMT(total);
+            });
+            // Proof section: show for non-cash
+            const needProof = ['gcash','maya','bank_transfer'].includes(method);
+            coEl('co-proof-section').style.display = needProof ? '' : 'none';
+        }
+
+        function coPreviewProof(input) {
+            const file = input.files[0]; if(!file) return;
+            const reader = new FileReader();
+            reader.onload = e => {
+                coEl('co-proof-preview').src = e.target.result;
+                coEl('co-proof-preview').style.display = 'block';
+                coEl('co-proof-placeholder').style.display = 'none';
+                coEl('co-proof-name').textContent = file.name;
+            };
+            reader.readAsDataURL(file);
+        }
+        function coHandleProofDrop(e) {
+            e.preventDefault();
+            coEl('co-proof-zone').classList.remove('drag');
+            const file = e.dataTransfer.files[0];
+            if (!file) return;
+            const dt = new DataTransfer(); dt.items.add(file);
+            coEl('co-proof-input').files = dt.files;
+            coPreviewProof(coEl('co-proof-input'));
+        }
+        async function coUploadProof() {
+            const input = coEl('co-proof-input');
+            if (!input.files.length) return '';
+            const form = new FormData();
+            form.append('action','upload_proof');
+            form.append('csrf_token', SHOP_CSRF);
+            form.append('proof', input.files[0]);
+            const res  = await fetch('handlers/shop_handler.php',{method:'POST',body:form});
+            const data = await res.json();
+            if (!data.success) throw new Error(data.message||'Proof upload failed.');
+            return data.path;
+        }
+
+        // ── Validation ──────────────────────────────────────
+        function coValidate(step) {
+            const mark = (id, ok) => { coEl(id)?.classList.toggle('invalid',!ok); return ok; };
+            if (step===1) return coState.cartItems.length > 0;
+            if (step===2) {
+                if (coState.fulfillment==='delivery') {
+                    const ok = [
+                        mark('co-fullname', coEl('co-fullname').value.trim()!==''),
+                        mark('co-contact',  coEl('co-contact').value.trim()!==''),
+                        mark('co-email',    /\S+@\S+\.\S+/.test(coEl('co-email').value)),
+                        mark('co-region',   coEl('co-region').value!==''),
+                        mark('co-city',     coEl('co-city').value.trim()!==''),
+                        mark('co-barangay', coEl('co-barangay').value.trim()!==''),
+                        mark('co-street',   coEl('co-street').value.trim()!==''),
+                        mark('co-zip',      coEl('co-zip').value.trim()!==''),
+                    ];
+                    return ok.every(Boolean);
+                } else {
+                    const bOk = coState.selectedBranch!==null;
+                    const dOk = coEl('co-pickup-date').value!=='';
+                    const tOk = coEl('co-pickup-time').value!=='';
+                    if(!bOk) shopToast('error','Please select a branch.');
+                    if(!dOk) coEl('co-pickup-date').classList.add('invalid');
+                    if(!tOk) coEl('co-pickup-time').classList.add('invalid');
+                    return bOk && dOk && tOk;
+                }
+            }
+            if (step===3) {
+                if (!coState.payMethod) { shopToast('error','Please select a payment method.'); return false; }
+                const needProof = ['gcash','maya','bank_transfer'].includes(coState.payMethod);
+                if (needProof && !coEl('co-proof-input').files.length && !coState.proofPath) {
+                    shopToast('error','Please upload proof of payment.'); return false;
+                }
+                return true;
+            }
+            return true;
+        }
+
+        // ── Step navigation ─────────────────────────────────
+        async function coStepNext() {
+            if (!coValidate(coState.step)) return;
+            if (coState.step===3) {
+                // Upload proof before moving to confirm
+                const needProof = ['gcash','maya','bank_transfer'].includes(coState.payMethod);
+                if (needProof && !coState.proofPath && coEl('co-proof-input').files.length) {
+                    const btn = coEl('co-next-btn');
+                    btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Uploading…';
+                    try { coState.proofPath = await coUploadProof(); }
+                    catch(e) { shopToast('error',e.message); btn.disabled=false; btn.innerHTML='Continue <i class="ti ti-arrow-right"></i>'; return; }
+                    btn.disabled=false; btn.innerHTML='Continue <i class="ti ti-arrow-right"></i>';
+                }
+                coBuildConfirm();
+            }
+            if (coState.step < 4) coGoToStep(coState.step+1);
+        }
+        function coStepBack() {
+            if (coState.step > 1) coGoToStep(coState.step-1);
+        }
+        function coGoToStep(n) {
+            coState.step = n;
+            document.querySelectorAll('.co-panel').forEach(p => p.classList.remove('active'));
+            const panel = n === 5 ? coEl('co-panel-success') : coEl('co-panel-' + n);
+            if (panel) panel.classList.add('active');
+            // Stepper dots
+            [1,2,3,4].forEach(i => {
+                const s = coEl('co-s'+i), l = coEl('co-l'+i);
+                if (!s) return;
+                s.classList.toggle('active', i===n);
+                s.classList.toggle('done',   i<n);
+                if (l) l.classList.toggle('done', i<n);
+            });
+            // Footer state — fully null-safe
+            const subtitles = {1:'Review your cart',2:'Fulfillment method',3:'Payment details',4:'Confirm & place order'};
+            const subtitle  = coEl('co-step-subtitle');
+            const indicator = coEl('co-step-indicator');
+            const backBtn   = coEl('co-back-btn');
+            const footer    = coEl('co-footer');
+            const nextBtn   = coEl('co-next-btn');
+            const body      = coEl('co-body');
+            if (subtitle)  subtitle.textContent  = subtitles[n] || '';
+            if (indicator) indicator.textContent  = n <= 4 ? `Step ${n} of 4` : '';
+            if (backBtn)   backBtn.style.display  = (n===1||n===5) ? 'none' : '';
+            if (footer)    footer.style.display   = n===5 ? 'none' : '';
+            if (nextBtn) {
+                if (n === 4) {
+                    nextBtn.innerHTML = '<i class="ti ti-check"></i> Place Order';
+                    nextBtn.onclick   = coPlaceOrder;
+                } else if (n < 4) {
+                    nextBtn.innerHTML = 'Continue <i class="ti ti-arrow-right"></i>';
+                    nextBtn.onclick   = coStepNext;
+                }
+            }
+            if (body) body.scrollTop = 0;
+        }
+
+
+        // ── Build confirm summary ────────────────────────────
+        function coBuildConfirm() {
+            const total = coState.subtotal + coState.deliveryFee;
+            const payLabel = {gcash:'GCash',maya:'Maya',bank_transfer:'Bank Transfer',cash_on_pickup:'Cash on Pickup'}[coState.payMethod]||coState.payMethod;
+            let fulfillHtml = '';
+            if (coState.fulfillment==='delivery') {
+                fulfillHtml = `
+                <div class="co-sum-row"><span style="color:var(--text-muted)">Method</span><span><i class="ti ti-truck"></i> Delivery</span></div>
+                <div class="co-sum-row"><span style="color:var(--text-muted)">Recipient</span><span style="font-weight:600">${shEsc(coEl('co-fullname').value)}</span></div>
+                <div class="co-sum-row"><span style="color:var(--text-muted)">Contact</span><span>${shEsc(coEl('co-contact').value)}</span></div>
+                <div class="co-sum-row"><span style="color:var(--text-muted)">Address</span><span style="text-align:right;max-width:220px">${shEsc(coEl('co-street').value)}, ${shEsc(coEl('co-barangay').value)}, ${shEsc(coEl('co-city').value)}, ${shEsc(coEl('co-region').value)}</span></div>`;
+            } else {
+                const branch = coState.branches.find(b=>b.id==coState.selectedBranch)||{};
+                fulfillHtml = `
+                <div class="co-sum-row"><span style="color:var(--text-muted)">Method</span><span><i class="ti ti-building-store"></i> Branch Pick-Up</span></div>
+                <div class="co-sum-row"><span style="color:var(--text-muted)">Branch</span><span style="font-weight:600">${shEsc(branch.name||'')}</span></div>
+                <div class="co-sum-row"><span style="color:var(--text-muted)">Date</span><span>${shEsc(coEl('co-pickup-date').value)}</span></div>
+                <div class="co-sum-row"><span style="color:var(--text-muted)">Time</span><span>${shEsc(coEl('co-pickup-time').value)}</span></div>`;
+            }
+            coEl('co-confirm-body').innerHTML = `
+            <div class="co-sum-block">
+                <div class="co-sum-title">Fulfillment</div>
+                ${fulfillHtml}
+            </div>
+            <div class="co-sum-block">
+                <div class="co-sum-title">Order Summary</div>
+                ${coState.cartItems.map(i=>`<div class="co-sum-row"><span>${shEsc(i.name)} &times;${i.quantity}</span><span>${PH_FMT(i.price*i.quantity)}</span></div>`).join('')}
+                <div class="co-sum-row" style="margin-top:.4rem"><span style="color:var(--text-muted)">Subtotal</span><span>${PH_FMT(coState.subtotal)}</span></div>
+                <div class="co-sum-row"><span style="color:var(--text-muted)">Delivery Fee</span><span>${coState.deliveryFee>0?PH_FMT(coState.deliveryFee):'FREE'}</span></div>
+                <div class="co-sum-row total"><span>Total</span><span>${PH_FMT(total)}</span></div>
+            </div>
+            <div class="co-sum-block">
+                <div class="co-sum-title">Payment</div>
+                <div class="co-sum-row"><span style="color:var(--text-muted)">Method</span><span style="font-weight:700">${payLabel}</span></div>
+                <div class="co-sum-row"><span style="color:var(--text-muted)">Status</span><span style="color:#ffc107;font-weight:600"><i class="ti ti-clock"></i> Pending Verification</span></div>
+                ${coState.proofPath?`<div class="co-sum-row"><span style="color:var(--text-muted)">Proof</span><img src="${coState.proofPath}" style="height:48px;border-radius:7px;border:1px solid var(--card-border)" alt="proof"></div>`:''}
+            </div>
+            <div style="background:rgba(74,158,255,.07);border:1px solid rgba(74,158,255,.2);border-radius:10px;padding:.75rem 1rem;font-size:.8rem;color:#4a9eff;margin-bottom:.5rem">
+                <i class="ti ti-info-circle"></i> By placing your order, you confirm that the details above are correct. Orders cannot be modified after placement.
+            </div>`;
+        }
+
+        // ── Place order ─────────────────────────────────────
+        async function coPlaceOrder() {
+            const btn = coEl('co-next-btn');
+            btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Placing Order…';
+            try {
+                const f = new FormData();
+                f.append('action','checkout');
+                f.append('csrf_token', SHOP_CSRF);
+                f.append('checkout_token','co_'+Date.now());
+                f.append('fulfillment_method', coState.fulfillment);
+                f.append('payment_method', coState.payMethod);
+                f.append('proof_path', coState.proofPath);
+                if (coState.fulfillment==='delivery') {
+                    f.append('recipient_name',    coEl('co-fullname').value);
+                    f.append('recipient_contact', coEl('co-contact').value);
+                    f.append('recipient_email',   coEl('co-email').value);
+                    f.append('region',    coEl('co-region').value);
+                    f.append('province',  coEl('co-province').value);
+                    f.append('city',      coEl('co-city').value);
+                    f.append('barangay',  coEl('co-barangay').value);
+                    f.append('street',    coEl('co-street').value);
+                    f.append('zip',       coEl('co-zip').value);
+                    f.append('landmark',  coEl('co-landmark').value);
+                    f.append('order_notes', coEl('co-notes').value);
+                } else {
+                    f.append('pickup_branch_id', coState.selectedBranch);
+                    f.append('pickup_date', coEl('co-pickup-date').value);
+                    f.append('pickup_time', coEl('co-pickup-time').value);
+                    f.append('recipient_name',    coEl('co-fullname')?.value||'');
+                    f.append('recipient_contact', coEl('co-contact')?.value||'');
+                    f.append('recipient_email',   coEl('co-email')?.value||'');
+                }
+                const data = await (await fetch('handlers/shop_handler.php',{method:'POST',body:f})).json();
+                if (data.success) {
+                    updateCartBadge(0);
+                    loadCart();
+                    coEl('co-success-order-id').textContent = 'Order #' + data.order_id + ' — Thank you!';
+                    coGoToStep(5);
+                } else {
+                    shopToast('error', data.message||'Order failed. Please try again.');
+                    btn.disabled=false; btn.innerHTML='<i class="ti ti-check"></i> Place Order';
+                }
+            } catch(e) {
+                shopToast('error','Network error. Please try again.');
+                btn.disabled=false; btn.innerHTML='<i class="ti ti-check"></i> Place Order';
+            }
+        }
+
+        function coCopy(text, btn) {
+            navigator.clipboard?.writeText(text).then(()=>{
+                const orig = btn.innerHTML; btn.innerHTML='<i class="ti ti-check"></i> Copied!';
+                setTimeout(()=>btn.innerHTML=orig, 1800);
+            });
+        }
+
+        // Toast helper
+
+        function shopToast(type, msg) {
+            const colors = {success:'#2ecc71',error:'#ff6b6b',info:'#4a9eff'};
+            const t = document.createElement('div');
+            t.style.cssText = `position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;background:${colors[type]||colors.info};color:#fff;padding:.7rem 1.2rem;border-radius:10px;font-size:.88rem;font-weight:600;box-shadow:0 6px 24px rgba(0,0,0,.3);transition:opacity .3s`;
+            t.textContent = msg;
+            document.body.appendChild(t);
+            setTimeout(() => { t.style.opacity='0'; setTimeout(()=>t.remove(),300); }, 3200);
+        }
+
+        // XSS helpers
+        function shEsc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+        function shEscAttr(s) { return String(s).replace(/'/g,"&#39;").replace(/"/g,'&quot;'); }
+
+        // Shop tab lazy-loading is handled inside showTab above
 
         function openSidebar() {
             document.getElementById('sidebar').classList.add('open');

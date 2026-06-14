@@ -1348,6 +1348,7 @@ try {
                     <li class="nav-item"><a class="nav-link" href="#gallery">Gallery</a></li>
                     <li class="nav-item"><a class="nav-link" href="#locations">Locations</a></li>
                     <li class="nav-item"><a class="nav-link" href="#plans">Plans</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#shop">Shop</a></li>
                 </ul>
                 <div class="d-flex align-items-center gap-2 mt-3 mt-lg-0">
                     <a href="auth.php?mode=login" class="btn btn-sm btn-fs px-3 rounded-pill">Log In / Register</a>
@@ -1581,6 +1582,87 @@ try {
                     </div>
                 </div>
             </div>
+        </div>
+    </section>
+
+    <!-- ════════════════ SHOP SHOWCASE ════════════════ -->
+    <section id="shop" class="py-5" style="background:linear-gradient(180deg,transparent,rgba(204,26,26,.04) 40%,transparent)">
+        <div class="container">
+            <!-- Section Header -->
+            <div class="text-center mb-5">
+                <span style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--fs-red);display:block;margin-bottom:.6rem">FitSync Store</span>
+                <h2 class="fw-black" style="font-size:clamp(1.8rem,4vw,2.6rem);letter-spacing:-.5px">Premium Supplements &amp; Gear</h2>
+                <p class="text-secondary mt-2" style="max-width:520px;margin:auto;font-size:.92rem;line-height:1.7">Everything you need to crush your goals — sourced, stacked, and shipped straight to you.</p>
+            </div>
+
+            <?php
+            // Load featured products — graceful fallback if table doesn't exist
+            $featuredProducts = [];
+            try {
+                $featStmt = db()->query(
+                    'SELECT id, name, description, category, price, stock, image
+                     FROM products WHERE is_active = 1 ORDER BY id ASC LIMIT 8'
+                );
+                $featuredProducts = $featStmt->fetchAll(PDO::FETCH_ASSOC);
+            } catch (Throwable) {}
+            $isLoggedIn = !empty($_SESSION['user_id']) && ($_SESSION['user_role'] ?? '') === 'member';
+            $buyTarget  = $isLoggedIn ? 'profile.php#shop' : 'auth.php';
+            ?>
+
+            <?php if ($featuredProducts): ?>
+            <div class="row g-3 g-md-4">
+                <?php foreach ($featuredProducts as $fp): ?>
+                <?php
+                    $inStock   = (int)$fp['stock'] > 0;
+                    $catBadge  = htmlspecialchars($fp['category'], ENT_QUOTES, 'UTF-8');
+                    $pName     = htmlspecialchars($fp['name'], ENT_QUOTES, 'UTF-8');
+                    $pDesc     = htmlspecialchars($fp['description'], ENT_QUOTES, 'UTF-8');
+                    $pPrice    = number_format((float)$fp['price'], 2);
+                ?>
+                <div class="col-6 col-md-4 col-lg-3">
+                    <div class="card h-100 border-0" style="background:rgba(255,255,255,.04);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.07)!important;border-radius:18px;overflow:hidden;transition:transform .25s,box-shadow .25s" onmouseover="this.style.transform='translateY(-6px)';this.style.boxShadow='0 20px 50px rgba(0,0,0,.4)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+                        <!-- Product Image -->
+                        <?php if ($fp['image'] && file_exists(__DIR__ . '/' . $fp['image'])): ?>
+                            <img src="<?= htmlspecialchars($fp['image'], ENT_QUOTES) ?>" alt="<?= $pName ?>" class="card-img-top" style="aspect-ratio:1/1;object-fit:cover">
+                        <?php else: ?>
+                            <div style="aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(204,26,26,.1),rgba(204,26,26,.03));">
+                                <i class="ti ti-package" style="font-size:4rem;color:rgba(204,26,26,.3)"></i>
+                            </div>
+                        <?php endif; ?>
+
+                        <div class="card-body d-flex flex-column p-3">
+                            <span style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--fs-red);background:rgba(204,26,26,.12);padding:.18rem .55rem;border-radius:6px;display:inline-block;margin-bottom:.5rem;width:fit-content"><?= $catBadge ?></span>
+                            <h6 class="fw-bold mb-1" style="font-size:.9rem;letter-spacing:-.1px"><?= $pName ?></h6>
+                            <p class="text-secondary mb-3" style="font-size:.75rem;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;flex:1"><?= $pDesc ?></p>
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <span style="font-size:1.05rem;font-weight:800;color:var(--fs-red)">&#8369;<?= $pPrice ?></span>
+                                <?php if ($inStock): ?>
+                                    <span style="font-size:.65rem;font-weight:700;color:#2ecc71;background:rgba(46,204,113,.12);padding:.18rem .5rem;border-radius:6px"><?= (int)$fp['stock'] ?> left</span>
+                                <?php else: ?>
+                                    <span style="font-size:.65rem;font-weight:700;color:#ff6b6b;background:rgba(255,107,107,.12);padding:.18rem .5rem;border-radius:6px">Sold Out</span>
+                                <?php endif; ?>
+                            </div>
+                            <a href="<?= $buyTarget ?>" class="btn btn-fs w-100 rounded-3" style="font-size:.82rem;padding:.45rem" <?= !$inStock ? 'style="opacity:.5;pointer-events:none"' : '' ?>>
+                                <i class="ti ti-shopping-cart-plus"></i>
+                                <?= $isLoggedIn ? 'Add to Cart' : 'Buy Now' ?>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+            <div class="text-center mt-5">
+                <a href="<?= $buyTarget ?>" class="btn btn-fs rounded-pill px-5 py-3" style="font-size:.95rem;font-weight:700;letter-spacing:.3px">
+                    <i class="ti ti-shopping-bag"></i>
+                    <?= $isLoggedIn ? 'Browse Full Shop' : 'Sign In to Shop' ?>
+                </a>
+            </div>
+            <?php else: ?>
+            <div class="text-center py-5 text-secondary">
+                <i class="ti ti-package" style="font-size:3rem;display:block;margin-bottom:1rem;opacity:.3"></i>
+                <p>Shop products coming soon. <a href="<?= $buyTarget ?>" style="color:var(--fs-red)">Sign in</a> to be notified.</p>
+            </div>
+            <?php endif; ?>
         </div>
     </section>
 
