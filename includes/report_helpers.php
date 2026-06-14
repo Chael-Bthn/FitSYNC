@@ -130,8 +130,10 @@ function reportOverview(PDO $pdo): array
             'active_members' => (int) reportValue($pdo, 'SELECT COUNT(DISTINCT user_id) FROM memberships WHERE status = "active" AND payment_status = "paid" AND starts_at <= CURDATE() AND ends_at >= CURDATE()'),
             'expired_members' => (int) reportValue($pdo, 'SELECT COUNT(DISTINCT user_id) FROM memberships WHERE status = "expired" OR ends_at < CURDATE()'),
             'pending_renewals' => (int) reportValue($pdo, 'SELECT COUNT(*) FROM memberships WHERE status = "pending" OR payment_status = "pending"'),
-            'revenue_month' => (float) reportValue($pdo, "SELECT COALESCE(SUM(amount_paid), 0) FROM memberships m WHERE payment_status = 'paid' AND {$paymentDate} BETWEEN ? AND ?", [$monthStart, $todayEnd]),
-            'revenue_year' => (float) reportValue($pdo, "SELECT COALESCE(SUM(amount_paid), 0) FROM memberships m WHERE payment_status = 'paid' AND {$paymentDate} BETWEEN ? AND ?", [$yearStart, $todayEnd]),
+            'revenue_month' => (float) reportValue($pdo, "SELECT COALESCE(SUM(amount_paid), 0) FROM memberships m WHERE payment_status = 'paid' AND {$paymentDate} BETWEEN ? AND ?", [$monthStart, $todayEnd])
+                            + (float) reportValue($pdo, "SELECT COALESCE(SUM(total_amount), 0) FROM orders WHERE (payment_status='paid' OR (status='completed' AND payment_method IN ('cash_on_pickup','cash_on_delivery'))) AND status!='cancelled' AND created_at BETWEEN ? AND ?", [$monthStart, $todayEnd]),
+            'revenue_year'  => (float) reportValue($pdo, "SELECT COALESCE(SUM(amount_paid), 0) FROM memberships m WHERE payment_status = 'paid' AND {$paymentDate} BETWEEN ? AND ?", [$yearStart, $todayEnd])
+                            + (float) reportValue($pdo, "SELECT COALESCE(SUM(total_amount), 0) FROM orders WHERE (payment_status='paid' OR (status='completed' AND payment_method IN ('cash_on_pickup','cash_on_delivery'))) AND status!='cancelled' AND created_at BETWEEN ? AND ?", [$yearStart, $todayEnd]),
             'attendance_month' => (int) reportValue($pdo, 'SELECT COUNT(*) FROM attendance_logs WHERE check_in_at BETWEEN ? AND ?', [$monthStart, $todayEnd]),
             'upcoming_classes' => (int) reportValue($pdo, 'SELECT COUNT(*) FROM class_schedules WHERE status = "scheduled" AND TIMESTAMP(scheduled_date, start_time) >= NOW()'),
         ],
@@ -221,29 +223,49 @@ function reportMemberships(PDO $pdo, array $filters): array
 
 function reportRevenue(PDO $pdo, array $filters): array
 {
+    // ── Membership revenue ─────────────────────────────────────
     [$filterWhere, $filterParams] = reportMembershipWhere($filters, 'm');
     $paymentDate = reportPaymentDateSql('m');
-    $rangeWhere = ["m.payment_status = 'paid'", "{$paymentDate} BETWEEN ? AND ?"];
+    $rangeWhere  = ["m.payment_status = 'paid'", "{$paymentDate} BETWEEN ? AND ?"];
     $rangeParams = [$filters['range']['start_dt'], $filters['range']['end_dt']];
-    $where = array_merge($rangeWhere, $filterWhere);
-    $params = array_merge($rangeParams, $filterParams);
+    $where       = array_merge($rangeWhere, $filterWhere);
+    $params      = array_merge($rangeParams, $filterParams);
+    $base        = ' FROM memberships m INNER JOIN membership_plans p ON p.id = m.plan_id INNER JOIN branches b ON b.id = m.branch_id WHERE ' . implode(' AND ', $where);
+    $memberBase  = ' FROM memberships m INNER JOIN users u ON u.id = m.user_id INNER JOIN membership_plans p ON p.id = m.plan_id INNER JOIN branches b ON b.id = m.branch_id WHERE ' . implode(' AND ', $where);
 
-    $base = ' FROM memberships m INNER JOIN membership_plans p ON p.id = m.plan_id INNER JOIN branches b ON b.id = m.branch_id WHERE ' . implode(' AND ', $where);
-    $memberBase = ' FROM memberships m INNER JOIN users u ON u.id = m.user_id INNER JOIN membership_plans p ON p.id = m.plan_id INNER JOIN branches b ON b.id = m.branch_id WHERE ' . implode(' AND ', $where);
+    // ── Shop order revenue (Option C) ──────────────────────────
+    // Counts: online-paid orders + COD/COP orders marked completed
+    $oc       = "(o.payment_status = 'paid' OR (o.status = 'completed' AND o.payment_method IN ('cash_on_pickup','cash_on_delivery'))) AND o.status != 'cancelled'";
+    $ocGlobal = "(payment_status = 'paid' OR (status = 'completed' AND payment_method IN ('cash_on_pickup','cash_on_delivery'))) AND status != 'cancelled'";
+    $shopParams = [$filters['range']['start_dt'], $filters['range']['end_dt']];
 
+    $memTotal  = (float) reportValue($pdo, "SELECT COALESCE(SUM(m.amount_paid), 0){$base}", $params);
+    $shopTotal = (float) reportValue($pdo, "SELECT COALESCE(SUM(o.total_amount), 0) FROM orders o WHERE {$oc} AND o.created_at BETWEEN ? AND ?", $shopParams);
+
+    // ── Live quick-stats (membership + shop combined) ──────────
+    $pd = $paymentDate;
     return [
         'metrics' => [
-            'today' => (float) reportValue($pdo, "SELECT COALESCE(SUM(amount_paid), 0) FROM memberships m WHERE payment_status = 'paid' AND {$paymentDate} BETWEEN CURDATE() AND CONCAT(CURDATE(), ' 23:59:59')"),
-            'week' => (float) reportValue($pdo, "SELECT COALESCE(SUM(amount_paid), 0) FROM memberships m WHERE payment_status = 'paid' AND {$paymentDate} >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)"),
-            'month' => (float) reportValue($pdo, "SELECT COALESCE(SUM(amount_paid), 0) FROM memberships m WHERE payment_status = 'paid' AND {$paymentDate} >= DATE_FORMAT(CURDATE(), '%Y-%m-01')"),
-            'year' => (float) reportValue($pdo, "SELECT COALESCE(SUM(amount_paid), 0) FROM memberships m WHERE payment_status = 'paid' AND {$paymentDate} >= MAKEDATE(YEAR(CURDATE()), 1)"),
+            'period_total'     => $memTotal + $shopTotal,
+            'membership_total' => $memTotal,
+            'shop_total'       => $shopTotal,
+            'today'  => (float) reportValue($pdo, "SELECT COALESCE(SUM(amount_paid),0) FROM memberships m WHERE payment_status='paid' AND {$pd} BETWEEN CURDATE() AND CONCAT(CURDATE(),' 23:59:59')")
+                       + (float) reportValue($pdo, "SELECT COALESCE(SUM(total_amount),0) FROM orders WHERE {$ocGlobal} AND created_at BETWEEN CURDATE() AND CONCAT(CURDATE(),' 23:59:59')"),
+            'week'   => (float) reportValue($pdo, "SELECT COALESCE(SUM(amount_paid),0) FROM memberships m WHERE payment_status='paid' AND {$pd} >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)")
+                       + (float) reportValue($pdo, "SELECT COALESCE(SUM(total_amount),0) FROM orders WHERE {$ocGlobal} AND created_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)"),
+            'month'  => (float) reportValue($pdo, "SELECT COALESCE(SUM(amount_paid),0) FROM memberships m WHERE payment_status='paid' AND {$pd} >= DATE_FORMAT(CURDATE(),'%Y-%m-01')")
+                       + (float) reportValue($pdo, "SELECT COALESCE(SUM(total_amount),0) FROM orders WHERE {$ocGlobal} AND created_at >= DATE_FORMAT(CURDATE(),'%Y-%m-01')"),
+            'year'   => (float) reportValue($pdo, "SELECT COALESCE(SUM(amount_paid),0) FROM memberships m WHERE payment_status='paid' AND {$pd} >= MAKEDATE(YEAR(CURDATE()),1)")
+                       + (float) reportValue($pdo, "SELECT COALESCE(SUM(total_amount),0) FROM orders WHERE {$ocGlobal} AND created_at >= MAKEDATE(YEAR(CURDATE()),1)"),
         ],
-        'by_plan' => reportRows($pdo, "SELECT p.label, COALESCE(SUM(m.amount_paid), 0) AS revenue, COUNT(*) AS payments {$base} GROUP BY p.id, p.label ORDER BY revenue DESC", $params),
-        'by_branch' => reportRows($pdo, "SELECT b.name, b.city, COALESCE(SUM(m.amount_paid), 0) AS revenue, COUNT(*) AS payments {$base} GROUP BY b.id, b.name, b.city ORDER BY revenue DESC", $params),
-        'by_month' => reportRows($pdo, "SELECT DATE_FORMAT({$paymentDate}, '%Y-%m') AS month_key, COALESCE(SUM(m.amount_paid), 0) AS revenue, COUNT(*) AS payments {$base} GROUP BY DATE_FORMAT({$paymentDate}, '%Y-%m') ORDER BY month_key ASC", $params),
+        'by_plan'        => reportRows($pdo, "SELECT p.label, COALESCE(SUM(m.amount_paid), 0) AS revenue, COUNT(*) AS payments {$base} GROUP BY p.id, p.label ORDER BY revenue DESC", $params),
+        'by_branch'      => reportRows($pdo, "SELECT b.name, b.city, COALESCE(SUM(m.amount_paid), 0) AS revenue, COUNT(*) AS payments {$base} GROUP BY b.id, b.name, b.city ORDER BY revenue DESC", $params),
+        'by_month'       => reportRows($pdo, "SELECT DATE_FORMAT({$paymentDate}, '%Y-%m') AS month_key, COALESCE(SUM(m.amount_paid), 0) AS revenue, COUNT(*) AS payments {$base} GROUP BY DATE_FORMAT({$paymentDate}, '%Y-%m') ORDER BY month_key ASC", $params),
+        'shop_by_month'  => reportRows($pdo, "SELECT DATE_FORMAT(o.created_at, '%Y-%m') AS month_key, COALESCE(SUM(o.total_amount), 0) AS revenue, COUNT(*) AS payments FROM orders o WHERE {$oc} AND o.created_at BETWEEN ? AND ? GROUP BY DATE_FORMAT(o.created_at, '%Y-%m') ORDER BY month_key ASC", $shopParams),
         'recent_payments' => reportRows($pdo, "SELECT CONCAT(u.first_name, ' ', u.last_name) AS member_name, u.email, p.label AS plan, b.name AS branch, m.amount_paid, m.payment_method, {$paymentDate} AS paid_at {$memberBase} ORDER BY paid_at DESC LIMIT 12", $params),
         'recent_renewals' => reportRows($pdo, "SELECT CONCAT(u.first_name, ' ', u.last_name) AS member_name, p.label AS plan, b.name AS branch, m.amount_paid, {$paymentDate} AS paid_at {$memberBase} AND EXISTS (SELECT 1 FROM memberships prev WHERE prev.user_id = m.user_id AND prev.id < m.id) ORDER BY paid_at DESC LIMIT 12", $params),
-        'summary' => reportRows($pdo, "SELECT p.label AS plan, b.name AS branch, COUNT(*) AS payments, COALESCE(SUM(m.amount_paid), 0) AS revenue {$base} GROUP BY p.id, p.label, b.id, b.name ORDER BY revenue DESC LIMIT 12", $params),
+        'shop_recent'    => reportRows($pdo, "SELECT o.id AS order_id, CONCAT(u.first_name,' ',u.last_name) AS member_name, u.email, o.total_amount, o.payment_method, o.status, o.created_at AS paid_at FROM orders o JOIN users u ON u.id = o.user_id WHERE {$oc} AND o.created_at BETWEEN ? AND ? ORDER BY o.created_at DESC LIMIT 12", $shopParams),
+        'summary'        => reportRows($pdo, "SELECT p.label AS plan, b.name AS branch, COUNT(*) AS payments, COALESCE(SUM(m.amount_paid), 0) AS revenue {$base} GROUP BY p.id, p.label, b.id, b.name ORDER BY revenue DESC LIMIT 12", $params),
     ];
 }
 
@@ -312,12 +334,28 @@ function reportMembershipExport(PDO $pdo, array $filters): array
 
 function reportRevenueExport(PDO $pdo, array $filters): array
 {
+    // Membership payments
     [$where, $params] = reportMembershipWhere($filters, 'm');
     $paymentDate = reportPaymentDateSql('m');
     array_unshift($where, "m.payment_status = 'paid'", "{$paymentDate} BETWEEN ? AND ?");
     array_unshift($params, $filters['range']['end_dt']);
     array_unshift($params, $filters['range']['start_dt']);
-    return reportRows($pdo, "SELECT CONCAT(u.first_name, ' ', u.last_name) AS member, u.email, p.label AS plan, b.name AS branch, m.amount_paid, m.payment_method, {$paymentDate} AS paid_at, m.payment_ref FROM memberships m INNER JOIN users u ON u.id = m.user_id INNER JOIN membership_plans p ON p.id = m.plan_id INNER JOIN branches b ON b.id = m.branch_id WHERE " . implode(' AND ', $where) . ' ORDER BY paid_at DESC', $params);
+    $memRows = reportRows($pdo,
+        "SELECT 'membership' AS source, CONCAT(u.first_name,' ',u.last_name) AS member, u.email, p.label AS type, b.name AS branch, m.amount_paid AS amount, m.payment_method, {$paymentDate} AS date
+         FROM memberships m INNER JOIN users u ON u.id=m.user_id INNER JOIN membership_plans p ON p.id=m.plan_id INNER JOIN branches b ON b.id=m.branch_id
+         WHERE " . implode(' AND ', $where) . ' ORDER BY date DESC', $params);
+
+    // Shop order revenue (Option C)
+    $oc = "(o.payment_status='paid' OR (o.status='completed' AND o.payment_method IN ('cash_on_pickup','cash_on_delivery'))) AND o.status!='cancelled'";
+    $shopRows = reportRows($pdo,
+        "SELECT 'shop_order' AS source, CONCAT(u.first_name,' ',u.last_name) AS member, u.email,
+                CONCAT('Order #',o.id) AS type, COALESCE(b.name,'Delivery') AS branch,
+                o.total_amount AS amount, o.payment_method, o.created_at AS date
+         FROM orders o JOIN users u ON u.id=o.user_id LEFT JOIN branches b ON b.id=o.pickup_branch_id
+         WHERE {$oc} AND o.created_at BETWEEN ? AND ? ORDER BY o.created_at DESC",
+        [$filters['range']['start_dt'], $filters['range']['end_dt']]);
+
+    return array_merge($memRows, $shopRows);
 }
 
 function reportAttendanceExport(PDO $pdo, array $filters): array

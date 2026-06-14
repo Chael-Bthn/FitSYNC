@@ -2660,26 +2660,19 @@ $adminData = [
             </div>
             <div class="dash-tabs">
                 <?php foreach (['overview' => 'Overview', 'memberships' => 'Memberships', 'revenue' => 'Revenue', 'attendance' => 'Attendance', 'classes' => 'Classes'] as $tabKey => $tabLabel): ?>
-                    <a class="dash-tab <?= $activeReportTab === $tabKey ? 'active' : '' ?>" href="<?= htmlspecialchars(adminReportUrl($tabKey)) ?>" style="text-decoration:none"><?= htmlspecialchars($tabLabel) ?></a>
+                    <a class="dash-tab <?= $activeReportTab === $tabKey ? 'active' : '' ?>" href="<?= htmlspecialchars(adminReportUrl($tabKey)) ?>" data-rtab="<?= htmlspecialchars($tabKey) ?>" onclick="switchReportTab('<?= htmlspecialchars($tabKey) ?>',event)" style="text-decoration:none"><?= htmlspecialchars($tabLabel) ?></a>
                 <?php endforeach ?>
             </div>
-            <form method="get" action="admin.php#reports" class="card" style="margin-bottom:1.25rem">
+            <form id="rpt-filter-form" method="get" action="admin.php#reports" class="card" style="margin-bottom:1.25rem<?= $activeReportTab === 'overview' ? ';display:none' : '' ?>">
                 <input type="hidden" name="report_tab" value="<?= htmlspecialchars($activeReportTab) ?>">
                 <div class="card-body report-filters-body" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:.75rem;align-items:end">
                     <label style="font-size:.72rem;color:var(--text-3);font-weight:700">Start<input class="btn" type="date" name="start" value="<?= htmlspecialchars($reportFilters['range']['start']) ?>" style="width:100%;margin-top:.35rem"></label>
                     <label style="font-size:.72rem;color:var(--text-3);font-weight:700">End<input class="btn" type="date" name="end" value="<?= htmlspecialchars($reportFilters['range']['end']) ?>" style="width:100%;margin-top:.35rem"></label>
-                    <?php if ($activeReportTab !== 'overview'): ?>
-                        <label style="font-size:.72rem;color:var(--text-3);font-weight:700">Branch<select class="btn" name="branch_id" style="width:100%;margin-top:.35rem"><option value="">All branches</option><?php foreach ($branches as $branch): ?><option value="<?= (int) $branch['id'] ?>" <?= $reportFilters['branch_id'] === (int) $branch['id'] ? 'selected' : '' ?>><?= htmlspecialchars($branch['name']) ?></option><?php endforeach ?></select></label>
-                    <?php endif ?>
-                    <?php if (in_array($activeReportTab, ['memberships', 'revenue'], true)): ?>
-                        <label style="font-size:.72rem;color:var(--text-3);font-weight:700">Plan<select class="btn" name="plan_id" style="width:100%;margin-top:.35rem"><option value="">All plans</option><?php foreach ($membershipPlans as $plan): ?><option value="<?= (int) $plan['id'] ?>" <?= $reportFilters['plan_id'] === (int) $plan['id'] ? 'selected' : '' ?>><?= htmlspecialchars($plan['label']) ?></option><?php endforeach ?></select></label>
-                    <?php elseif ($activeReportTab === 'classes'): ?>
-                        <label style="font-size:.72rem;color:var(--text-3);font-weight:700">Class<select class="btn" name="class_id" style="width:100%;margin-top:.35rem"><option value="">All classes</option><?php foreach ($classes as $class): ?><option value="<?= (int) $class['id'] ?>" <?= $reportFilters['class_id'] === (int) $class['id'] ? 'selected' : '' ?>><?= htmlspecialchars($class['title']) ?></option><?php endforeach ?></select></label>
-                    <?php endif ?>
-                    <?php if ($activeReportTab === 'memberships'): ?>
-                        <label style="font-size:.72rem;color:var(--text-3);font-weight:700">Status<select class="btn" name="status" style="width:100%;margin-top:.35rem"><option value="">All statuses</option><?php foreach (['active', 'expired', 'frozen', 'cancelled', 'pending'] as $status): ?><option value="<?= htmlspecialchars($status) ?>" <?= $reportFilters['status'] === $status ? 'selected' : '' ?>><?= ucfirst($status) ?></option><?php endforeach ?></select></label>
-                    <?php endif ?>
-                    <div style="display:flex;gap:.5rem;flex-wrap:wrap"><button class="btn primary" type="submit"><i class="ti ti-filter"></i> Apply</button><a class="btn" href="admin.php?report_tab=<?= htmlspecialchars($activeReportTab) ?>#reports"><i class="ti ti-rotate"></i> Reset</a></div>
+                    <label id="rf-branch" style="font-size:.72rem;color:var(--text-3);font-weight:700">Branch<select class="btn" name="branch_id" style="width:100%;margin-top:.35rem"><option value="">All branches</option><?php foreach ($branches as $branch): ?><option value="<?= (int) $branch['id'] ?>" <?= $reportFilters['branch_id'] === (int) $branch['id'] ? 'selected' : '' ?>><?= htmlspecialchars($branch['name']) ?></option><?php endforeach ?></select></label>
+                    <label id="rf-plan" style="font-size:.72rem;color:var(--text-3);font-weight:700;<?= in_array($activeReportTab, ['memberships','revenue']) ? '' : 'display:none' ?>">Plan<select class="btn" name="plan_id" style="width:100%;margin-top:.35rem"><option value="">All plans</option><?php foreach ($membershipPlans as $plan): ?><option value="<?= (int) $plan['id'] ?>" <?= $reportFilters['plan_id'] === (int) $plan['id'] ? 'selected' : '' ?>><?= htmlspecialchars($plan['label']) ?></option><?php endforeach ?></select></label>
+                    <label id="rf-class" style="font-size:.72rem;color:var(--text-3);font-weight:700;<?= $activeReportTab === 'classes' ? '' : 'display:none' ?>">Class<select class="btn" name="class_id" style="width:100%;margin-top:.35rem"><option value="">All classes</option><?php foreach ($classes as $class): ?><option value="<?= (int) $class['id'] ?>" <?= $reportFilters['class_id'] === (int) $class['id'] ? 'selected' : '' ?>><?= htmlspecialchars($class['title']) ?></option><?php endforeach ?></select></label>
+                    <label id="rf-status" style="font-size:.72rem;color:var(--text-3);font-weight:700;<?= $activeReportTab === 'memberships' ? '' : 'display:none' ?>">Status<select class="btn" name="status" style="width:100%;margin-top:.35rem"><option value="">All statuses</option><?php foreach (['active', 'expired', 'frozen', 'cancelled', 'pending'] as $status): ?><option value="<?= htmlspecialchars($status) ?>" <?= $reportFilters['status'] === $status ? 'selected' : '' ?>><?= ucfirst($status) ?></option><?php endforeach ?></select></label>
+                    <div style="display:flex;gap:.5rem;flex-wrap:wrap"><button class="btn primary" type="submit"><i class="ti ti-filter"></i> Apply</button><a class="btn" href="admin.php?report_tab=<?= htmlspecialchars($activeReportTab) ?>#reports" id="rpt-reset-link"><i class="ti ti-rotate"></i> Reset</a></div>
                 </div>
             </form>
             <div class="dash-panel <?= $activeReportTab === 'overview' ? 'active' : '' ?>" id="rt-overview">
@@ -2705,9 +2698,42 @@ $adminData = [
             </div>
             <div class="dash-panel <?= $activeReportTab === 'revenue' ? 'active' : '' ?>" id="rt-revenue">
                 <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-bottom:1rem;flex-wrap:wrap"><a class="btn sm" href="<?= htmlspecialchars(adminReportExportUrl('revenue', 'csv')) ?>"><i class="ti ti-file-type-csv"></i> CSV</a><a class="btn sm" href="<?= htmlspecialchars(adminReportExportUrl('revenue', 'excel')) ?>"><i class="ti ti-file-spreadsheet"></i> Excel</a><button class="btn sm" onclick="window.print()"><i class="ti ti-printer"></i> Print</button></div>
-                <div class="grid g-4" style="margin-bottom:1.25rem"><?php foreach ([['ti-calendar', 'today', 'Revenue Today'], ['ti-calendar-week', 'week', 'Revenue This Week'], ['ti-cash', 'month', 'Revenue This Month'], ['ti-report-money', 'year', 'Revenue This Year']] as $metric): ?><div class="stat"><div class="stat-icon"><i class="ti <?= $metric[0] ?>"></i></div><div class="stat-val"><?= reportMoney($revenueReport['metrics'][$metric[1]]) ?></div><div class="stat-lbl"><?= $metric[2] ?></div></div><?php endforeach ?></div>
-                <div class="grid g-2" style="margin-bottom:1.25rem"><div class="card"><div class="card-head"><div class="card-title">Monthly Revenue Trend</div></div><div class="card-body"><?php $monthMax = max(1, ...array_map('floatval', array_column($revenueReport['by_month'], 'revenue') ?: [1])); ?><?php foreach ($revenueReport['by_month'] as $row): ?><div class="rev-row"><span class="rev-label"><?= htmlspecialchars(date('M Y', strtotime($row['month_key'] . '-01'))) ?></span><div class="rev-track"><div class="rev-fill" style="width:<?= min(100, ((float) $row['revenue'] / $monthMax) * 100) ?>%"></div></div><span class="rev-val"><?= reportMoney($row['revenue']) ?></span></div><?php endforeach ?></div></div><div class="card"><div class="card-head"><div class="card-title">Revenue By Membership Plan</div></div><div class="card-body"><?php $planMax = max(1, ...array_map('floatval', array_column($revenueReport['by_plan'], 'revenue') ?: [1])); ?><?php foreach ($revenueReport['by_plan'] as $row): ?><div class="rev-row"><span class="rev-label"><?= htmlspecialchars($row['label']) ?></span><div class="rev-track"><div class="rev-fill" style="width:<?= min(100, ((float) $row['revenue'] / $planMax) * 100) ?>%"></div></div><span class="rev-val"><?= reportMoney($row['revenue']) ?></span></div><?php endforeach ?></div></div></div>
-                <div class="grid g-3"><div class="tbl-wrap"><div class="card-head"><div class="card-title">Recent Payments</div></div><table><thead><tr><th>Member</th><th>Plan</th><th>Branch</th><th>Amount</th></tr></thead><tbody><?php foreach ($revenueReport['recent_payments'] as $row): ?><tr><td><?= htmlspecialchars($row['member_name']) ?><div style="font-size:.7rem;color:var(--text-3)"><?= htmlspecialchars($row['email']) ?></div></td><td><?= htmlspecialchars($row['plan']) ?></td><td><?= htmlspecialchars($row['branch']) ?></td><td><?= reportMoney($row['amount_paid']) ?></td></tr><?php endforeach ?><?php if (!$revenueReport['recent_payments']): ?><tr><td colspan="4"><div class="empty"><i class="ti ti-cash-off"></i>No payments in this range</div></td></tr><?php endif ?></tbody></table></div><div class="tbl-wrap"><div class="card-head"><div class="card-title">Recent Renewals</div></div><table><thead><tr><th>Member</th><th>Plan</th><th>Amount</th><th>Date</th></tr></thead><tbody><?php foreach ($revenueReport['recent_renewals'] as $row): ?><tr><td><?= htmlspecialchars($row['member_name']) ?></td><td><?= htmlspecialchars($row['plan']) ?></td><td><?= reportMoney($row['amount_paid']) ?></td><td><?= htmlspecialchars(date('M j, Y', strtotime($row['paid_at']))) ?></td></tr><?php endforeach ?><?php if (!$revenueReport['recent_renewals']): ?><tr><td colspan="4"><div class="empty"><i class="ti ti-repeat-off"></i>No renewal revenue in this range</div></td></tr><?php endif ?></tbody></table></div><div class="tbl-wrap"><div class="card-head"><div class="card-title">Revenue Summary</div></div><table><thead><tr><th>Plan</th><th>Branch</th><th>Payments</th><th>Revenue</th></tr></thead><tbody><?php foreach ($revenueReport['summary'] as $row): ?><tr><td><?= htmlspecialchars($row['plan']) ?></td><td><?= htmlspecialchars($row['branch']) ?></td><td><?= number_format((int) $row['payments']) ?></td><td><?= reportMoney($row['revenue']) ?></td></tr><?php endforeach ?><?php if (!$revenueReport['summary']): ?><tr><td colspan="4"><div class="empty"><i class="ti ti-chart-bar-off"></i>No revenue in this range</div></td></tr><?php endif ?></tbody></table></div></div>
+                <div class="grid g-4" style="margin-bottom:1.25rem">
+                    <div class="stat" style="border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent)">
+                        <div class="stat-icon"><i class="ti ti-filter-dollar"></i></div>
+                        <div class="stat-val"><?= reportMoney($revenueReport['metrics']['period_total']) ?></div>
+                        <div class="stat-lbl">Selected Period</div>
+                        <div style="font-size:.65rem;color:var(--text-3);margin-top:.2rem"><?= htmlspecialchars($reportFilters['range']['start']) ?> → <?= htmlspecialchars($reportFilters['range']['end']) ?></div>
+                    </div>
+                    <?php foreach ([['ti-calendar', 'today', 'Revenue Today'], ['ti-calendar-week', 'week', 'Revenue This Week'], ['ti-cash', 'month', 'Revenue This Month'], ['ti-report-money', 'year', 'Revenue This Year']] as $metric): ?>
+                    <div class="stat"><div class="stat-icon"><i class="ti <?= $metric[0] ?>"></i></div><div class="stat-val"><?= reportMoney($revenueReport['metrics'][$metric[1]]) ?></div><div class="stat-lbl"><?= $metric[2] ?></div></div>
+                    <?php endforeach ?>
+                </div>
+                <?php
+                    $revTotal = $revenueReport['metrics']['period_total'];
+                    $memPct   = $revTotal > 0 ? round($revenueReport['metrics']['membership_total'] / $revTotal * 100, 1) : 0;
+                    $shopPct  = $revTotal > 0 ? round($revenueReport['metrics']['shop_total'] / $revTotal * 100, 1) : 0;
+                ?>
+                <div class="card" style="margin-bottom:1.25rem">
+                    <div class="card-head"><div class="card-title">Revenue by Source <span style="font-size:.72rem;font-weight:400;color:var(--text-3)">— selected period</span></div></div>
+                    <div class="card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem">
+                        <div>
+                            <div style="font-size:.72rem;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.4rem"><i class="ti ti-id-badge-2"></i> Membership Fees</div>
+                            <div style="font-size:1.5rem;font-weight:700"><?= reportMoney($revenueReport['metrics']['membership_total']) ?></div>
+                            <div style="margin-top:.5rem"><div style="height:6px;border-radius:4px;background:var(--border);overflow:hidden"><div style="height:100%;width:<?= $memPct ?>%;background:#e53e3e;border-radius:4px"></div></div>
+                            <div style="font-size:.72rem;color:var(--text-3);margin-top:.25rem"><?= $memPct ?>% of total revenue</div></div>
+                        </div>
+                        <div>
+                            <div style="font-size:.72rem;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.4rem"><i class="ti ti-shopping-cart"></i> Shop Sales</div>
+                            <div style="font-size:1.5rem;font-weight:700"><?= reportMoney($revenueReport['metrics']['shop_total']) ?></div>
+                            <div style="margin-top:.5rem"><div style="height:6px;border-radius:4px;background:var(--border);overflow:hidden"><div style="height:100%;width:<?= $shopPct ?>%;background:#7c3aed;border-radius:4px"></div></div>
+                            <div style="font-size:.72rem;color:var(--text-3);margin-top:.25rem"><?= $shopPct ?>% of total revenue</div></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid g-3" style="margin-bottom:1.25rem"><div class="card"><div class="card-head"><div class="card-title">Membership Revenue Trend</div></div><div class="card-body"><?php $monthMax = max(1, ...array_map('floatval', array_column($revenueReport['by_month'], 'revenue') ?: [1])); ?><?php foreach ($revenueReport['by_month'] as $row): ?><div class="rev-row"><span class="rev-label"><?= htmlspecialchars(date('M Y', strtotime($row['month_key'] . '-01'))) ?></span><div class="rev-track"><div class="rev-fill" style="width:<?= min(100, ((float) $row['revenue'] / $monthMax) * 100) ?>%"></div></div><span class="rev-val"><?= reportMoney($row['revenue']) ?></span></div><?php endforeach ?></div></div><div class="card"><div class="card-head"><div class="card-title">Shop Revenue Trend</div></div><div class="card-body"><?php $shopMonthMax = max(1, ...array_map('floatval', array_column($revenueReport['shop_by_month'], 'revenue') ?: [1])); ?><?php foreach ($revenueReport['shop_by_month'] as $row): ?><div class="rev-row"><span class="rev-label"><?= htmlspecialchars(date('M Y', strtotime($row['month_key'] . '-01'))) ?></span><div class="rev-track"><div class="rev-fill" style="width:<?= min(100, ((float) $row['revenue'] / $shopMonthMax) * 100) ?>;background:#7c3aed"></div></div><span class="rev-val"><?= reportMoney($row['revenue']) ?></span></div><?php endforeach ?><?php if (!$revenueReport['shop_by_month']): ?><div class="empty"><i class="ti ti-shopping-cart-off"></i>No shop revenue in this range</div><?php endif ?></div></div><div class="card"><div class="card-head"><div class="card-title">Revenue By Membership Plan</div></div><div class="card-body"><?php $planMax = max(1, ...array_map('floatval', array_column($revenueReport['by_plan'], 'revenue') ?: [1])); ?><?php foreach ($revenueReport['by_plan'] as $row): ?><div class="rev-row"><span class="rev-label"><?= htmlspecialchars($row['label']) ?></span><div class="rev-track"><div class="rev-fill" style="width:<?= min(100, ((float) $row['revenue'] / $planMax) * 100) ?>%"></div></div><span class="rev-val"><?= reportMoney($row['revenue']) ?></span></div><?php endforeach ?></div></div></div>
+                <div class="grid g-2" style="margin-bottom:1.25rem"><div class="tbl-wrap"><div class="card-head"><div class="card-title">Membership Payments</div></div><table><thead><tr><th>Member</th><th>Plan</th><th>Branch</th><th>Amount</th></tr></thead><tbody><?php foreach ($revenueReport['recent_payments'] as $row): ?><tr><td><?= htmlspecialchars($row['member_name']) ?><div style="font-size:.7rem;color:var(--text-3)"><?= htmlspecialchars($row['email']) ?></div></td><td><?= htmlspecialchars($row['plan']) ?></td><td><?= htmlspecialchars($row['branch']) ?></td><td><?= reportMoney($row['amount_paid']) ?></td></tr><?php endforeach ?><?php if (!$revenueReport['recent_payments']): ?><tr><td colspan="4"><div class="empty"><i class="ti ti-cash-off"></i>No membership payments in this range</div></td></tr><?php endif ?></tbody></table></div><div class="tbl-wrap"><div class="card-head"><div class="card-title">Shop Orders Revenue</div></div><table><thead><tr><th>Member</th><th>Order</th><th>Amount</th><th>Method</th></tr></thead><tbody><?php foreach ($revenueReport['shop_recent'] as $row): ?><tr><td><?= htmlspecialchars($row['member_name']) ?><div style="font-size:.7rem;color:var(--text-3)"><?= htmlspecialchars($row['email']) ?></div></td><td><span class="badge <?= $row['status'] === 'completed' ? 'active' : htmlspecialchars($row['status']) ?>"><?= htmlspecialchars(ucfirst($row['status'])) ?></span><div style="font-size:.7rem;color:var(--text-3)">#<?= (int) $row['order_id'] ?> &middot; <?= htmlspecialchars(date('M j, Y', strtotime($row['paid_at']))) ?></div></td><td><?= reportMoney($row['total_amount']) ?></td><td style="font-size:.75rem"><?= htmlspecialchars(str_replace('_',' ',ucfirst($row['payment_method']))) ?></td></tr><?php endforeach ?><?php if (!$revenueReport['shop_recent']): ?><tr><td colspan="4"><div class="empty"><i class="ti ti-shopping-cart-off"></i>No shop revenue in this range</div></td></tr><?php endif ?></tbody></table></div></div>
+                <div class="grid g-2"><div class="tbl-wrap"><div class="card-head"><div class="card-title">Recent Renewals</div></div><table><thead><tr><th>Member</th><th>Plan</th><th>Amount</th><th>Date</th></tr></thead><tbody><?php foreach ($revenueReport['recent_renewals'] as $row): ?><tr><td><?= htmlspecialchars($row['member_name']) ?></td><td><?= htmlspecialchars($row['plan']) ?></td><td><?= reportMoney($row['amount_paid']) ?></td><td><?= htmlspecialchars(date('M j, Y', strtotime($row['paid_at']))) ?></td></tr><?php endforeach ?><?php if (!$revenueReport['recent_renewals']): ?><tr><td colspan="4"><div class="empty"><i class="ti ti-repeat-off"></i>No renewal revenue in this range</div></td></tr><?php endif ?></tbody></table></div><div class="tbl-wrap"><div class="card-head"><div class="card-title">Membership Revenue Summary</div></div><table><thead><tr><th>Plan</th><th>Branch</th><th>Payments</th><th>Revenue</th></tr></thead><tbody><?php foreach ($revenueReport['summary'] as $row): ?><tr><td><?= htmlspecialchars($row['plan']) ?></td><td><?= htmlspecialchars($row['branch']) ?></td><td><?= number_format((int) $row['payments']) ?></td><td><?= reportMoney($row['revenue']) ?></td></tr><?php endforeach ?><?php if (!$revenueReport['summary']): ?><tr><td colspan="4"><div class="empty"><i class="ti ti-chart-bar-off"></i>No revenue in this range</div></td></tr><?php endif ?></tbody></table></div></div>
             </div>
             <div class="dash-panel <?= $activeReportTab === 'attendance' ? 'active' : '' ?>" id="rt-attendance">
                 <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-bottom:1rem;flex-wrap:wrap"><a class="btn sm" href="<?= htmlspecialchars(adminReportExportUrl('attendance', 'csv')) ?>"><i class="ti ti-file-type-csv"></i> CSV</a><a class="btn sm" href="<?= htmlspecialchars(adminReportExportUrl('attendance', 'excel')) ?>"><i class="ti ti-file-spreadsheet"></i> Excel</a></div>
@@ -4152,7 +4178,7 @@ $adminData = [
             const statusIcons = {
                 pending:'ti-clock', processing:'ti-loader-2', out_for_delivery:'ti-truck',
                 delivered:'ti-circle-check', ready_for_pickup:'ti-building-store',
-                picked_up:'ti-checks', cancelled:'ti-ban', completed:'ti-rosette-discount-check'
+                picked_up:'ti-checks', cancelled:'ti-ban', completed:'ti-circle-check-filled'
             };
             const payBadgeCls = {pending:'so-pay-pending', paid:'so-pay-paid', rejected:'so-pay-rejected'};
             tbody.innerHTML = orders.map(o => {
@@ -4160,12 +4186,13 @@ $adminData = [
                 const fIcon  = o.fulfillment_method === 'pickup' ? 'ti-building-store' : 'ti-truck';
                 const fLabel = o.fulfillment_method === 'pickup' ? 'Pick-Up' : 'Delivery';
                 const fColor = o.fulfillment_method === 'pickup' ? '#a066f5' : '#4a9eff';
+                const courierLine = (o.fulfillment_method !== 'pickup' && o.shipping_provider)
+                    ? `<div style="font-size:.65rem;color:var(--text-3);margin-top:.15rem">${adShippingLabel(o.shipping_provider)}</div>` : '';
                 const proofHtml = o.proof_of_payment
                     ? `<img src="${o.proof_of_payment}" class="so-proof-thumb" onclick="viewProofImage('${adEscAttr(o.proof_of_payment)}')" alt="proof">`
                     : `<span style="color:var(--text-3);font-size:.8rem">—</span>`;
                 const isComplete = o.status === 'completed';
                 const isCancelled= o.status === 'cancelled';
-                const canVerify  = o.payment_status === 'pending' && o.proof_of_payment && !isCancelled;
                 return `<tr>
                     <td style="font-weight:700;color:var(--text-2);font-size:.8rem">#${o.id}</td>
                     <td>
@@ -4173,9 +4200,12 @@ $adminData = [
                         <div style="font-size:.72rem;color:var(--text-3);margin-top:.1rem">${adEsc(o.customer_email)}</div>
                     </td>
                     <td style="text-align:center">
-                        <span style="display:inline-flex;align-items:center;gap:.3rem;font-size:.72rem;font-weight:600;padding:.22rem .6rem;border-radius:20px;background:rgba(255,255,255,.05);border:1px solid var(--border);color:${fColor}">
-                            <i class="ti ${fIcon}"></i>${fLabel}
-                        </span>
+                        <div style="display:inline-flex;flex-direction:column;align-items:center">
+                            <span style="display:inline-flex;align-items:center;gap:.3rem;font-size:.72rem;font-weight:600;padding:.22rem .6rem;border-radius:20px;background:rgba(255,255,255,.05);border:1px solid var(--border);color:${fColor}">
+                                <i class="ti ${fIcon}"></i>${fLabel}
+                            </span>
+                            ${courierLine}
+                        </div>
                     </td>
                     <td style="text-align:right;font-weight:800;font-size:.88rem">&#8369;${parseFloat(o.total_amount).toLocaleString('en-PH',{minimumFractionDigits:2})}</td>
                     <td style="text-align:center">
@@ -4198,14 +4228,14 @@ $adminData = [
                             <button class="so-action-btn" title="View Details" onclick="viewOrderDetail(${o.id})">
                                 <i class="ti ti-eye"></i>
                             </button>
-                            ${!isComplete && !isCancelled ? `<button class="so-action-btn" title="Update Status" onclick="openUpdateStatus(${o.id},'${o.status}','${o.fulfillment_method}')">
+                            ${(!isComplete && !isCancelled && o.status !== 'pending') ? `<button class="so-action-btn" title="Update Status" onclick="openUpdateStatus(${o.id},'${o.status}','${o.fulfillment_method}')">
                                 <i class="ti ti-edit"></i>
                             </button>` : ''}
-                            ${canVerify ? `
-                            <button class="so-action-btn approve" title="Approve Payment" onclick="adminVerifyPayment(${o.id},'approve')">
+                            ${o.status === 'pending' ? `
+                            <button class="so-action-btn approve" title="Accept Order" onclick="adminVerifyPayment(${o.id},'approve')">
                                 <i class="ti ti-check"></i>
                             </button>
-                            <button class="so-action-btn reject" title="Reject Payment" onclick="adminVerifyPayment(${o.id},'reject')">
+                            <button class="so-action-btn reject" title="Reject Order" onclick="adminVerifyPayment(${o.id},'reject')">
                                 <i class="ti ti-x"></i>
                             </button>` : ''}
                         </div>
@@ -4220,8 +4250,8 @@ $adminData = [
         }
 
         async function adminVerifyPayment(id, action) {
-            const label = action === 'approve' ? 'Approve' : 'Reject';
-            confirmAction('Confirm', `${label} payment for Order #${id}?`, async () => {
+            const label = action === 'approve' ? 'Accept' : 'Reject';
+            confirmAction('Confirm', `${label} Order #${id}?`, async () => {
                 const f = new FormData();
                 f.append('action',        'admin_verify_payment');
                 f.append('csrf_token',    ADMIN_DATA.csrf);
@@ -4239,16 +4269,16 @@ $adminData = [
             const items = adminOrdDetail[id] || [];
             const o     = adminOrders.find(x => parseInt(x.id) === id);
             document.getElementById('order-detail-title').textContent = `Order #${id}`;
-            // Show approve/reject in footer if payment is pending and proof exists
+            // Show accept/reject in footer for pending orders
             const verifyBtns = document.getElementById('order-detail-verify-btns');
             if (verifyBtns) {
-                if (o?.payment_status === 'pending' && o?.proof_of_payment && o?.status !== 'cancelled') {
+                if (o?.status === 'pending') {
                     verifyBtns.innerHTML = `
                         <button class="btn sm primary" onclick="adminVerifyPayment(${id},'approve');closeOrderDetailModal();" style="color:#2ecc71;border-color:#2ecc71">
-                            <i class="ti ti-check"></i> Approve Payment
+                            <i class="ti ti-check"></i> Accept Order
                         </button>
                         <button class="btn sm" onclick="adminVerifyPayment(${id},'reject');closeOrderDetailModal();" style="color:#ff6b6b;border-color:#ff6b6b">
-                            <i class="ti ti-x"></i> Reject
+                            <i class="ti ti-x"></i> Reject Order
                         </button>`;
                 } else {
                     verifyBtns.innerHTML = '';
@@ -4263,11 +4293,14 @@ $adminData = [
                 </div>`;
             } else if (o?.delivery_address) {
                 let addr = {}; try { addr = JSON.parse(o.delivery_address); } catch(e){}
+                const courierBadge = o?.shipping_provider
+                    ? `<div style="margin-top:.35rem;display:inline-flex;align-items:center;gap:.25rem;font-size:.72rem;font-weight:600;padding:.18rem .55rem;border-radius:20px;background:rgba(74,158,255,.1);border:1px solid rgba(74,158,255,.25);color:#4a9eff"><i class="ti ti-truck" style="font-size:.8rem"></i>${adShippingLabel(o.shipping_provider)}</div>` : '';
                 addrHtml = `<div style="margin-bottom:.65rem;padding:.65rem .85rem;background:rgba(255,255,255,.04);border-radius:9px;font-size:.82rem">
                     <div style="font-weight:700;margin-bottom:.35rem"><i class="ti ti-truck"></i> Delivery</div>
                     <div><strong>${adEsc(o?.recipient_name||'')}</strong> · ${adEsc(o?.recipient_contact||'')}</div>
                     <div style="color:var(--text-3);margin-top:.2rem">${adEsc(addr.street||'')+', '+adEsc(addr.barangay||'')+', '+adEsc(addr.city||'')+', '+adEsc(addr.region||'')+' '+adEsc(addr.zip||'')}</div>
                     ${addr.landmark?`<div style="color:var(--text-3)">📍 ${adEsc(addr.landmark)}</div>`:''}
+                    ${courierBadge}
                 </div>`;
             }
             const payColors = {pending:'#ffc107',paid:'#2ecc71',rejected:'#ff6b6b'};
@@ -4403,6 +4436,10 @@ $adminData = [
         // ── Helpers ────────────────────────────────────────
         function adEsc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
         function adEscAttr(s) { return String(s).replace(/'/g,"&#39;").replace(/"/g,'&quot;'); }
+        function adShippingLabel(p) {
+            if (!p) return '';
+            return {jnt:'J&T Express',flash:'Flash Express',lalamove:'Lalamove',grab:'Grab Express',standard:'FitSync Standard Delivery'}[p] || p;
+        }
 
         function openModal(title, bodyHtml, buttons) {
             document.getElementById('modal-title').textContent = title;
@@ -4989,6 +5026,42 @@ $adminData = [
     document.getElementById('qr-modal-backdrop').addEventListener('click', function(e) {
         if (e.target === this) qrDismissModal();
     });
+        // ── Report tab client-side switching (no page reload) ──────────
+        function switchReportTab(tab, event) {
+            if (event) event.preventDefault();
+            // Switch tab active state
+            document.querySelectorAll('#page-reports [data-rtab]').forEach(function(a) {
+                a.classList.toggle('active', a.dataset.rtab === tab);
+            });
+            // Switch panel visibility
+            ['overview','memberships','revenue','attendance','classes'].forEach(function(t) {
+                var p = document.getElementById('rt-' + t);
+                if (p) p.classList.toggle('active', t === tab);
+            });
+            // Show/hide filter form
+            var form = document.getElementById('rpt-filter-form');
+            if (form) {
+                form.style.display = tab === 'overview' ? 'none' : '';
+                var ti = form.querySelector('input[name="report_tab"]');
+                if (ti) ti.value = tab;
+                // Reset link
+                var rl = document.getElementById('rpt-reset-link');
+                if (rl) rl.href = 'admin.php?report_tab=' + encodeURIComponent(tab) + '#reports';
+                // Show/hide contextual filter fields
+                var rfPlan   = document.getElementById('rf-plan');
+                var rfClass  = document.getElementById('rf-class');
+                var rfStatus = document.getElementById('rf-status');
+                if (rfPlan)   rfPlan.style.display   = (tab === 'memberships' || tab === 'revenue') ? '' : 'none';
+                if (rfClass)  rfClass.style.display  = tab === 'classes'      ? '' : 'none';
+                if (rfStatus) rfStatus.style.display = tab === 'memberships'  ? '' : 'none';
+            }
+            // Update URL silently
+            try {
+                var u = new URL(window.location.href);
+                u.searchParams.set('report_tab', tab);
+                history.replaceState({}, '', u.toString());
+            } catch(e) {}
+        }
     </script>
 
 </body>

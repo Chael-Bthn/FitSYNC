@@ -253,7 +253,7 @@ function approvePayment(array $data, int $adminId): void
             $activate = $pdo->prepare(
                 'UPDATE users u
                  INNER JOIN memberships m ON m.user_id = u.id
-                 SET u.is_active = 1, u.updated_at = NOW()
+                 SET u.is_active = 1, u.is_approved = 1, u.updated_at = NOW()
                  WHERE m.id = ?'
             );
             $activate->execute([$membershipId]);

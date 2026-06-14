@@ -41,11 +41,15 @@ if (empty($csrf)) {
 
 // Check if we are viewing a specific order
 $orderId = isset($_GET['order_id']) ? (int)$_GET['order_id'] : 0;
+if ($orderId > 0) {
+    header('Location: profile.php#orders');
+    exit;
+}
 $viewOrder = null;
 $viewOrderItems = [];
 $errorMsg = '';
 
-if ($orderId > 0) {
+if (false) {
     // Fetch order details
     $orderQuery = $pdo->prepare(
         'SELECT o.*, b.name AS branch_name, b.address AS branch_address
@@ -117,21 +121,6 @@ if (!$viewOrder && $errorMsg === '' && $shopCartCount > 0) {
             $branchStocks[(int)$row['product_id']][(int)$row['branch_id']] = (int)$row['stock'];
         }
     }
-}
-
-// Fetch user orders for order history if cart is empty and not viewing an order
-$orderHistory = [];
-if (!$viewOrder && !$showCheckoutForm && $errorMsg === '') {
-    $historyStmt = $pdo->prepare(
-        'SELECT o.id, o.total_amount, o.delivery_fee, o.status, o.fulfillment_method,
-                o.payment_method, o.payment_status, o.created_at,
-                COUNT(oi.id) AS item_count
-         FROM orders o
-         JOIN order_items oi ON oi.order_id=o.id
-         WHERE o.user_id=? GROUP BY o.id ORDER BY o.created_at DESC'
-    );
-    $historyStmt->execute([$userId]);
-    $orderHistory = $historyStmt->fetchAll();
 }
 
 // Helper functions for labels
@@ -1020,6 +1009,17 @@ function payLabel(string $method): string {
                                     </select>
                                 </div>
                                 <div class="col-12">
+                                    <label class="fs-label">Shipping Option <span class="text-danger">*</span></label>
+                                    <select class="fs-select" id="co-shipping-provider">
+                                        <option value="">Select Courier</option>
+                                        <option value="jnt">J&amp;T Express</option>
+                                        <option value="flash">Flash Express</option>
+                                        <option value="lalamove">Lalamove</option>
+                                        <option value="grab">Grab Express</option>
+                                        <option value="standard">FitSync Standard Delivery</option>
+                                    </select>
+                                </div>
+                                <div class="col-12">
                                     <label class="fs-label">Full Shipping Address <span class="text-danger">*</span></label>
                                     <textarea class="fs-input" id="co-street" rows="3" placeholder="House No., Street name, Subdivision, Barangay, City, Province, Zip Code" style="resize:none"></textarea>
                                 </div>
@@ -1237,74 +1237,15 @@ function payLabel(string $method): string {
             </div>
 
         <?php else: ?>
-            <!-- CASE C: ORDER HISTORY (Cart is empty) -->
-            <div style="max-width: 950px; margin: 0 auto;">
-                <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
-                    <div>
-                        <h2 style="font-weight:900;letter-spacing:-0.5px;margin:0">My Shopping Orders</h2>
-                        <span style="font-size:.8rem;color:var(--text-muted)">View details and statuses of your order submissions</span>
-                    </div>
+            <!-- CASE C: EMPTY CART -->
+            <div class="fs-card text-center" style="padding:4rem 2rem;max-width:620px;margin:0 auto">
+                <i class="ti ti-shopping-cart-off" style="font-size:3.5rem;color:var(--text-dimmed);display:block;margin-bottom:1.25rem"></i>
+                <h3 style="font-weight:800;margin-bottom:.5rem">Your cart is empty</h3>
+                <p style="color:var(--text-muted);font-size:.9rem;max-width:420px;margin:0 auto 1.5rem">Checkout is only for placing new orders. You can review past orders from your profile.</p>
+                <div class="d-flex gap-2 justify-content-center flex-wrap">
                     <a href="profile.php#shop" class="btn-fs"><i class="ti ti-shopping-bag"></i> Browse Products</a>
+                    <a href="profile.php#orders" class="btn-outline-fs px-3 py-2"><i class="ti ti-package"></i> View Orders</a>
                 </div>
-
-            <?php if (empty($orderHistory)): ?>
-                <!-- Empty history state -->
-                <div class="fs-card text-center" style="padding: 4rem 2rem;">
-                    <i class="ti ti-package-off" style="font-size:3.5rem;color:var(--text-dimmed);display:block;margin-bottom:1.25rem"></i>
-                    <h3 style="font-weight:800;margin-bottom:.5rem">No Orders Found</h3>
-                    <p style="color:var(--text-muted);font-size:.9rem;max-width:380px;margin:0 auto 1.5rem">You have not submitted any product orders yet. Explore our members shop to get started!</p>
-                    <a href="profile.php#shop" class="btn-fs"><i class="ti ti-shopping-bag"></i> Start Shopping</a>
-                </div>
-            <?php else: ?>
-                <!-- Order History Table -->
-                <div class="fs-card" style="padding:0;overflow:hidden">
-                    <div class="fs-table-wrap">
-                        <table class="table fs-table">
-                            <thead>
-                                <tr>
-                                    <th>Order</th>
-                                    <th>Placed On</th>
-                                    <th>Fulfillment</th>
-                                    <th>Total Cost</th>
-                                    <th>Payment Status</th>
-                                    <th>Order Status</th>
-                                    <th class="text-end">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($orderHistory as $o): ?>
-                                    <tr>
-                                        <td><strong>#<?= $o['id'] ?></strong></td>
-                                        <td style="color:var(--text-muted)"><?= date('M j, Y', strtotime($o['created_at'])) ?></td>
-                                        <td>
-                                            <span style="font-size:.82rem;font-weight:600">
-                                                <i class="ti <?= $o['fulfillment_method'] === 'delivery' ? 'ti-truck' : 'ti-building-store' ?>"></i>
-                                                <?= $o['fulfillment_method'] === 'delivery' ? 'Delivery' : 'Pick-Up' ?>
-                                            </span>
-                                        </td>
-                                        <td><strong>&#8369;<?= number_format((float)$o['total_amount'], 2) ?></strong></td>
-                                        <td>
-                                            <span style="font-weight:700;color:<?= payColor($o['payment_status']) ?>">
-                                                <?= payLabel($o['payment_method']) ?> &middot; <?= ucfirst($o['payment_status']) ?>
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span class="fs-badge fs-badge-<?= $o['status'] ?>">
-                                                <?= str_replace('_', ' ', $o['status']) ?>
-                                            </span>
-                                        </td>
-                                        <td class="text-end">
-                                            <a href="checkout.php?order_id=<?= $o['id'] ?>" class="btn-outline-fs px-3 py-1" style="font-size:.78rem">
-                                                <i class="ti ti-receipt"></i> Details
-                                            </a>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            <?php endif; ?>
             </div>
         <?php endif; ?>
 
@@ -1524,12 +1465,14 @@ function payLabel(string $method): string {
             
             if (state.fulfillment === 'delivery') {
                 const region = document.getElementById('co-region').value;
+                const shippingProvider = document.getElementById('co-shipping-provider').value;
                 const city = document.getElementById('co-city').value.trim();
                 const barangay = document.getElementById('co-barangay').value.trim();
                 const street = document.getElementById('co-street').value.trim();
                 const zip = document.getElementById('co-zip').value.trim();
                 
                 if (region === '')  return shopToast('error', 'Please select a delivery region.');
+                if (shippingProvider === '') return shopToast('error', 'Please select a shipping option.');
                 if (city === '')    return shopToast('error', 'Please fill in delivery city.');
                 if (barangay === '') return shopToast('error', 'Please fill in delivery barangay.');
                 if (street === '')   return shopToast('error', 'Please fill in delivery street.');
@@ -1538,6 +1481,7 @@ function payLabel(string $method): string {
                 fd.append('recipient_name', fullName);
                 fd.append('recipient_contact', contact);
                 fd.append('recipient_email', email);
+                fd.append('shipping_provider', shippingProvider);
                 fd.append('region', region);
                 fd.append('province', document.getElementById('co-province').value.trim());
                 fd.append('city', city);
@@ -1578,7 +1522,7 @@ function payLabel(string $method): string {
                 if (res.success) {
                     shopToast('success', 'Order submitted successfully!');
                     setTimeout(() => {
-                        window.location.href = 'checkout.php?order_id=' + res.order_id;
+                        window.location.href = 'profile.php#orders';
                     }, 1000);
                 } else {
                     btn.disabled = false;

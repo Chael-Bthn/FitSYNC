@@ -4758,7 +4758,7 @@ $workoutPrograms = [
                 const statusIcons = {
                     pending:'ti-clock',processing:'ti-loader-2',out_for_delivery:'ti-truck',
                     delivered:'ti-circle-check',ready_for_pickup:'ti-building-store',
-                    picked_up:'ti-checks',cancelled:'ti-ban',completed:'ti-rosette-discount-check'
+                    picked_up:'ti-checks',cancelled:'ti-ban',completed:'ti-circle-check-filled'
                 };
                 const payColors = {pending:'#ffc107',paid:'#2ecc71',rejected:'#ff6b6b'};
                 el.innerHTML = `<div style="display:flex;flex-direction:column;gap:.75rem">` + data.orders.map(o => {
@@ -4770,6 +4770,9 @@ $workoutPrograms = [
                         ? `Branch Pick-Up${o.branch_name ? ' · ' + shEsc(o.branch_name) : ''}`
                         : `Delivery${addr ? ' · ' + shEsc(addr.city||'') + ', ' + shEsc(addr.region||'') : ''}`;
                     const fulfillIcon = isPickup ? 'ti-building-store' : 'ti-truck';
+                    const displayFulfillLabel = isPickup
+                        ? fulfillLabel
+                        : `Delivery${o.shipping_provider ? ' - ' + shippingLabel(o.shipping_provider) : ''}${addr ? ' - ' + shEsc(addr.city||'') + ', ' + shEsc(addr.region||'') : ''}`;
                     const statusLabel = o.status.replace(/_/g,' ');
                     const payLabel = o.payment_method.replace(/_/g,' ') + ' · ' + o.payment_status;
                     const payColor = payColors[o.payment_status] || '#aaa';
@@ -4805,6 +4808,14 @@ $workoutPrograms = [
                             onmouseover="this.style.background='rgba(255,107,107,.18)'" onmouseout="this.style.background='rgba(255,107,107,.07)'">
                             <i class="ti ti-x"></i> Cancel Order
                         </button>` : '';
+                    const reviewBtn = isCompleted
+                        ? (parseInt(o.reviewed || 0) === 1
+                            ? `<button disabled style="${btnStyle};opacity:.65;cursor:not-allowed"><i class="ti ti-star-filled"></i> Reviewed</button>`
+                            : `<button onclick="openOrderReviewModal(${o.id})" style="${btnStyle};border-color:rgba(255,193,7,.45);background:rgba(255,193,7,.08);color:#ffc107"
+                                onmouseover="this.style.background='rgba(255,193,7,.16)'" onmouseout="this.style.background='rgba(255,193,7,.08)'">
+                                <i class="ti ti-star"></i> Review
+                            </button>`)
+                        : '';
 
                     return `<div style="background:var(--card-bg);border:1px solid ${isCompleted?'rgba(46,204,113,.25)':'var(--card-border)'};border-radius:14px;overflow:hidden">
                         <div onclick="toggleOrderItems(${o.id})" style="padding:.85rem 1.1rem;cursor:pointer;display:flex;align-items:flex-start;gap:.75rem;justify-content:space-between">
@@ -4819,7 +4830,7 @@ $workoutPrograms = [
                                 <div style="font-size:.78rem;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:.2rem">${itemSummary}</div>
                                 ${o.status === 'cancelled' && o.cancel_reason ? `<div style="font-size:.72rem;color:#ff6b6b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:.2rem"><i class="ti ti-message-x" style="font-size:.75rem"></i> Reason: ${shEsc(o.cancel_reason)}</div>` : ''}
                                 <div style="font-size:.72rem;color:var(--text-muted);display:flex;align-items:center;gap:.3rem;flex-wrap:wrap">
-                                    <i class="ti ${fulfillIcon}" style="font-size:.8rem"></i>${fulfillLabel}
+                                    <i class="ti ${fulfillIcon}" style="font-size:.8rem"></i>${displayFulfillLabel}
                                     <span>&nbsp;·&nbsp;</span>
                                     <span style="color:${payColor}">${payLabel}</span>
                                 </div>
@@ -4833,11 +4844,7 @@ $workoutPrograms = [
                             <div style="padding:.6rem 1.1rem">${itemsHtml}</div>
                             <div style="padding:.65rem 1.1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;background:rgba(0,0,0,.04)">
                                 <div style="display:flex;gap:.4rem;flex-wrap:wrap">
-                                    <a href="checkout.php?order_id=${o.id}" style="${btnStyle}"
-                                        onmouseover="this.style.borderColor='var(--fs-red)';this.style.color='var(--fs-red)'"
-                                        onmouseout="this.style.borderColor='var(--card-border)';this.style.color='var(--text-primary)'">
-                                        <i class="ti ti-eye"></i> Details
-                                    </a>
+                                    ${reviewBtn}
                                     <button onclick="printOrderReceipt(${o.id})" style="${btnStyle}"
                                         onmouseover="this.style.borderColor='#4a9eff';this.style.color='#4a9eff'"
                                         onmouseout="this.style.borderColor='var(--card-border)';this.style.color='var(--text-primary)'">
@@ -4861,6 +4868,85 @@ $workoutPrograms = [
             const open = body.style.display === 'none';
             body.style.display      = open ? 'block' : 'none';
             chevron.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
+
+        let _orderReviewRating = 5;
+        function openOrderReviewModal(id) {
+            const existing = document.getElementById('orderReviewOverlay');
+            if (existing) existing.remove();
+
+            _orderReviewRating = 5;
+            const overlay = document.createElement('div');
+            overlay.id = 'orderReviewOverlay';
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:10500;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(3px)';
+            overlay.innerHTML = `
+                <div style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:18px;width:100%;max-width:460px;padding:1.5rem;box-shadow:0 24px 60px rgba(0,0,0,.4)">
+                    <div style="display:flex;align-items:center;gap:.65rem;margin-bottom:1rem">
+                        <div style="width:38px;height:38px;border-radius:50%;background:rgba(255,193,7,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                            <i class="ti ti-star" style="color:#ffc107;font-size:1.2rem"></i>
+                        </div>
+                        <div>
+                            <div style="font-weight:800;font-size:.95rem;color:var(--text-primary)">Review Order #${id}</div>
+                            <div style="font-size:.75rem;color:var(--text-muted);margin-top:.1rem">Share your experience with this order.</div>
+                        </div>
+                    </div>
+                    <div id="orderReviewStars" style="display:flex;gap:.3rem;margin-bottom:1rem">
+                        ${[1,2,3,4,5].map(n => `<button type="button" onclick="setOrderReviewRating(${n})" style="width:36px;height:36px;border-radius:8px;border:1px solid var(--card-border);background:rgba(255,193,7,.08);color:#ffc107;cursor:pointer"><i class="ti ti-star-filled"></i></button>`).join('')}
+                    </div>
+                    <label style="font-size:.78rem;font-weight:700;color:var(--text-muted);display:block;margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.4px">Your review</label>
+                    <textarea id="orderReviewText" rows="4" placeholder="How was the product, delivery, or pickup experience?"
+                        style="width:100%;box-sizing:border-box;padding:.6rem .85rem;background:var(--input-bg);border:1px solid var(--input-border);border-radius:10px;color:var(--input-color);font-size:.875rem;resize:vertical;min-height:100px;outline:none;font-family:inherit"></textarea>
+                    <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:1rem">
+                        <button onclick="closeOrderReviewModal()" style="padding:.42rem 1rem;font-size:.82rem;font-weight:600;border-radius:8px;border:1px solid var(--card-border);background:var(--input-bg);color:var(--text-primary);cursor:pointer">Cancel</button>
+                        <button id="orderReviewSubmit" onclick="submitOrderReview(${id})" style="padding:.42rem 1rem;font-size:.82rem;font-weight:700;border-radius:8px;border:none;background:linear-gradient(135deg,#cc1a1a,#ff4040);color:#fff;cursor:pointer">
+                            <i class="ti ti-send"></i> Submit Review
+                        </button>
+                    </div>
+                </div>`;
+
+            document.body.appendChild(overlay);
+            overlay.addEventListener('click', e => { if (e.target === overlay) closeOrderReviewModal(); });
+        }
+
+        function setOrderReviewRating(rating) {
+            _orderReviewRating = rating;
+            document.querySelectorAll('#orderReviewStars button').forEach((btn, idx) => {
+                btn.style.opacity = idx < rating ? '1' : '.35';
+            });
+        }
+
+        function closeOrderReviewModal() {
+            document.getElementById('orderReviewOverlay')?.remove();
+        }
+
+        async function submitOrderReview(id) {
+            const body = document.getElementById('orderReviewText')?.value.trim() || '';
+            if (!body) return shopToast('error', 'Please write your review before submitting.');
+            const btn = document.getElementById('orderReviewSubmit');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ti ti-loader-2"></i> Submitting...';
+            try {
+                const f = new FormData();
+                f.append('action', 'submit_order_review');
+                f.append('csrf_token', CSRF);
+                f.append('order_id', id);
+                f.append('rating', _orderReviewRating);
+                f.append('body', body);
+                const data = await (await fetch('handlers/shop_handler.php', { method: 'POST', body: f })).json();
+                if (data.success) {
+                    closeOrderReviewModal();
+                    shopToast('success', data.message || 'Review submitted.');
+                    setTimeout(() => loadOrders(), 500);
+                } else {
+                    shopToast('error', data.message || 'Could not submit review.');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="ti ti-send"></i> Submit Review';
+                }
+            } catch(e) {
+                shopToast('error', 'Network error. Please try again.');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ti ti-send"></i> Submit Review';
+            }
         }
 
         function cancelOrder(id, triggerBtn) {
@@ -4974,10 +5060,10 @@ $workoutPrograms = [
 
         function printOrderReceipt(id) {
             const allOrders = window._ordersData;
-            if (!allOrders) { window.open('checkout.php?order_id=' + id + '&print=1'); return; }
+            if (!allOrders) { shopToast('error', 'Please reload your orders before printing.'); return; }
             const o = allOrders.orders.find(x => parseInt(x.id) === id);
             const items = (allOrders.details[id] || []);
-            if (!o) { window.open('checkout.php?order_id=' + id + '&print=1'); return; }
+            if (!o) { shopToast('error', 'Order details are not available.'); return; }
             const d = new Date(o.created_at).toLocaleDateString('en-PH',{year:'numeric',month:'long',day:'numeric'});
             let addrBlock = '';
             if (o.fulfillment_method === 'pickup') {
@@ -4986,7 +5072,8 @@ $workoutPrograms = [
             } else if (o.delivery_address) {
                 let addr = {}; try { addr = JSON.parse(o.delivery_address); } catch(e) {}
                 addrBlock = `<p><strong>Deliver to:</strong> ${o.recipient_name || ''} &middot; ${o.recipient_contact || ''}<br>
-                              ${[addr.street,addr.barangay,addr.city,addr.region,addr.zip].filter(Boolean).join(', ')}</p>`;
+                              ${[addr.street,addr.barangay,addr.city,addr.region,addr.zip].filter(Boolean).join(', ')}<br>
+                              <strong>Courier:</strong> ${shippingLabel(o.shipping_provider)}</p>`;
             }
             const rows = items.map(it =>
                 `<tr><td>${it.name}</td><td style="text-align:center">${it.quantity}</td><td style="text-align:right">&#8369;${parseFloat(it.price).toLocaleString('en-PH',{minimumFractionDigits:2})}</td><td style="text-align:right">&#8369;${(parseFloat(it.price)*parseInt(it.quantity)).toLocaleString('en-PH',{minimumFractionDigits:2})}</td></tr>`
@@ -5117,6 +5204,9 @@ $workoutPrograms = [
         })();
 
         // XSS helpers
+        function shippingLabel(provider) {
+            return {jnt:'J&T Express',flash:'Flash Express',lalamove:'Lalamove',grab:'Grab Express',standard:'FitSync Standard Delivery'}[provider] || provider || 'Delivery';
+        }
         function shEsc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
         function shEscAttr(s) { return String(s).replace(/'/g,"&#39;").replace(/"/g,'&quot;'); }
 
