@@ -275,20 +275,21 @@ for ($i = 11; $i >= 0; $i--) {
     $monthEnd = $monthStart->modify('last day of this month');
     $months[] = $monthStart->format('M');
     $signupData[] = (int) adminScalar($pdo, 'SELECT COUNT(*) FROM users WHERE role = "member" AND created_at BETWEEN ? AND ?', [$monthStart->format('Y-m-d 00:00:00'), $monthEnd->format('Y-m-d 23:59:59')]);
-    $revenueData[] = (float) adminScalar($pdo, 'SELECT COALESCE(SUM(amount_paid), 0) FROM memberships WHERE payment_status = "paid" AND updated_at BETWEEN ? AND ?', [$monthStart->format('Y-m-d 00:00:00'), $monthEnd->format('Y-m-d 23:59:59')]);
+    $shopRevenue = (float) adminScalar($pdo, "SELECT COALESCE(SUM(total_amount), 0) FROM orders WHERE (payment_status='paid' OR (status='completed' AND payment_method IN ('cash_on_pickup','cash_on_delivery'))) AND status!='cancelled' AND created_at BETWEEN ? AND ?", [$monthStart->format('Y-m-d 00:00:00'), $monthEnd->format('Y-m-d 23:59:59')]);
+    $revenueData[] = (float) adminScalar($pdo, 'SELECT COALESCE(SUM(amount_paid), 0) FROM memberships WHERE payment_status = "paid" AND COALESCE(NULLIF(updated_at, created_at), created_at) BETWEEN ? AND ?', [$monthStart->format('Y-m-d 00:00:00'), $monthEnd->format('Y-m-d 23:59:59')]) + $shopRevenue;
 }
 
 $dashboard = [
-    'total_members' => (int) adminScalar($pdo, 'SELECT COUNT(*) FROM users WHERE role = "member"'),
-    'active_members' => (int) adminScalar($pdo, 'SELECT COUNT(DISTINCT user_id) FROM memberships WHERE status = "active" AND payment_status = "paid" AND starts_at <= CURDATE() AND ends_at >= CURDATE()'),
+    'total_members' => $reports['overview']['metrics']['total_members'],
+    'active_members' => $reports['overview']['metrics']['active_members'],
     'pending_approvals' => (int) adminScalar($pdo, 'SELECT COUNT(*) FROM users WHERE role = "member" AND is_approved = 0'),
     'pending_payments' => (int) adminScalar($pdo, 'SELECT COUNT(*) FROM memberships WHERE payment_status = "pending"'),
     'active_memberships' => (int) adminScalar($pdo, 'SELECT COUNT(*) FROM memberships WHERE status = "active" AND payment_status = "paid"'),
     'expiring_soon' => (int) adminScalar($pdo, 'SELECT COUNT(*) FROM memberships WHERE status = "active" AND payment_status = "paid" AND ends_at BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)'),
     'expired_memberships' => (int) adminScalar($pdo, 'SELECT COUNT(*) FROM memberships WHERE status = "expired" OR ends_at < CURDATE()'),
-    'revenue_month' => (float) adminScalar($pdo, 'SELECT COALESCE(SUM(amount_paid), 0) FROM memberships WHERE payment_status = "paid" AND updated_at >= DATE_FORMAT(CURDATE(), "%Y-%m-01")'),
+    'revenue_month' => $reports['overview']['metrics']['revenue_month'],
     'attendance_today' => (int) adminScalar($pdo, 'SELECT COUNT(*) FROM attendance_logs WHERE check_in_at >= CURDATE()'),
-    'attendance_month' => (int) adminScalar($pdo, 'SELECT COUNT(*) FROM attendance_logs WHERE check_in_at >= DATE_FORMAT(CURDATE(), "%Y-%m-01")'),
+    'attendance_month' => $reports['overview']['metrics']['attendance_month'],
     'visible_feedbacks' => count($feedbacks),
     'active_branches' => (int) adminScalar($pdo, 'SELECT COUNT(*) FROM branches WHERE is_active = 1'),
 ];
@@ -2422,7 +2423,7 @@ $adminData = [
                                     <div class="qa-sub"><?= number_format($dashboard['visible_feedbacks']) ?> total reviews</div>
                                 </div>
                             </button>
-                            <button class="qa">
+                            <button class="qa" onclick="window.open('index.php', '_blank')">
                                 <div class="qa-icon"><i class="ti ti-external-link"></i></div>
                                 <div>
                                     <div class="qa-lbl">View Public Site</div>
