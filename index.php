@@ -1356,6 +1356,7 @@ try {
             #shop .card p {
                 font-size: .68rem !important;
                 -webkit-line-clamp: 2 !important;
+                line-clamp: 2 !important;
             }
 
             #shop .card .btn {
