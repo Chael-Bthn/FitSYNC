@@ -134,6 +134,14 @@ function payLabel(string $method): string {
         'cash' => 'Cash'
     ][$method] ?? $method;
 }
+
+function payColor(string $status): string {
+    return [
+        'pending' => '#ffc107',
+        'paid' => '#2ecc71',
+        'rejected' => '#ff6b6b'
+    ][$status] ?? '#aaa';
+}
 ?>
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="dark">

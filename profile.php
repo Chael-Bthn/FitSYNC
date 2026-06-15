@@ -220,6 +220,57 @@ if ($isPending) {
 
 $scheduleContext = memberScheduleContext($pdo, $mem, $userId);
 
+/* ── INJECT E-COMMERCE NOTIFICATIONS ── */
+if (!$isPending && $userId > 0) {
+    try {
+        $ordStmt = $pdo->prepare('SELECT id, status, fulfillment_method, updated_at FROM orders WHERE user_id = ? AND status NOT IN ("completed", "cancelled") ORDER BY updated_at DESC LIMIT 5');
+        $ordStmt->execute([$userId]);
+        $recentOrders = $ordStmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        foreach ($recentOrders as $order) {
+            $oStatus = $order['status'];
+            $oId = $order['id'];
+            $title = 'Order #' . $oId . ' Update';
+            $body = '';
+            $icon = 'ti-package';
+            $type = 'info';
+            
+            if ($oStatus === 'pending') {
+                $body = 'Your order is pending. Please complete your payment.';
+                $icon = 'ti-clock';
+                $type = 'warning';
+            } elseif ($oStatus === 'processing') {
+                $body = 'Your order is being processed and prepared.';
+                $icon = 'ti-loader-2';
+            } elseif ($oStatus === 'ready_for_pickup') {
+                $body = 'Your order is ready for pick-up at the branch!';
+                $icon = 'ti-building-store';
+                $type = 'success';
+            } elseif ($oStatus === 'out_for_delivery') {
+                $body = 'Your order is out for delivery and will arrive soon!';
+                $icon = 'ti-truck';
+            } elseif ($oStatus === 'delivered' || $oStatus === 'picked_up') {
+                $body = 'Your order has been ' . str_replace('_', ' ', $oStatus) . '. Don\'t forget to mark it as completed!';
+                $icon = 'ti-circle-check';
+                $type = 'success';
+            }
+            
+            if ($body !== '') {
+                $notifications[] = [
+                    'id'           => 'order_' . $oId . '_' . $oStatus,
+                    'type'         => $type,
+                    'icon'         => $icon,
+                    'title'        => $title,
+                    'body'         => $body,
+                    'action'       => "showTab('orders', null)",
+                    'action_label' => 'View Order',
+                    'time'         => date('M j, g:i A', strtotime($order['updated_at'])),
+                ];
+            }
+        }
+    } catch(Throwable $e) {}
+}
+
 /* ── INJECT ANNOUNCEMENTS INTO NOTIFICATIONS ── */
 if (!$isPending) {
     foreach (($scheduleContext['announcements'] ?? []) as $ann) {
@@ -4200,6 +4251,19 @@ $workoutPrograms = [
             </button>
         <?php endif; ?>
 
+        <!-- ══ PRODUCT DETAIL MODAL ══ -->
+        <div class="modal fade" id="productModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable product-modal-dialog">
+                <div class="modal-content" style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:18px;overflow:hidden">
+                    <div class="modal-header" style="border-color:var(--card-border);padding:1rem 1.25rem .75rem">
+                        <h5 class="modal-title" id="productModalTitle" style="font-weight:800;color:var(--text-primary);font-size:1rem"></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" id="productModalBody" style="padding:0"></div>
+                </div>
+            </div>
+        </div>
+
 
         <!-- ══ ORDERS TAB ══ -->
         <div class="page-section" id="tab-orders">
@@ -4310,7 +4374,158 @@ $workoutPrograms = [
             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
             border: 2px solid #cc1a1a;
         }
+
+        /* ── PRODUCT MODAL – mobile optimizations ── */
+        .product-modal-dialog .row.g-0 {
+            flex-direction: row;
+        }
+
+        @media (max-width: 575.98px) {
+            /* Full-screen modal on phones */
+            .product-modal-dialog {
+                margin: 0 !important;
+                max-width: 100vw !important;
+                width: 100vw !important;
+                height: 100dvh !important;
+                max-height: 100dvh !important;
+            }
+
+            .product-modal-dialog .modal-content {
+                border-radius: 0 !important;
+                height: 100%;
+                border: none !important;
+            }
+
+            .product-modal-dialog .modal-header {
+                padding: .85rem 1rem .6rem !important;
+            }
+
+            /* Stack image above details */
+            .product-modal-dialog .row.g-0 {
+                flex-direction: column !important;
+            }
+
+            .product-modal-dialog .col-md-5 {
+                width: 100% !important;
+                max-width: 100% !important;
+                flex: none !important;
+            }
+
+            .product-modal-dialog .col-md-5 img,
+            .product-modal-dialog .col-md-5 > div {
+                max-height: 220px !important;
+                width: 100% !important;
+                aspect-ratio: auto !important;
+                object-fit: cover !important;
+            }
+
+            .product-modal-dialog .col-md-7 {
+                width: 100% !important;
+                max-width: 100% !important;
+                flex: 1 !important;
+            }
+
+            .product-modal-dialog .col-md-7.p-4 {
+                padding: 1rem !important;
+            }
+
+            /* Price & quantity row */
+            .product-modal-dialog [style*="1.6rem"][style*="font-weight:900"] {
+                font-size: 1.3rem !important;
+            }
+
+            .product-modal-dialog [style*="display:flex"][style*="flex-wrap:wrap"] {
+                gap: .5rem !important;
+            }
+
+            .product-modal-dialog .btn-fs.flex-fill {
+                padding: .6rem !important;
+                font-size: .85rem !important;
+            }
+        }
+
+        /* ── CART MODAL – mobile optimizations ── */
+        @media (max-width: 575.98px) {
+            #cartModal .modal-dialog {
+                margin: 0 !important;
+                max-width: 100vw !important;
+                width: 100vw !important;
+                height: 100dvh !important;
+                max-height: 100dvh !important;
+                align-items: flex-end !important;
+            }
+
+            #cartModal .modal-content {
+                border-radius: 20px 20px 0 0 !important;
+                border-left: none !important;
+                border-right: none !important;
+                border-bottom: none !important;
+                max-height: 92dvh !important;
+            }
+
+            /* Cart item rows – more compact on mobile */
+            .cart-row {
+                gap: .6rem;
+                padding: .75rem;
+                align-items: flex-start;
+            }
+
+            .cart-thumb,
+            .cart-thumb-ph {
+                width: 52px !important;
+                height: 52px !important;
+            }
+
+            /* Cart checkout sticky footer */
+            #cartContent > div:last-child {
+                position: sticky;
+                bottom: 0;
+                background: var(--card-bg);
+                padding: .85rem 1rem !important;
+                border-top: 1px solid var(--card-border);
+            }
+
+            /* Cart FAB repositioned for thumb reach */
+            .cart-fab {
+                bottom: 1.25rem;
+                right: 1.25rem;
+                width: 54px;
+                height: 54px;
+            }
+
+            .cart-fab i {
+                font-size: 1.4rem;
+            }
+        }
+
+        /* ── NOTIFICATION PANEL – touch improvements ── */
+        @media (max-width: 575.98px) {
+            .notif-item {
+                padding: .8rem .85rem;
+                gap: .7rem;
+            }
+
+            .notif-icon {
+                width: 34px;
+                height: 34px;
+                border-radius: 9px;
+                font-size: .95rem;
+            }
+
+            .notif-title {
+                font-size: .83rem;
+            }
+
+            .notif-body-text {
+                font-size: .73rem;
+            }
+
+            .notif-filter-btn {
+                padding: .25rem .65rem;
+            }
+        }
         </style>
+
     </main>
 
 
@@ -4504,6 +4719,17 @@ $workoutPrograms = [
             else document.querySelector(`.sb-nav-item[onclick*="'${id}'"]`)?.classList.add('active');
             history.replaceState(null, '', '#' + id);
             if (window.innerWidth < 992) closeSidebar();
+            
+            // Toggle Hero section visibility
+            const hero = document.getElementById('dashHero');
+            if (hero) {
+                if (id === 'shop' || id === 'orders') {
+                    hero.style.display = 'none';
+                } else {
+                    hero.style.display = 'block';
+                }
+            }
+
             // Sync settings fields when opening settings
             if (id === 'settings') syncSettingsFields();
             // Lazy-load shop tabs
@@ -4703,31 +4929,34 @@ $workoutPrograms = [
                 <div class="cart-row">
                     ${ item.image ? `<img src="${item.image}" class="cart-thumb" alt="">` : `<div class="cart-thumb-ph"><i class="ti ti-package"></i></div>` }
                     <div style="flex:1;min-width:0">
-                        <div style="font-size:.9rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${shEsc(item.name)}</div>
-                        <div style="font-size:.78rem;color:var(--text-muted)">&#8369;${parseFloat(item.price).toLocaleString('en-PH',{minimumFractionDigits:2})} each</div>
-                    </div>
-                    <div class="qty-ctrl">
-                        <button class="qty-btn" onclick="cartQty(${item.id},${parseInt(item.quantity)-1})"><i class="ti ti-minus"></i></button>
-                        <span class="qty-val">${item.quantity}</span>
-                        <button class="qty-btn" onclick="cartQty(${item.id},${parseInt(item.quantity)+1})"><i class="ti ti-plus"></i></button>
-                    </div>
-                    <div style="min-width:80px;text-align:right">
-                        <div style="font-size:.92rem;font-weight:800;color:var(--fs-red)">&#8369;${(parseFloat(item.price)*parseInt(item.quantity)).toLocaleString('en-PH',{minimumFractionDigits:2})}</div>
-                        <button style="background:none;border:none;color:rgba(255,80,80,.6);font-size:.75rem;cursor:pointer" onclick="cartRemove(${item.id})">
-                            <i class="ti ti-trash"></i> Remove
-                        </button>
+                        <div style="font-size:.88rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:.25rem">${shEsc(item.name)}</div>
+                        <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:.4rem">&#8369;${parseFloat(item.price).toLocaleString('en-PH',{minimumFractionDigits:2})} each</div>
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap">
+                            <div class="qty-ctrl">
+                                <button class="qty-btn" onclick="cartQty(${item.id},${parseInt(item.quantity)-1})"><i class="ti ti-minus"></i></button>
+                                <span class="qty-val">${item.quantity}</span>
+                                <button class="qty-btn" onclick="cartQty(${item.id},${parseInt(item.quantity)+1})"><i class="ti ti-plus"></i></button>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:.65rem">
+                                <div style="font-size:.92rem;font-weight:800;color:var(--fs-red)">&#8369;${(parseFloat(item.price)*parseInt(item.quantity)).toLocaleString('en-PH',{minimumFractionDigits:2})}</div>
+                                <button style="background:none;border:none;color:rgba(255,80,80,.6);font-size:.78rem;cursor:pointer;padding:.2rem .3rem;border-radius:6px;transition:background .15s" onmouseover="this.style.background='rgba(255,80,80,.1)'" onmouseout="this.style.background='none'" onclick="cartRemove(${item.id})">
+                                    <i class="ti ti-trash"></i>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>`).join('')}
-                <div style="padding:1.25rem 1rem;border-top:1px solid var(--card-border);display:flex;align-items:center;justify-content:space-between;background:var(--input-bg)">
+                <div style="padding:1.25rem 1rem;border-top:1px solid var(--card-border);display:flex;align-items:center;justify-content:space-between;gap:1rem;background:var(--input-bg)">
                     <div>
                         <div style="font-size:.8rem;color:var(--text-muted)">Subtotal</div>
                         <div style="font-size:1.4rem;font-weight:900;color:var(--fs-red)">&#8369;${parseFloat(total).toLocaleString('en-PH',{minimumFractionDigits:2})}</div>
                     </div>
-                    <button class="btn-fs" style="border-radius:12px;padding:.6rem 1.5rem;font-size:.9rem;background:linear-gradient(135deg,#cc1a1a,#ff4040)" onclick="window.location.href='checkout.php'">
+                    <button class="btn-fs" style="border-radius:12px;padding:.6rem 1.5rem;font-size:.9rem;background:linear-gradient(135deg,#cc1a1a,#ff4040);flex-shrink:0" onclick="window.location.href='checkout.php'">
                         <i class="ti ti-credit-card"></i> Checkout
                     </button>
                 </div>
             </div>`;
+
         }
         async function cartQty(id, qty) {
             const f = new FormData(); f.append('action','update_cart'); f.append('csrf_token',SHOP_CSRF); f.append('cart_id',id); f.append('quantity',qty);
@@ -4758,7 +4987,7 @@ $workoutPrograms = [
                 const statusIcons = {
                     pending:'ti-clock',processing:'ti-loader-2',out_for_delivery:'ti-truck',
                     delivered:'ti-circle-check',ready_for_pickup:'ti-building-store',
-                    picked_up:'ti-checks',cancelled:'ti-ban',completed:'ti-circle-check-filled'
+                    picked_up:'ti-checks',cancelled:'ti-ban',completed:'ti-circle-check'
                 };
                 const payColors = {pending:'#ffc107',paid:'#2ecc71',rejected:'#ff6b6b'};
                 el.innerHTML = `<div style="display:flex;flex-direction:column;gap:.75rem">` + data.orders.map(o => {

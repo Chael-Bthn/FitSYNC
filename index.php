@@ -1327,6 +1327,77 @@ try {
                 display: none;
             }
         }
+
+        /* ── SHOP PRODUCT CARDS (mobile) ── */
+        @media (max-width: 575.98px) {
+            #shop .col-6 {
+                padding-left: .35rem;
+                padding-right: .35rem;
+            }
+
+            #shop .row.g-3 {
+                --bs-gutter-x: .6rem;
+                --bs-gutter-y: .6rem;
+            }
+
+            #shop .card {
+                border-radius: 14px !important;
+            }
+
+            #shop .card .card-body {
+                padding: .65rem !important;
+            }
+
+            #shop .card h6 {
+                font-size: .78rem !important;
+                margin-bottom: .25rem !important;
+            }
+
+            #shop .card p {
+                font-size: .68rem !important;
+                -webkit-line-clamp: 2 !important;
+            }
+
+            #shop .card .btn {
+                font-size: .72rem !important;
+                padding: .35rem .4rem !important;
+            }
+
+            #shop .card [style*="1.05rem"] {
+                font-size: .9rem !important;
+            }
+
+            #shop .card [style*=".62rem"],
+            #shop .card [style*=".65rem"] {
+                font-size: .6rem !important;
+            }
+        }
+
+        /* ── CONTACT/FEEDBACK MODALS (mobile) ── */
+        @media (max-width: 575.98px) {
+            .modal-dialog {
+                margin: .5rem;
+            }
+
+            .modal-content {
+                border-radius: 20px !important;
+            }
+
+            .modal-body {
+                padding: 1rem 1.1rem !important;
+            }
+
+            .modal-footer {
+                padding: .75rem 1.1rem !important;
+                gap: .4rem;
+            }
+
+            .modal-footer .btn {
+                flex: 1;
+                text-align: center;
+                justify-content: center;
+            }
+        }
     </style>
 </head>
 
@@ -1733,10 +1804,7 @@ try {
                 <span class="fab-label">Send Feedback</span>
                 <button class="fab-sm" style="background:#555" data-bs-toggle="modal" data-bs-target="#feedbackModal" aria-label="Send feedback"><i class="ti ti-message-circle-2"></i></button>
             </div>
-            <div class="fab-item">
-                <span class="fab-label">Live Chat</span>
-                <button class="fab-sm" style="background:#1a6fcc" onclick="alert('Chat widget')"><i class="ti ti-message-dots"></i></button>
-            </div>
+           
             <div class="fab-item">
                 <span class="fab-label">Contact Us</span>
                 <button class="fab-sm" style="background:var(--fs-red)" data-bs-toggle="modal" data-bs-target="#contactModal" aria-label="Contact us"><i class="ti ti-phone"></i></button>

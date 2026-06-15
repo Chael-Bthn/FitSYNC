@@ -335,6 +335,7 @@ $adminData = [
     'activeMembers' => $activeMembers,
     'inactiveMembers' => $inactiveMembers,
     'dashboard' => $dashboard,
+    'shopStats' => $shopStats,
     'months' => $months,
     'signupData' => $signupData,
     'revenueData' => $revenueData,
@@ -1984,9 +1985,9 @@ $adminData = [
                 grid-template-columns: 1fr 1fr;
             }
 
-            /* Filter form: two columns on small screens */
+            /* Filter form: single column on very small screens */
             #page-reports .report-filters-body {
-                grid-template-columns: 1fr 1fr !important;
+                grid-template-columns: 1fr !important;
             }
 
             /* Export button rows */
@@ -2007,6 +2008,240 @@ $adminData = [
             #page-reports .tbl-wrap table,
             #page-reports .card > table {
                 min-width: 420px;
+            }
+
+            /* Report section header stacks on mobile */
+            #page-reports .sec-head {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: .4rem;
+            }
+
+            /* Report filter buttons stretch full width */
+            #page-reports .card-body [style*="display:flex"][style*="flex-wrap:wrap"] {
+                flex-direction: column;
+            }
+
+            #page-reports .card-body [style*="display:flex"][style*="flex-wrap:wrap"] .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        /* ── INVENTORY – mobile search/filter ── */
+        .inv-card-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: .6rem;
+        }
+
+        .inv-filters {
+            display: flex;
+            gap: .5rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 600px) {
+            #page-inventory .sec-head {
+                flex-wrap: wrap;
+                gap: .5rem;
+            }
+
+            #page-inventory .sec-head .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .inv-card-head {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .inv-filters {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .inv-filters input,
+            .inv-filters select {
+                width: 100% !important;
+                box-sizing: border-box;
+            }
+
+            /* Hide less-critical columns on mobile */
+            #page-inventory table th:nth-child(2),
+            #page-inventory table td:nth-child(2),
+            #page-inventory table th:nth-child(4),
+            #page-inventory table td:nth-child(4) {
+                display: none;
+            }
+        }
+
+        @media (max-width: 400px) {
+            /* Also hide Status on very tiny screens */
+            #page-inventory table th:nth-child(5),
+            #page-inventory table td:nth-child(5) {
+                display: none;
+            }
+        }
+
+        /* ── ADMIN NOTIFICATION PANEL ── */
+        .admin-notif-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 360px;
+            max-width: 100vw;
+            background: var(--surface);
+            border-left: 1px solid var(--border);
+            z-index: 500;
+            display: flex;
+            flex-direction: column;
+            transform: translateX(105%);
+            transition: transform .3s cubic-bezier(.25,.46,.45,.94);
+            box-shadow: -12px 0 50px rgba(0,0,0,.35);
+        }
+
+        .admin-notif-panel.open {
+            transform: translateX(0);
+        }
+
+        .admin-notif-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,.45);
+            z-index: 499;
+        }
+
+        .admin-notif-overlay.active {
+            display: block;
+        }
+
+        .admin-notif-head {
+            padding: 1.1rem 1.25rem .9rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .admin-notif-title {
+            font-size: .95rem;
+            font-weight: 800;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+        }
+
+        .admin-notif-title i {
+            color: var(--red);
+        }
+
+        .admin-notif-close {
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--input-bg);
+            color: var(--text-2);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .85rem;
+            transition: all .15s;
+        }
+
+        .admin-notif-close:hover {
+            color: var(--text);
+            border-color: rgba(255,255,255,.2);
+        }
+
+        .admin-notif-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: .65rem;
+        }
+
+        .admin-notif-list::-webkit-scrollbar { width: 3px; }
+        .admin-notif-list::-webkit-scrollbar-track { background: transparent; }
+        .admin-notif-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        .admin-notif-item {
+            display: flex;
+            align-items: flex-start;
+            gap: .8rem;
+            padding: .9rem 1rem;
+            border-radius: 12px;
+            margin-bottom: .4rem;
+            cursor: pointer;
+            transition: background .15s;
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+        }
+
+        .admin-notif-item:hover {
+            background: var(--surface);
+            border-color: rgba(204,26,26,.2);
+        }
+
+        .admin-notif-item-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+
+        .admin-notif-item-icon.warn { background: rgba(255,193,7,.12); color: #ffc107; }
+        .admin-notif-item-icon.danger { background: rgba(220,53,69,.12); color: #e05656; }
+        .admin-notif-item-icon.info { background: rgba(74,158,218,.12); color: #4a9eda; }
+        .admin-notif-item-icon.success { background: rgba(46,204,113,.12); color: #2ecc71; }
+
+        .admin-notif-item-body {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .admin-notif-item-title {
+            font-size: .84rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: .15rem;
+        }
+
+        .admin-notif-item-sub {
+            font-size: .74rem;
+            color: var(--text-2);
+            line-height: 1.5;
+        }
+
+        .admin-notif-empty {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--text-3);
+        }
+
+        .admin-notif-empty i {
+            font-size: 2.5rem;
+            display: block;
+            margin-bottom: .75rem;
+        }
+
+        @media (max-width: 575px) {
+            .admin-notif-panel {
+                width: 100vw;
+                border-left: none;
             }
         }
     </style>
@@ -2085,12 +2320,23 @@ $adminData = [
             <i class="ti ti-search si"></i>
             <input type="text" placeholder="Search members…" id="search-input" oninput="filterMembers()" />
         </div>
-        <button class="notif-btn" onclick="toast('info',`${ADMIN_DATA.dashboard.pending_payments} pending payments awaiting approval`)">
+        <button class="notif-btn" id="adminNotifBell" onclick="toggleAdminNotifPanel()" title="Notifications" aria-label="Notifications">
             <i class="ti ti-bell"></i>
-            <div class="notif-dot"></div>
+            <div class="notif-dot" id="adminNotifDot"></div>
         </button>
         <div class="avatar">A</div>
     </div>
+
+    <!-- ══ ADMIN NOTIFICATION PANEL ════════════════ -->
+    <div class="admin-notif-overlay" id="adminNotifOverlay" onclick="closeAdminNotifPanel()"></div>
+    <aside class="admin-notif-panel" id="adminNotifPanel" aria-label="Admin Notifications">
+        <div class="admin-notif-head">
+            <div class="admin-notif-title"><i class="ti ti-bell"></i> Notifications</div>
+            <button class="admin-notif-close" onclick="closeAdminNotifPanel()"><i class="ti ti-x"></i></button>
+        </div>
+        <div class="admin-notif-list" id="adminNotifList"></div>
+    </aside>
+
 
     <!-- ══ MAIN ══════════════════════════════════ -->
     <main class="main">
@@ -2877,11 +3123,11 @@ $adminData = [
             </div>
 
             <div class="card">
-                <div class="card-head">
+                <div class="card-head inv-card-head">
                     <div class="card-title">Products</div>
-                    <div style="display:flex;gap:.5rem;align-items:center">
-                        <input type="text" id="invSearch" placeholder="Search…" oninput="filterInventory()"
-                            style="padding:.35rem .75rem;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.8rem;width:180px;outline:none">
+                    <div class="inv-filters">
+                        <input type="text" id="invSearch" placeholder="Search products…" oninput="filterInventory()"
+                            style="padding:.35rem .75rem;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.8rem;width:180px;outline:none;min-width:0">
                         <select id="invCatFilter" onchange="filterInventory()"
                             style="padding:.35rem .75rem;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.8rem;outline:none">
                             <option value="">All Categories</option>
@@ -2932,7 +3178,7 @@ $adminData = [
                     </div>
                 </div>
                 <div class="so-stat-card">
-                    <div class="so-stat-icon" style="background:rgba(46,204,113,.12);color:#2ecc71"><i class="ti ti-rosette-discount-check"></i></div>
+                    <div class="so-stat-icon" style="background:rgba(46,204,113,.12);color:#2ecc71"><i class="ti ti-circle-check"></i></div>
                     <div>
                         <div class="so-stat-val" style="color:#2ecc71"><?= number_format(adminScalar($pdo, 'SELECT COUNT(*) FROM orders WHERE status="completed"')) ?></div>
                         <div class="so-stat-lbl">Completed</div>
@@ -3149,6 +3395,23 @@ $adminData = [
         .so-action-btn.approve:hover { background:rgba(46,204,113,.1); }
         .so-action-btn.reject { border-color:rgba(255,107,107,.5);color:#ff6b6b; }
         .so-action-btn.reject:hover { background:rgba(255,107,107,.1); }
+        
+        @media(max-width:991px) {
+            .so-table thead { display: none; }
+            .so-table tbody td { 
+                display: flex; justify-content: space-between; align-items: center; 
+                text-align: right !important; padding: .65rem 1rem; border-bottom: 1px dashed var(--border);
+            }
+            .so-table tbody td::before { 
+                content: attr(data-label); font-weight: 600; color: var(--text-3); 
+                font-size: .75rem; text-transform: uppercase; margin-right: 1rem;
+            }
+            .so-table tbody td > div, .so-table tbody td > span { text-align: right; }
+            .so-table tbody td[data-label="Customer"] > div { text-align: right; }
+            .so-table tbody tr { display: block; border-bottom: 3px solid var(--border); padding: .5rem 0; }
+            .so-table tbody tr:last-child { border-bottom: none; }
+            .so-table tbody td[data-label="Actions"] > div { justify-content: flex-end; width: 100%; }
+        }
         </style>
 
     </main><!-- /main -->
@@ -4267,7 +4530,7 @@ $adminData = [
             const statusIcons = {
                 pending:'ti-clock', processing:'ti-loader-2', out_for_delivery:'ti-truck',
                 delivered:'ti-circle-check', ready_for_pickup:'ti-building-store',
-                picked_up:'ti-checks', cancelled:'ti-ban', completed:'ti-circle-check-filled'
+                picked_up:'ti-checks', cancelled:'ti-ban', completed:'ti-circle-check'
             };
             const payBadgeCls = {pending:'so-pay-pending', paid:'so-pay-paid', rejected:'so-pay-rejected'};
             tbody.innerHTML = orders.map(o => {
@@ -4283,12 +4546,12 @@ $adminData = [
                 const isComplete = o.status === 'completed';
                 const isCancelled= o.status === 'cancelled';
                 return `<tr>
-                    <td style="font-weight:700;color:var(--text-2);font-size:.8rem">#${o.id}</td>
-                    <td>
+                    <td data-label="#" style="font-weight:700;color:var(--text-2);font-size:.8rem">#${o.id}</td>
+                    <td data-label="Customer">
                         <div style="font-weight:700;font-size:.85rem">${adEsc(o.customer_name)}</div>
                         <div style="font-size:.72rem;color:var(--text-3);margin-top:.1rem">${adEsc(o.customer_email)}</div>
                     </td>
-                    <td style="text-align:center">
+                    <td data-label="Fulfillment" style="text-align:center">
                         <div style="display:inline-flex;flex-direction:column;align-items:center">
                             <span style="display:inline-flex;align-items:center;gap:.3rem;font-size:.72rem;font-weight:600;padding:.22rem .6rem;border-radius:20px;background:rgba(255,255,255,.05);border:1px solid var(--border);color:${fColor}">
                                 <i class="ti ${fIcon}"></i>${fLabel}
@@ -4296,23 +4559,23 @@ $adminData = [
                             ${courierLine}
                         </div>
                     </td>
-                    <td style="text-align:right;font-weight:800;font-size:.88rem">&#8369;${parseFloat(o.total_amount).toLocaleString('en-PH',{minimumFractionDigits:2})}</td>
-                    <td style="text-align:center">
+                    <td data-label="Total" style="text-align:right;font-weight:800;font-size:.88rem">&#8369;${parseFloat(o.total_amount).toLocaleString('en-PH',{minimumFractionDigits:2})}</td>
+                    <td data-label="Order Status" style="text-align:center">
                         <span class="ord-s ord-${o.status}">
                             <i class="ti ${statusIcons[o.status]||'ti-circle'}"></i>
                             ${o.status.replace(/_/g,' ')}
                         </span>
                     </td>
-                    <td style="text-align:center">
+                    <td data-label="Payment" style="text-align:center">
+                        <div style="font-weight:700;font-size:.8rem;text-transform:capitalize;margin-bottom:.3rem;color:var(--text-2)">${o.payment_method.replace(/_/g,' ')}</div>
                         <span class="so-pay-badge ${payBadgeCls[o.payment_status]||''}"
-                            style="${!payBadgeCls[o.payment_status]?'background:rgba(255,255,255,.07);color:var(--text-2)':''}">
-                            ${o.payment_method.replace(/_/g,' ')}<br>
-                            <span style="opacity:.75">${o.payment_status}</span>
+                            style="display:inline-block;${!payBadgeCls[o.payment_status]?'background:rgba(255,255,255,.07);color:var(--text-2)':''}">
+                            ${o.payment_status}
                         </span>
                     </td>
-                    <td style="text-align:center">${proofHtml}</td>
-                    <td style="text-align:center;color:var(--text-3);font-size:.78rem;white-space:nowrap">${d}</td>
-                    <td style="text-align:right">
+                    <td data-label="Proof" style="text-align:center">${proofHtml}</td>
+                    <td data-label="Date" style="text-align:center;color:var(--text-3);font-size:.78rem;white-space:nowrap">${d}</td>
+                    <td data-label="Actions" style="text-align:right">
                         <div style="display:flex;justify-content:flex-end;align-items:center;gap:.35rem;flex-wrap:nowrap">
                             <button class="so-action-btn" title="View Details" onclick="viewOrderDetail(${o.id})">
                                 <i class="ti ti-eye"></i>
@@ -4392,11 +4655,19 @@ $adminData = [
                     ${courierBadge}
                 </div>`;
             }
+            const statusIcons = {
+                pending:'ti-clock', processing:'ti-loader-2', out_for_delivery:'ti-truck',
+                delivered:'ti-circle-check', ready_for_pickup:'ti-building-store',
+                picked_up:'ti-checks', cancelled:'ti-ban', completed:'ti-circle-check'
+            };
             const payColors = {pending:'#ffc107',paid:'#2ecc71',rejected:'#ff6b6b'};
             document.getElementById('order-detail-body').innerHTML = `
                 <div style="padding:.85rem 1.1rem">
                     <div style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-bottom:.75rem">
-                        <span class="ord-s ord-${o?.status}">${(o?.status||'').replace(/_/g,' ')}</span>
+                        <span class="ord-s ord-${o?.status}">
+                            <i class="ti ${statusIcons[o?.status]||'ti-circle'}"></i>
+                            ${(o?.status||'').replace(/_/g,' ')}
+                        </span>
                         <span style="font-size:.7rem;font-weight:700;padding:.2rem .55rem;border-radius:7px;background:rgba(0,0,0,.15);color:${payColors[o?.payment_status]||'#aaa'}">
                             ${o?.payment_method?.replace(/_/g,' ')} · ${o?.payment_status}
                         </span>
@@ -5151,8 +5422,145 @@ $adminData = [
                 history.replaceState({}, '', u.toString());
             } catch(e) {}
         }
+
+        /* ════════════════════════════════════════════
+           ADMIN NOTIFICATION PANEL
+        ════════════════════════════════════════════ */
+        function buildAdminNotifs() {
+            const d   = ADMIN_DATA.dashboard || {};
+            const ss  = ADMIN_DATA.shopStats  || {};
+            const items = [];
+
+            // Pending account approvals
+            const pendingApprovals = d.pending_approvals || 0;
+            if (pendingApprovals > 0) {
+                items.push({
+                    icon: 'ti-user-plus', type: 'warn',
+                    title: `${pendingApprovals} Pending Account${pendingApprovals > 1 ? 's' : ''}`,
+                    sub: 'New member registration(s) awaiting your approval.',
+                    page: 'members'
+                });
+            }
+
+            // Pending payments
+            const pendingPayments = d.pending_payments || 0;
+            if (pendingPayments > 0) {
+                items.push({
+                    icon: 'ti-clock-dollar', type: 'warn',
+                    title: `${pendingPayments} Pending Payment${pendingPayments > 1 ? 's' : ''}`,
+                    sub: 'Membership renewal payments waiting for verification.',
+                    page: 'members'
+                });
+            }
+
+            // Out-of-stock products
+            const outOfStock = ss.out_of_stock || 0;
+            if (outOfStock > 0) {
+                items.push({
+                    icon: 'ti-alert-circle', type: 'danger',
+                    title: `${outOfStock} Product${outOfStock > 1 ? 's' : ''} Out of Stock`,
+                    sub: 'Restock required — these items cannot be purchased.',
+                    page: 'inventory'
+                });
+            }
+
+            // Low-stock products
+            const lowStock = ss.low_stock || 0;
+            if (lowStock > 0) {
+                items.push({
+                    icon: 'ti-package', type: 'warn',
+                    title: `${lowStock} Product${lowStock > 1 ? 's' : ''} Low on Stock`,
+                    sub: 'Running low — consider restocking soon.',
+                    page: 'inventory'
+                });
+            }
+
+            // Pending shop orders
+            const pendingOrders = ss.pending_orders || 0;
+            if (pendingOrders > 0) {
+                items.push({
+                    icon: 'ti-shopping-bag', type: 'info',
+                    title: `${pendingOrders} Shop Order${pendingOrders > 1 ? 's' : ''} Pending`,
+                    sub: 'New shop orders need to be processed.',
+                    page: 'shop-orders'
+                });
+            }
+
+            const list = document.getElementById('adminNotifList');
+            if (!list) return;
+
+            if (!items.length) {
+                list.innerHTML = `<div class="admin-notif-empty">
+                    <i class="ti ti-checks"></i>
+                    <div style="font-size:.88rem;font-weight:600;margin-bottom:.35rem">All clear!</div>
+                    <div style="font-size:.78rem">No pending actions right now.</div>
+                </div>`;
+                const dot = document.getElementById('adminNotifDot');
+                if (dot) dot.style.display = 'none';
+            } else {
+                list.innerHTML = items.map(item => `
+                    <div class="admin-notif-item" data-page="${item.page}" role="button" tabindex="0">
+                        <div class="admin-notif-item-icon ${item.type}">
+                            <i class="ti ${item.icon}"></i>
+                        </div>
+                        <div class="admin-notif-item-body">
+                            <div class="admin-notif-item-title">${item.title}</div>
+                            <div class="admin-notif-item-sub">${item.sub}</div>
+                        </div>
+                        <i class="ti ti-chevron-right" style="font-size:.8rem;color:var(--text-3);flex-shrink:0;align-self:center"></i>
+                    </div>`).join('');
+
+                // Attach click handlers after rendering
+                list.querySelectorAll('.admin-notif-item[data-page]').forEach(el => {
+                    el.addEventListener('click', function() {
+                        const page = this.dataset.page;
+                        closeAdminNotifPanel();
+                        showPage(page, null);
+                    });
+                    el.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter' || e.key === ' ') this.click();
+                    });
+                });
+            }
+        }
+
+        function toggleAdminNotifPanel() {
+            const panel   = document.getElementById('adminNotifPanel');
+            const overlay = document.getElementById('adminNotifOverlay');
+            if (!panel) return;
+            if (panel.classList.contains('open')) {
+                closeAdminNotifPanel();
+            } else {
+                buildAdminNotifs();
+                panel.classList.add('open');
+                overlay.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        function closeAdminNotifPanel() {
+            const panel   = document.getElementById('adminNotifPanel');
+            const overlay = document.getElementById('adminNotifOverlay');
+            if (!panel) return;
+            panel.classList.remove('open');
+            overlay.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        // Initialise dot badge on page load
+        (function initAdminNotifDot() {
+            const d  = ADMIN_DATA.dashboard || {};
+            const ss = ADMIN_DATA.shopStats  || {};
+            const total = (d.pending_approvals || 0)
+                        + (d.pending_payments  || 0)
+                        + (ss.out_of_stock     || 0)
+                        + (ss.low_stock        || 0)
+                        + (ss.pending_orders   || 0);
+            const dot = document.getElementById('adminNotifDot');
+            if (dot) dot.style.display = total > 0 ? 'block' : 'none';
+        })();
     </script>
 
 </body>
 
-</html>
+</html>
