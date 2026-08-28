@@ -3309,7 +3309,13 @@ $workoutPrograms = [
             <button class="sb-nav-item" <?= $isPending ? 'disabled' : '' ?> onclick="showTab('orders', this)">
                 <i class="ti ti-package"></i> Orders
             </button>
+            <div class="sb-nav-label" style="margin-top:1rem">Fitness</div>
+            <a href="gymbuddy.php" class="sb-nav-item" style="text-decoration:none;display:flex;align-items:center;gap:.6rem;padding:.6rem .85rem;border-radius:10px;color:var(--text-primary);font-size:.875rem;font-weight:500;transition:background .15s;border:none;cursor:pointer;background:linear-gradient(135deg,rgba(34,212,126,.15),rgba(34,212,126,.05));border:1px solid rgba(34,212,126,.2)">
+                <i class="ti ti-dumbbell" style="color:#22d47e"></i>
+                <span>Gym Buddy <span style="font-size:.65rem;background:#22d47e;color:#000;padding:.1rem .4rem;border-radius:4px;font-weight:700;margin-left:.25rem">NEW</span></span>
+            </a>
         </nav>
+
 
         <div class="sb-footer">
             <div class="sb-theme-row">
